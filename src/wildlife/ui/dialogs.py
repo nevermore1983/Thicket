@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from wildlife.context import AppContext
+from wildlife.domain.dates import DateQuery, parse_date_query
 from wildlife.domain.filters import SightingFilter
 from wildlife.ui.components.visuals import plural, swatch
 from wildlife.ui.theme.icons import pixmap
@@ -162,9 +163,10 @@ class FirstRunDialog(QDialog):
 
 
 class SearchPopup(QFrame):
-    """Suggestions under the global search box: species, places, and 'all matching'."""
+    """Suggestions under the global search box: a date, species, places, and 'all matching'."""
 
     chosen = Signal(object)  # SightingFilter
+    date_chosen = Signal(object)  # DateQuery: open it in the calendar
 
     def __init__(self, ctx: AppContext, theme: ThemeManager, edit: QLineEdit) -> None:
         super().__init__(
@@ -186,7 +188,7 @@ class SearchPopup(QFrame):
         edit.textEdited.connect(lambda _: self._timer.start())
         edit.installEventFilter(self)
 
-    def _add(self, text: str, flt: SightingFilter, icon=None, hint: str = "") -> None:
+    def _add(self, text: str, flt: SightingFilter | DateQuery, icon=None, hint: str = "") -> None:
         item = QListWidgetItem(f"{text}{'   ' + hint if hint else ''}")
         if icon is not None:
             item.setIcon(icon)
@@ -200,6 +202,11 @@ class SearchPopup(QFrame):
             self.hide()
             return
         t = self.theme.tokens
+        when = parse_date_query(text, self.ctx.sightings._today())
+        if when is not None:
+            self._add(
+                f"Open {when.label} in the calendar", when, pixmap("calendar", t.text_2, 16), "date"
+            )
         for m in [m for m in self.ctx.catalogue.search(text, 6) if m.uses][:4]:
             self._add(
                 m.taxon.display_name,
@@ -220,7 +227,8 @@ class SearchPopup(QFrame):
             pixmap("search", t.text_2, 16),
             "Enter",
         )
-        self.list.setCurrentRow(self.list.count() - 1)
+        # Enter picks the date if the text is one, else "all matching"
+        self.list.setCurrentRow(0 if when is not None else self.list.count() - 1)
         rows = self.list.count()
         self.list.setFixedHeight(sum(self.list.sizeHintForRow(i) for i in range(rows)) + 8)
         self.setFixedWidth(self.edit.width())
@@ -234,7 +242,8 @@ class SearchPopup(QFrame):
         if item is None:
             return
         self.hide()
-        self.chosen.emit(item.data(Qt.ItemDataRole.UserRole))
+        choice = item.data(Qt.ItemDataRole.UserRole)
+        (self.date_chosen if isinstance(choice, DateQuery) else self.chosen).emit(choice)
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         if event.type() == QEvent.Type.KeyPress:
@@ -254,5 +263,10 @@ class SearchPopup(QFrame):
                 self.hide()
                 return True
         if event.type() == QEvent.Type.FocusOut:
-            QTimer.singleShot(150, lambda: None if self.list.underMouse() else self.hide())
+            # `self` as the timer's context: Qt cancels it if the popup is destroyed first
+            QTimer.singleShot(150, self, self._hide_unless_hovered)
         return super().eventFilter(obj, event)
+
+    def _hide_unless_hovered(self) -> None:
+        if not self.list.underMouse():
+            self.hide()

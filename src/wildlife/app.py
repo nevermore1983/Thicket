@@ -86,7 +86,12 @@ def _smoke_checks() -> None:
 
     path, info = bundled_catalogue()
     first = read_records(path)[0]
-    log.info("Smoke test: catalogue %s, %s taxa, first %s", info["version"], f"{info['taxa']:,}", first["k"])
+    log.info(
+        "Smoke test: catalogue %s, %s taxa, first %s",
+        info["version"],
+        f"{info['taxa']:,}",
+        first["k"],
+    )
     log.info("Smoke test OK")
 
 
@@ -99,6 +104,7 @@ def _after_start(ctx: AppContext, theme, window) -> None:
     removed = ctx.sightings.purge_recycle_bin()
     if removed:
         log.info("Emptied %d old sightings from the recycle bin", removed)
+    ctx.outings.purge_deleted()
     if ctx.backup.is_due():
         window.backup_now("auto")
 

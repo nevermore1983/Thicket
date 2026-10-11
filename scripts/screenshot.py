@@ -50,7 +50,8 @@ def main() -> int:
     args.out.mkdir(parents=True, exist_ok=True)
 
     def show(target: str) -> None:
-        """'dashboard' etc. = a page; 'add' / 'detail' / 'edit' = the side panel over Sightings."""
+        """'dashboard' etc. = a page; 'add' / 'detail' / 'edit' = the side panel over Sightings;
+        'calendar-month' etc. = a calendar view; 'day-panel', 'outing', 'outing-edit', 'outings'."""
         window.panel.close_panel()
         if target in ("add", "detail", "edit"):
             window.go("sightings")
@@ -65,8 +66,33 @@ def main() -> int:
                 window.open_sighting(first)
             elif first:
                 window.edit_sighting(first)
+        elif target.startswith("calendar-"):  # calendar-year / -month / -week / -day
+            window.go("calendar")
+            window.calendar_page.selected = None
+            window.calendar_page.go_to(ctx.sightings._today(), target.split("-", 1)[1])
+        elif target == "day-panel":
+            window.go("calendar")
+            page = window.calendar_page
+            page.set_view("month")
+            busiest = max(page.month_view.days.values(), key=lambda s: s.sightings, default=None)
+            if busiest:
+                page.select(busiest.day)
+        elif target in ("outing", "outing-edit"):
+            outings = ctx.outings.page(0, 1)
+            if outings:
+                window.go("calendar")
+                window.calendar_page.go_to(outings[0].outing_date, "day")
+                if target == "outing":
+                    window.open_outing(outings[0].id)
+                else:
+                    window.edit_outing(outings[0].id)
+        elif target == "outings":
+            window.go("sightings")
+            window.sightings_page.show_tab("outings")
         else:
             window.go(target)
+            if target == "sightings":
+                window.sightings_page.show_tab("sightings")
 
     def capture() -> None:
         for theme_name in args.themes:

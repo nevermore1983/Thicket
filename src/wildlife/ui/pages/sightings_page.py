@@ -26,10 +26,11 @@ from wildlife.context import AppContext
 from wildlife.domain.counting import format_count
 from wildlife.domain.filters import SightingFilter
 from wildlife.domain.models import Sighting
-from wildlife.ui.components.common import EmptyState, button
+from wildlife.ui.components.common import EmptyState, Segmented, button
 from wildlife.ui.components.filter_bar import FilterBar
 from wildlife.ui.components.species_picker import SpeciesPicker
 from wildlife.ui.components.visuals import fmt_date, plural, swatch
+from wildlife.ui.pages.outings_list import OutingsList
 from wildlife.ui.theme.manager import ThemeManager
 from wildlife.ui.theme.tokens import FONT_SCI
 
@@ -193,6 +194,10 @@ class SightingsPage(QWidget):
         title = QLabel("Sightings")
         title.setObjectName("PageTitle")
         head.addWidget(title)
+        head.addSpacing(12)
+        self.tabs = Segmented([("sightings", "All sightings"), ("outings", "Outings")], "sightings")
+        self.tabs.changed.connect(self.show_tab)
+        head.addWidget(self.tabs)
         head.addStretch(1)
         head.addWidget(
             button(
@@ -206,9 +211,14 @@ class SightingsPage(QWidget):
         head.addWidget(button("Add sighting", "primary", "plus", theme, self.add_requested.emit))
         v.addLayout(head)
 
+        # "All sightings" tab
+        body = QWidget()
+        bv = QVBoxLayout(body)
+        bv.setContentsMargins(0, 0, 0, 0)
+        bv.setSpacing(14)
         self.filter_bar = FilterBar(ctx, theme)
         self.filter_bar.changed.connect(self._filter_changed)
-        v.addWidget(self.filter_bar)
+        bv.addWidget(self.filter_bar)
 
         self.bulk = QFrame()
         self.bulk.setObjectName("BulkBar")
@@ -227,7 +237,7 @@ class SightingsPage(QWidget):
             b.setProperty("variant", "bulk")
             bh.addWidget(b)
         self.bulk.hide()
-        v.addWidget(self.bulk)
+        bv.addWidget(self.bulk)
 
         self.model = SightingTableModel(ctx)
         self.table = QTableView()
@@ -281,11 +291,24 @@ class SightingsPage(QWidget):
         self.stack = QStackedWidget()
         for w in (self.table, self._top(self.empty_all), self._top(self.empty_filtered)):
             self.stack.addWidget(w)
-        v.addWidget(self.stack, 1)
+        bv.addWidget(self.stack, 1)
         self.footer = QLabel()
         self.footer.setProperty("role", "muted")
-        v.addWidget(self.footer)
+        bv.addWidget(self.footer)
+
+        # "Outings" tab
+        self.outings = OutingsList(ctx, theme)
+        self.tab_stack = QStackedWidget()
+        self.tab_stack.addWidget(body)
+        self.tab_stack.addWidget(self.outings)
+        v.addWidget(self.tab_stack, 1)
         self.refresh()
+
+    def show_tab(self, key: str) -> None:
+        self.tabs.set_current(key)
+        self.tab_stack.setCurrentIndex(0 if key == "sightings" else 1)
+        if key == "outings":
+            self.outings.refresh()
 
     @staticmethod
     def _top(widget: QWidget) -> QWidget:
@@ -298,6 +321,7 @@ class SightingsPage(QWidget):
 
     # ---- behaviour ----------------------------------------------------------
     def set_filter(self, flt: SightingFilter) -> None:
+        self.show_tab("sightings")
         self.filter_bar.set_filter(flt)
 
     def _filter_changed(self, flt: SightingFilter) -> None:
@@ -305,6 +329,8 @@ class SightingsPage(QWidget):
         self._update_states()
 
     def refresh(self) -> None:
+        if self.tab_stack.currentIndex() == 1:
+            self.outings.refresh()
         selected = {s.id for s in self.selected()}
         self.model.reload()
         self._update_states()

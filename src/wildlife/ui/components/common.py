@@ -21,6 +21,19 @@ from wildlife.ui.theme.icons import icon, pixmap
 from wildlife.ui.theme.manager import ThemeManager
 
 
+def clear_layout(layout) -> None:
+    """Remove and delete everything in a layout.
+
+    Widgets are hidden straight away: deleteLater() only happens once the event
+    loop runs, and until then an unplaced widget would still draw (at Qt's
+    default 640 x 480 size) on top of whatever replaces it."""
+    while layout.count():
+        item = layout.takeAt(0)
+        if (w := item.widget()) is not None:
+            w.hide()
+            w.deleteLater()
+
+
 def button(
     text: str,
     variant: str = "secondary",
@@ -68,6 +81,8 @@ class Segmented(QFrame):
             btn.setCheckable(True)
             btn.setChecked(key == current)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            # never squeeze a label: the layout must find room elsewhere
+            btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
             self._group.addButton(btn)
             self._buttons[key] = btn
             layout.addWidget(btn)

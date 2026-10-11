@@ -13,14 +13,24 @@ import argparse
 import random
 import sys
 import time
+from dataclasses import replace
 from datetime import date, timedelta
 from pathlib import Path
 
 from wildlife.config.paths import DataPaths
 from wildlife.context import AppContext
+from wildlife.data.repositories import outings as outings_repo
 from wildlife.data.repositories import sightings as sightings_repo
-from wildlife.domain.codes import CountQualifier, Evidence, Identification, LocationMethod
-from wildlife.domain.models import PlaceDraft, SightingDraft
+from wildlife.domain.codes import (
+    CountQualifier,
+    Evidence,
+    Identification,
+    LocationMethod,
+    Visibility,
+    Weather,
+    Wind,
+)
+from wildlife.domain.models import OutingDraft, PlaceDraft, SightingDraft
 
 PLACES = [  # name, lat, lon, radius (m), weight for outings
     ("Garden", 51.7496, -0.3387, 30, 0),
@@ -52,6 +62,7 @@ SEASONAL = {
     "amphibian": (2, 10),
     "insect - hymenopteran": (3, 10),
 }
+MEAN_TEMP = (4, 5, 7, 10, 13, 16, 18, 18, 15, 11, 7, 5)  # rough UK daytime °C by month
 NOTES = [
     "Feeding along the edge of the reeds",
     "Pair near the old nest box",
@@ -114,13 +125,17 @@ def main() -> int:
             ]
             return rng.choices(options, weights=weights)[0]
 
-        drafts: list[SightingDraft] = []
-        while len(drafts) < args.sightings:
+        groups: list[tuple[OutingDraft | None, list[SightingDraft]]] = []
+        total = 0
+        while total < args.sightings:
+            drafts: list[SightingDraft] = []
+            trip = False
             if rng.random() < 0.35:  # a garden record
                 day = start + timedelta(days=rng.randrange((today - start).days + 1))
                 place, row = places[0], pick(garden_pool, day.month)
                 items = [row]
             else:  # an outing: several species at one place on one day
+                trip = True
                 day = start + timedelta(days=rng.randrange((today - start).days + 1))
                 if rng.random() < 0.7:
                     day += timedelta(days=(5 - day.weekday()) % 7)  # mostly weekends
@@ -128,7 +143,7 @@ def main() -> int:
                 place = rng.choices(places[1:], weights=[w for *_, w in PLACES[1:]])[0]
                 items = {pick(pool, day.month)["id"]: None for _ in range(rng.randint(5, 18))}
                 items = [r for r in pool if r["id"] in items]
-            minute = rng.randint(6 * 60, 11 * 60)
+            minute = first_minute = rng.randint(6 * 60, 11 * 60)
             for row in items:
                 minute += rng.randint(2, 25)
                 located = rng.random()
@@ -168,13 +183,35 @@ def main() -> int:
                         notes=rng.choice(NOTES) if rng.random() < 0.3 else None,
                     )
                 )
+            drafts = drafts[: args.sightings - total]
+            total += len(drafts)
+            outing = None
+            if trip and rng.random() < 0.6:  # most trips were recorded as outings
+                winter = day.month in (12, 1, 2)
+                weathers = [w for w in Weather if winter or w is not Weather.SNOW]
+                outing = OutingDraft(
+                    outing_date=day,
+                    start_time=f"{(first_minute - 10) // 60:02d}:{(first_minute - 10) % 60:02d}",
+                    end_time=f"{min(minute + 20, 23 * 60 + 59) // 60:02d}:"
+                    f"{min(minute + 20, 23 * 60 + 59) % 60:02d}",
+                    place_id=place.id,
+                    weather=rng.choice(weathers),
+                    temperature_c=round(MEAN_TEMP[day.month - 1] + rng.uniform(-4, 4) * 2) / 2,
+                    wind=rng.choices(list(Wind), weights=[3, 6, 4, 2, 1])[0],
+                    visibility=rng.choices(list(Visibility), weights=[7, 3, 1])[0],
+                    is_complete_list=rng.random() < 0.4,
+                )
+            groups.append((outing, drafts))
         with ctx.db.transaction() as conn:
-            for draft in drafts[: args.sightings]:
-                sightings_repo.insert(conn, draft)
+            for outing, drafts in groups:
+                outing_id = outings_repo.insert(conn, outing) if outing else None
+                for draft in drafts:
+                    sightings_repo.insert(conn, replace(draft, outing_id=outing_id))
         n = ctx.stats.dashboard()
         print(
             f"Demo library ready in {time.perf_counter() - started:.1f} s at {args.data_dir}: "
-            f"{n.total_sightings:,} sightings, {n.life_species} species, {len(places)} places"
+            f"{n.total_sightings:,} sightings, {n.life_species} species, {len(places)} places, "
+            f"{ctx.outings.count():,} outings"
         )
     finally:
         ctx.close()

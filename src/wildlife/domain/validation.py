@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from datetime import date
 
-from wildlife.domain.models import PlaceDraft, SightingDraft
+from wildlife.domain.models import OutingDraft, PlaceDraft, SightingDraft
 
 EARLIEST = date(1900, 1, 1)
 _TIME = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
@@ -52,4 +52,30 @@ def validate_place(draft: PlaceDraft) -> dict[str, str]:
         errors["location"] = "That position is off the map. Check latitude and longitude."
     if not 1 <= draft.radius_m <= 100_000:
         errors["radius"] = "The radius must be between 1 m and 100 km."
+    return errors
+
+
+def validate_outing(draft: OutingDraft, today: date) -> dict[str, str]:
+    errors: dict[str, str] = {}
+    if draft.outing_date is None:
+        errors["date"] = "Choose the date of the outing."
+    elif draft.outing_date > today:
+        errors["date"] = "The date can't be in the future."
+    elif draft.outing_date < EARLIEST:
+        errors["date"] = "That date is too long ago. Please check the year."
+    for key, value in (("start", draft.start_time), ("end", draft.end_time)):
+        if value is not None and not _TIME.match(value):
+            errors[key] = "Use 24-hour time like 09:30, or leave it empty."
+    if (
+        draft.start_time
+        and draft.end_time
+        and "start" not in errors
+        and "end" not in errors
+        and draft.end_time < draft.start_time
+    ):
+        errors["end"] = "The outing can't end before it starts."
+    if draft.temperature_c is not None and not -50 <= draft.temperature_c <= 60:
+        errors["temperature"] = "That temperature looks wrong (−50 to 60 °C)."
+    if draft.title and len(draft.title) > 120:
+        errors["title"] = "Keep the title under 120 characters."
     return errors

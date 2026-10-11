@@ -2,7 +2,7 @@ import time
 
 import pytest
 
-from conftest import MINI_CATALOGUE, taxon_id
+from helpers import MINI_CATALOGUE, taxon_id
 from wildlife.data.repositories import taxa as taxa_repo
 from wildlife.domain.models import SightingDraft
 

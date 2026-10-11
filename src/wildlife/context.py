@@ -15,7 +15,9 @@ from wildlife.data.db import Database
 from wildlife.data.migrate import migrate
 from wildlife.domain.errors import DatabaseError
 from wildlife.services.backup import BackupService
+from wildlife.services.calendar import CalendarService
 from wildlife.services.events import EventHub
+from wildlife.services.outings import OutingService
 from wildlife.services.photos import PhotoService
 from wildlife.services.places import PlaceService
 from wildlife.services.settings import SettingsService
@@ -36,21 +38,26 @@ class AppContext:
     catalogue: SpeciesCatalogue = field(init=False)
     sightings: SightingService = field(init=False)
     places: PlaceService = field(init=False)
+    outings: OutingService = field(init=False)
     photos: PhotoService = field(init=False)
     backup: BackupService = field(init=False)
     stats: StatsService = field(init=False)
+    calendar: CalendarService = field(init=False)
 
     def __post_init__(self) -> None:
         self.catalogue = SpeciesCatalogue(self.db, self.events)
         self.sightings = SightingService(self.db, self.events, self.settings)
         self.places = PlaceService(self.db, self.events)
+        self.outings = OutingService(self.db, self.events, self.settings)
         self.photos = PhotoService(self.paths, self.db, self.events)
         self.backup = BackupService(self.paths, self.db, self.events, self.settings)
         self.stats = StatsService(self.db, self.settings)
+        self.calendar = CalendarService(self.db, self.settings)
 
     def set_today(self, today) -> None:
         """Fix 'today' (used by tests and demos so dates are predictable)."""
         self.sightings._today = lambda: today
+        self.outings._today = lambda: today
         self.stats.today = lambda: today
 
     @classmethod

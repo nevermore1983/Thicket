@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import date
 
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence, QShortcut
@@ -20,19 +21,24 @@ from PySide6.QtWidgets import (
 )
 
 from wildlife.context import AppContext
+from wildlife.domain.dates import DateQuery
 from wildlife.domain.errors import BackupError, NotFoundError
 from wildlife.domain.filters import SightingFilter
-from wildlife.domain.models import SightingDraft
+from wildlife.domain.models import Outing, SightingDraft
 from wildlife.services.sightings import SaveResult
 from wildlife.ui.components.common import button
 from wildlife.ui.components.side_panel import SidePanel
 from wildlife.ui.components.toast import ToastHost
 from wildlife.ui.dialogs import SearchPopup
 from wildlife.ui.pages import simple
+from wildlife.ui.pages.calendar_page import CalendarPage
 from wildlife.ui.pages.dashboard_page import DashboardPage
 from wildlife.ui.pages.list_pages import PlacesPage, SpeciesPage
 from wildlife.ui.pages.settings_page import SettingsPage
 from wildlife.ui.pages.sightings_page import SightingsPage
+from wildlife.ui.panels.day_panel import DayPanel
+from wildlife.ui.panels.outing_detail import OutingDetail
+from wildlife.ui.panels.outing_editor import OutingEditor
 from wildlife.ui.panels.place_editor import PlaceEditor
 from wildlife.ui.panels.sighting_detail import SightingDetail
 from wildlife.ui.panels.sighting_editor import SightingEditor
@@ -65,7 +71,8 @@ SETTINGS = NavEntry("settings", "Settings", "settings")
 RAIL_BELOW = 900  # window width at which the sidebar shrinks to icons
 REFRESH_ON = {  # which data changes each page cares about
     "dashboard": {"sightings", "places", "photos", "backup", "settings", "taxa"},
-    "sightings": {"sightings", "places", "taxa", "settings"},
+    "sightings": {"sightings", "outings", "places", "taxa", "settings"},
+    "calendar": {"sightings", "outings", "taxa", "settings"},
     "species": {"sightings", "taxa", "settings"},
     "places": {"places", "sightings"},
     "settings": {"backup", "settings", "sightings", "taxa"},
@@ -105,6 +112,8 @@ class MainWindow(QMainWindow):
         self.events.changed.connect(self._on_data_changed)
         self.search_popup = SearchPopup(ctx, theme, self.search)
         self.search_popup.chosen.connect(self.show_sightings)
+        self.search_popup.date_chosen.connect(self.show_date)
+        self._update_outing_chip()
         start = ctx.settings.current.start_page
         self.go(start if start in self._page_index else "dashboard")
         self._restore_geometry()
@@ -171,6 +180,16 @@ class MainWindow(QMainWindow):
         self.search.addAction(self._search_action, QLineEdit.ActionPosition.LeadingPosition)
         h.addWidget(self.search, 1)
         h.addStretch()
+        self.outing_chip = QPushButton()
+        self.outing_chip.setObjectName("OutingChip")
+        self.outing_chip.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.outing_chip.setToolTip("Open the outing in progress")
+        self.outing_chip.clicked.connect(
+            lambda: self.open_outing(self._live_outing) if self._live_outing else None
+        )
+        self.outing_chip.hide()
+        self._live_outing: int | None = None
+        h.addWidget(self.outing_chip)
         self.add_button = button("Add sighting", "primary", "plus", self.theme, self.add_sighting)
         self.add_button.setToolTip("Add sighting (Ctrl+N)")
         h.addWidget(self.add_button)
@@ -187,6 +206,15 @@ class MainWindow(QMainWindow):
         self.sightings_page.open_sighting.connect(self.open_sighting)
         self.sightings_page.add_requested.connect(self.add_sighting)
         self.sightings_page.toast.connect(self._toast)
+        self.sightings_page.outings.open_outing.connect(self.open_outing)
+        self.sightings_page.outings.new_outing.connect(lambda: self.new_outing(None))
+        self.sightings_page.outings.start_outing.connect(self.start_outing)
+        self.calendar_page = CalendarPage(ctx, t)
+        self.calendar_page.open_sighting.connect(self.open_sighting)
+        self.calendar_page.add_on.connect(self.add_on_date)
+        self.calendar_page.open_day.connect(self.open_day)
+        self.calendar_page.open_outing.connect(self.open_outing)
+        self.calendar_page.new_outing.connect(self.new_outing)
         self.species_page = SpeciesPage(ctx, t)
         self.species_page.show_sightings.connect(self.show_sightings)
         self.places_page = PlacesPage(ctx, t)
@@ -196,11 +224,6 @@ class MainWindow(QMainWindow):
         self.settings_page.backup_requested.connect(self.backup_now)
         self.settings_page.toast.connect(self._toast)
         later = {
-            "calendar": (
-                "calendar",
-                "Calendar arrives in Phase 7",
-                "Your sightings will appear here by date, in year, month, week and day views.",
-            ),
             "map": (
                 "map",
                 "The map arrives in Phase 8",
@@ -220,6 +243,7 @@ class MainWindow(QMainWindow):
         pages = {
             "dashboard": self.dashboard,
             "sightings": self.sightings_page,
+            "calendar": self.calendar_page,
             "species": self.species_page,
             "places": self.places_page,
             "settings": self.settings_page,
@@ -274,12 +298,38 @@ class MainWindow(QMainWindow):
                     getattr(self.pages.widget(self._page_index[key]), "refresh", lambda: None)()
                 else:
                     self._stale.add(key)
+        if topic in ("outings", "sightings"):
+            self._update_outing_chip()
         view = self.panel.current()
-        if topic in ("sightings", "taxa") and isinstance(view, SightingDetail):
+        reload_on = {
+            SightingDetail: ("sightings", "taxa"),
+            DayPanel: ("sightings", "outings", "taxa", "settings"),
+            OutingDetail: ("sightings", "outings", "taxa", "settings"),
+        }
+        if view is not None and topic in reload_on.get(type(view), ()):
             try:
                 view.reload()
             except NotFoundError:
                 self.panel.close_panel()
+
+    def show_date(self, q: DateQuery) -> None:
+        """A date chosen in search ("May 2025"): open it in the calendar."""
+        self.search.clear()
+        self.go("calendar")
+        self.calendar_page.jump(q)
+
+    def open_day(self, day: date, flt: SightingFilter) -> None:
+        panel = DayPanel(self.ctx, self.theme, day, flt)
+        panel.open_sighting.connect(lambda sid: self.open_sighting(sid, push=True))
+        panel.add_on.connect(self.add_on_date)
+        panel.open_day_view.connect(
+            lambda d: (self.panel.close_panel(), self.calendar_page.go_to(d, "day"))
+        )
+        panel.open_outing.connect(lambda oid: self.open_outing(oid, push=True))
+        self.panel.show_view(panel)
+
+    def add_on_date(self, day: date) -> None:
+        self.add_sighting(SightingDraft(taxon_id=None, observed_date=day))
 
     # ---- sightings ------------------------------------------------------------
     def add_sighting(self, prefill: SightingDraft | None = None) -> None:
@@ -289,11 +339,11 @@ class MainWindow(QMainWindow):
         self._wire_editor(editor)
         self.panel.show_view(editor)
 
-    def open_sighting(self, sighting_id: int) -> None:
+    def open_sighting(self, sighting_id: int, push: bool = False) -> None:
         detail = SightingDetail(self.ctx, self.theme, sighting_id)
         detail.edit_requested.connect(self.edit_sighting)
         detail.delete_requested.connect(self.delete_sighting)
-        self.panel.show_view(detail)
+        self.panel.show_view(detail, push=push and self.panel.isVisible())
 
     def edit_sighting(self, sighting_id: int) -> None:
         editor = SightingEditor(self.ctx, self.theme, existing=self.ctx.sightings.get(sighting_id))
@@ -321,6 +371,7 @@ class MainWindow(QMainWindow):
                 observed_date=s.observed_date,
                 observed_time=s.observed_time,
                 place_id=s.place_id,
+                outing_id=s.outing_id,
             )
             fresh = SightingEditor(self.ctx, self.theme, prefill=prefill)
             self._wire_editor(fresh)
@@ -339,6 +390,77 @@ class MainWindow(QMainWindow):
         undo = self.ctx.sightings.delete([sighting_id])
         self.panel.close_panel()
         self._toast(f"{s.display_name} moved to the recycle bin", undo.run)
+
+    # ---- outings ------------------------------------------------------------------
+    def open_outing(self, outing_id: int, push: bool = False) -> None:
+        detail = OutingDetail(self.ctx, self.theme, outing_id)
+        detail.open_sighting.connect(lambda sid: self.open_sighting(sid, push=True))
+        detail.edit_requested.connect(self.edit_outing)
+        detail.delete_requested.connect(self.delete_outing)
+        detail.end_requested.connect(self.end_outing)
+        detail.add_requested.connect(self.add_to_outing)
+        detail.show_list.connect(lambda flt: (self.panel.close_panel(), self.show_sightings(flt)))
+        self.panel.show_view(detail, push=push and self.panel.isVisible())
+
+    def new_outing(self, day: date | None) -> None:
+        editor = OutingEditor(self.ctx, self.theme, on_date=day)
+        self._wire_outing_editor(editor)
+        self.panel.show_view(editor)
+
+    def edit_outing(self, outing_id: int) -> None:
+        editor = OutingEditor(self.ctx, self.theme, existing=self.ctx.outings.get(outing_id))
+        self._wire_outing_editor(editor)
+        self.panel.show_view(editor, push=isinstance(self.panel.current(), OutingDetail))
+
+    def _wire_outing_editor(self, editor: OutingEditor) -> None:
+        def saved(outing: Outing, undo) -> None:
+            created = editor.existing is None
+            self._toast(f"{outing.display_title} {'saved' if created else 'updated'}", undo.run)
+            if created:
+                self.panel.close_panel()
+                self.open_outing(outing.id)
+            else:
+                self._close_or_back()
+
+        editor.saved.connect(saved)
+        editor.cancelled.connect(self._close_or_back)
+
+    def start_outing(self) -> None:
+        place = self.ctx.sightings.default_place()
+        outing = self.ctx.outings.start(place_id=place)
+        self._toast(f"Outing started at {outing.start_time}. New sightings today join it.", None)
+        self.open_outing(outing.id)
+
+    def end_outing(self, outing_id: int) -> None:
+        outing = self.ctx.outings.end(outing_id)
+        self._toast(f"{outing.display_title} ended at {outing.end_time}", None)
+        self.panel.close_panel()
+
+    def add_to_outing(self, outing: Outing) -> None:
+        self.add_sighting(
+            SightingDraft(
+                taxon_id=None,
+                observed_date=outing.outing_date,
+                place_id=outing.place_id,
+                outing_id=outing.id,
+            )
+        )
+
+    def delete_outing(self, outing_id: int) -> None:
+        title = self.ctx.outings.get(outing_id).display_title
+        undo = self.ctx.outings.delete(outing_id)
+        self.panel.close_panel()
+        self._toast(f"{title} deleted · its sightings are kept", undo.run)
+
+    def _update_outing_chip(self) -> None:
+        live = self.ctx.outings.in_progress()
+        self._live_outing = live.id if live else None
+        self.outing_chip.setVisible(live is not None)
+        if live:
+            where = live.place_name or live.title or "Outing"
+            self.outing_chip.setText(
+                f"●  {where} · since {live.start_time} · {live.sightings:,} seen"
+            )
 
     # ---- places -----------------------------------------------------------------
     def edit_place(self, place_id: int | None) -> None:

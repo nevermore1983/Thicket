@@ -39,10 +39,11 @@ from wildlife.domain.codes import (
     Sex,
 )
 from wildlife.domain.counting import CountError, format_count, parse_count
-from wildlife.domain.errors import ValidationError
+from wildlife.domain.errors import NotFoundError, ValidationError
 from wildlife.domain.models import Photo, Sighting, SightingDraft
 from wildlife.services.photos import SUPPORTED, ImportSummary
 from wildlife.services.sightings import SaveResult
+from wildlife.ui.components.common import clear_layout
 from wildlife.ui.components.flow_layout import flow_box
 from wildlife.ui.components.side_panel import PanelView
 from wildlife.ui.components.species_picker import SpeciesPicker
@@ -195,6 +196,15 @@ class SightingEditor(PanelView):
         row.addWidget(self.f_date, 3, Qt.AlignmentFlag.AlignTop)
         row.addWidget(self.f_time, 2, Qt.AlignmentFlag.AlignTop)
         form.addLayout(row)
+
+        # outing: only shown when the date has outings; picks the obvious one by itself
+        self._outing_touched = draft.outing_id is not None
+        self.outing = QComboBox()
+        self.outing.activated.connect(self._outing_chosen)
+        self.f_outing = _Field("Outing", self.outing)
+        form.addWidget(self.f_outing)
+        self._fill_outings(draft.outing_id)
+        self.time.editingFinished.connect(lambda: self._fill_outings())
 
         # place
         self._place_id = draft.place_id if (existing or prefill) else ctx.sightings.default_place()
@@ -374,10 +384,7 @@ class SightingEditor(PanelView):
 
     def _build_place_chips(self) -> None:
         layout = self._place_flow
-        while layout.count():
-            w = layout.takeAt(0).widget()
-            if w:
-                w.deleteLater()
+        clear_layout(layout)
         recent = self.ctx.places.recent(3)
         if self._place_id and self._place_id not in [p.id for p in recent]:
             try:
@@ -431,6 +438,36 @@ class SightingEditor(PanelView):
 
     def _on_date_changed(self, _qdate) -> None:
         self._date_touched = True
+        self._mark_dirty()
+        self._fill_outings()
+
+    def _fill_outings(self, selected: int | None = None) -> None:
+        """List the outings on the chosen date. Until you pick one, follow the default."""
+        qd = self.date.date()
+        day = date(qd.year(), qd.month(), qd.day())
+        if selected is None and self._outing_touched:
+            selected = self.outing.currentData()
+        elif selected is None:
+            default = self.ctx.outings.default_for(day, normalise_time(self.time.text()))
+            selected = default.id if default else None
+        outings = self.ctx.outings.on_date(day)
+        self.outing.blockSignals(True)
+        self.outing.clear()
+        self.outing.addItem("No outing", None)
+        for o in outings:
+            times = f" ({o.start_time}–{o.end_time or 'now'})" if o.start_time else ""
+            self.outing.addItem(f"{o.display_title}{times}", o.id)
+        if selected is not None and self.outing.findData(selected) < 0:
+            try:  # keep an existing link to an outing on another date
+                self.outing.addItem(self.ctx.outings.get(selected).display_title, selected)
+            except NotFoundError:
+                selected = None
+        self.outing.setCurrentIndex(max(0, self.outing.findData(selected)))
+        self.outing.blockSignals(False)
+        self.f_outing.setVisible(self.outing.count() > 1)
+
+    def _outing_chosen(self, _index: int) -> None:
+        self._outing_touched = True
         self._mark_dirty()
 
     def _on_location_edited(self, _text: str) -> None:
@@ -563,10 +600,7 @@ class SightingEditor(PanelView):
             self._update_location_note()
 
     def _refresh_photo_strip(self) -> None:
-        while self._photo_strip.count():
-            w = self._photo_strip.takeAt(0).widget()
-            if w:
-                w.deleteLater()
+        clear_layout(self._photo_strip)
         for photo in self._photos:
             thumb = self.ctx.photos.thumbnail(photo, 256)
             tile = QLabel()
@@ -648,7 +682,7 @@ class SightingEditor(PanelView):
             life_stage=_maybe(LifeStage, self.life_stage.currentData()),
             habitat=_maybe(Habitat, self.habitat.currentData()),
             is_not_wild=self.not_wild.isChecked(),
-            outing_id=self.existing.outing_id if self.existing else None,
+            outing_id=self.outing.currentData(),
             notes=self.notes.toPlainText().strip() or None,
         )
         return (None if errors else draft), errors

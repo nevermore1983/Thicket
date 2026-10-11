@@ -7,8 +7,8 @@ import pytest
 from wildlife.domain import codes
 from wildlife.domain.codes import CountQualifier
 from wildlife.domain.counting import CountError, format_count, parse_count
-from wildlife.domain.models import PlaceDraft, SightingDraft
-from wildlife.domain.validation import validate_place, validate_sighting
+from wildlife.domain.models import Outing, OutingDraft, PlaceDraft, SightingDraft
+from wildlife.domain.validation import validate_outing, validate_place, validate_sighting
 
 TODAY = date(2026, 10, 11)
 
@@ -88,6 +88,9 @@ def test_codes_match_database_constraints():
         ("habitat", codes.Habitat),
         ("count_qualifier", codes.CountQualifier),
         ("location_method", codes.LocationMethod),
+        ("weather", codes.Weather),
+        ("wind", codes.Wind),
+        ("visibility", codes.Visibility),
     ]:
         allowed = set(re.findall(r"'([a-z_]+)'", re.search(rf"{column}\s+TEXT[^\n]*", sql)[0]))
         allowed |= set(
@@ -101,3 +104,56 @@ def test_labels_are_friendly():
     assert codes.Evidence.SEEN_HEARD.label == "Seen & heard"
     assert codes.Habitat.GARDEN_URBAN.label == "Garden & urban"
     assert codes.Identification.PROBABLE.label == "Probable"
+
+
+def test_outing_needs_only_a_date():
+    assert validate_outing(OutingDraft(outing_date=TODAY), TODAY) == {}
+    assert set(validate_outing(OutingDraft(outing_date=None), TODAY)) == {"date"}
+
+
+@pytest.mark.parametrize(
+    ("changes", "field"),
+    [
+        ({"outing_date": date(2026, 10, 12)}, "date"),
+        ({"start_time": "9:30"}, "start"),
+        ({"end_time": "24:00"}, "end"),
+        ({"start_time": "10:00", "end_time": "09:00"}, "end"),
+        ({"temperature_c": 75.0}, "temperature"),
+        ({"title": "x" * 121}, "title"),
+    ],
+)
+def test_outing_rules(changes, field):
+    draft = OutingDraft(**({"outing_date": TODAY} | changes))
+    assert field in validate_outing(draft, TODAY)
+
+
+def _outing(**changes):
+    base = dict(
+        id=1,
+        uuid="u",
+        outing_date=date(2026, 10, 11),
+        start_time=None,
+        end_time=None,
+        place_id=None,
+        place_name=None,
+        title=None,
+        weather=None,
+        temperature_c=None,
+        wind=None,
+        visibility=None,
+        is_complete_list=False,
+        notes=None,
+    )
+    return Outing(**(base | changes))
+
+
+def test_outing_title_and_times():
+    assert _outing().display_title == "Outing · Sun 11 Oct 2026"
+    assert _outing(place_name="Rainham").display_title == "Rainham · Sun 11 Oct 2026"
+    assert _outing(title="Dawn chorus").display_title == "Dawn chorus"
+    walk = _outing(start_time="08:00", end_time="10:30")
+    assert not walk.in_progress
+    assert walk.covers("09:15") and walk.covers(None)
+    assert not walk.covers("07:59") and not walk.covers("10:31")
+    assert _outing(start_time="08:00").in_progress
+    assert _outing(start_time="08:00").to_draft().start_time == "08:00"

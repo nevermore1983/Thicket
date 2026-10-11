@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 from collections.abc import Callable
 
 from PySide6.QtCore import Qt, Signal
@@ -105,27 +106,61 @@ class RowButton(QFrame):
         super().keyPressEvent(event)
 
 
-def sighting_row(ctx: AppContext, theme: ThemeManager, s: Sighting, on_click) -> RowButton:
-    t = theme.tokens
+def _picture(ctx: AppContext, theme: ThemeManager, s: Sighting, size: int = 44) -> QPixmap:
+    """The sighting's first photo as a rounded thumbnail, else its category swatch."""
     category = ctx.catalogue.category(s.category_id)
-    pic: QPixmap
     if s.cover_photo:
         photos = ctx.photos.for_sighting(s.id)
         thumb = ctx.photos.thumbnail(photos[0], 256) if photos else None
-        pic = rounded(QPixmap(str(thumb)), 44, 9) if thumb else swatch(category, t, 44)
-    else:
-        pic = swatch(category, t, 44)
-    count = (
-        f"  × {format_count(s.count, s.count_qualifier)}"
-        if (s.count or 0) > 1 or s.count_qualifier.value != "exact"
-        else ""
-    )
-    where = s.place_name or ("Map position" if s.has_location else "No location")
+        if thumb:
+            return rounded(QPixmap(str(thumb)), size, 9)
+    return swatch(category, theme.tokens, size)
+
+
+def _count_suffix(s: Sighting) -> str:
+    if (s.count or 0) > 1 or s.count_qualifier.value != "exact":
+        return f"  × {format_count(s.count, s.count_qualifier)}"
+    return ""
+
+
+def _where(s: Sighting) -> str:
+    return s.place_name or ("Map position" if s.has_location else "No location")
+
+
+def sighting_row(ctx: AppContext, theme: ThemeManager, s: Sighting, on_click) -> RowButton:
+    category = ctx.catalogue.category(s.category_id)
     side = relative_day(s.observed_date, ctx.sightings._today()) + (
         f"\n{s.observed_time}" if s.observed_time else ""
     )
     return RowButton(
-        pic, f"{s.display_name}{count}", f"{where} · {category.name}", side, lambda: on_click(s.id)
+        _picture(ctx, theme, s),
+        f"{s.display_name}{_count_suffix(s)}",
+        f"{_where(s)} · {category.name}",
+        side,
+        lambda: on_click(s.id),
+    )
+
+
+FIRST_BADGES = {"lifer": "★ Lifer", "year": "★ First of the year"}
+
+
+def day_row(
+    ctx: AppContext, theme: ThemeManager, s: Sighting, mark: str | None, on_click
+) -> RowButton:
+    """A sighting within a day's list: time on the right, a badge for lifers and year firsts."""
+    title = html.escape(f"{s.display_name}{_count_suffix(s)}")
+    if mark in FIRST_BADGES:
+        title += (
+            f'&nbsp;&nbsp;<span style="color:{theme.tokens.accent}; font-weight:600;">'
+            f"{FIRST_BADGES[mark]}</span>"
+        )
+    return RowButton(
+        _picture(ctx, theme, s, 40),
+        title,
+        f"{s.evidence.label} · {_where(s)}",
+        s.observed_time or "–",
+        lambda: on_click(s.id),
+        rich=True,
     )
 
 

@@ -209,6 +209,17 @@ QLabel#TileLabel {{ color: {t.text_2}; font-size: 12.5px; font-weight: 600; }}
 QLabel#TileValue {{ font-family: "{FONT_DISPLAY}", {fonts}; font-size: 30px; font-weight: 600; color: {t.text}; }}
 QLabel[role="deltaUp"] {{ color: {t.good_text}; font-size: 12.5px; }}
 QLabel[role="delta"] {{ color: {t.text_3}; font-size: 12.5px; }}
+/* ---- calendar ---- */
+QFrame#WeekCol {{ background: {t.surface}; border: 1px solid {t.border}; border-radius: {RADIUS_LG}px; }}
+QFrame#WeekCol[selected="true"] {{ border: 2px solid {t.accent}; }}
+QPushButton#WeekColHead {{ background: transparent; border: none; padding: 2px 4px; font-size: 13px;
+    font-weight: 600; color: {t.text}; text-align: left; border-radius: 6px; }}
+QPushButton#WeekColHead:hover {{ background: {t.surface_2}; }}
+QPushButton#WeekColHead[today="true"] {{ color: {t.accent}; }}
+QLabel#CalTitle {{ font-family: "{FONT_DISPLAY}", {fonts}; font-size: 20px; font-weight: 600; color: {t.text}; }}
+QPushButton#OutingChip {{ background: {t.accent_subtle}; color: {t.accent_subtle_text}; border: none;
+    border-radius: 15px; padding: 5px 12px; font-weight: 600; }}
+QPushButton#OutingChip:hover {{ background: {t.surface_3}; }}
 QFrame#RowButton {{ background: transparent; border-radius: 9px; }}
 QFrame#RowButton:hover {{ background: {t.surface_2}; }}
 QFrame#RowButton:focus {{ border: 2px solid {t.accent}; }}

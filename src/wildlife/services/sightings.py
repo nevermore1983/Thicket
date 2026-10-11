@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 
 from wildlife.data.db import Database
+from wildlife.data.repositories import outings as outings_repo
 from wildlife.data.repositories import places as places_repo
 from wildlife.data.repositories import sightings as repo
 from wildlife.data.repositories import taxa as taxa_repo
@@ -95,6 +96,8 @@ class SightingService:
                 )
             if draft.place_id is not None and places_repo.get(conn, draft.place_id) is None:
                 errors["place"] = "That place no longer exists. Please choose another."
+            if draft.outing_id is not None and outings_repo.get(conn, draft.outing_id) is None:
+                errors["outing"] = "That outing no longer exists. Please choose another."
         if errors:
             raise ValidationError(errors)
         with self._db.transaction() as conn:

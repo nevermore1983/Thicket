@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 
 from wildlife.context import AppContext
 from wildlife.domain.filters import SightingFilter
+from wildlife.ui.components.common import clear_layout
 from wildlife.ui.components.visuals import fmt_date, swatch
 from wildlife.ui.theme.icons import icon
 from wildlife.ui.theme.manager import ThemeManager
@@ -26,9 +27,16 @@ from wildlife.ui.theme.manager import ThemeManager
 class FilterBar(QWidget):
     changed = Signal(object)  # SightingFilter
 
-    def __init__(self, ctx: AppContext, theme: ThemeManager, show_place: bool = True) -> None:
+    def __init__(
+        self,
+        ctx: AppContext,
+        theme: ThemeManager,
+        show_place: bool = True,
+        show_date: bool = True,
+    ) -> None:
         super().__init__()
-        self.ctx, self.theme, self.show_place = ctx, theme, show_place
+        self.ctx, self.theme = ctx, theme
+        self.show_place, self.show_date = show_place, show_date
         self.filter = SightingFilter()
         self._layout = QHBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
@@ -60,10 +68,7 @@ class FilterBar(QWidget):
         return btn
 
     def _rebuild(self) -> None:
-        while self._layout.count():
-            item = self._layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
+        clear_layout(self._layout)
         f = self.filter
         cats = self.ctx.catalogue.categories()
         if not f.category_ids:
@@ -81,15 +86,16 @@ class FilterBar(QWidget):
                 lambda: self.set_filter(f.with_(category_ids=frozenset())),
             )
         )
-        self._layout.addWidget(
-            self._chip(
-                self._date_text(),
-                bool(f.date_from or f.date_to),
-                "calendar",
-                self._date_menu,
-                lambda: self.set_filter(f.with_(date_from=None, date_to=None)),
+        if self.show_date:
+            self._layout.addWidget(
+                self._chip(
+                    self._date_text(),
+                    bool(f.date_from or f.date_to),
+                    "calendar",
+                    self._date_menu,
+                    lambda: self.set_filter(f.with_(date_from=None, date_to=None)),
+                )
             )
-        )
         if self.show_place:
             place_text = "Any place"
             if f.place_ids:

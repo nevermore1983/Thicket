@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from conftest import TODAY, taxon_id
+from helpers import TODAY, taxon_id
 from wildlife.domain.errors import BackupError
 from wildlife.domain.models import SightingDraft
 from wildlife.services.photos import read_info

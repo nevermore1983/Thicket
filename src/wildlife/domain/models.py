@@ -13,7 +13,11 @@ from wildlife.domain.codes import (
     LifeStage,
     LocationMethod,
     Sex,
+    Visibility,
+    Weather,
+    Wind,
 )
+from wildlife.domain.dates import fmt_date
 
 
 @dataclass(frozen=True, slots=True)
@@ -195,3 +199,75 @@ class Photo:
     rotation: int = 0
     caption: str | None = None
     sighting_ids: tuple[int, ...] = field(default_factory=tuple)
+
+
+@dataclass(frozen=True, slots=True)
+class OutingDraft:
+    """A trip or visit: groups sightings and holds the weather. Only the date is required."""
+
+    outing_date: date | None
+    start_time: str | None = None
+    end_time: str | None = None
+    place_id: int | None = None
+    title: str | None = None
+    weather: Weather | None = None
+    temperature_c: float | None = None
+    wind: Wind | None = None
+    visibility: Visibility | None = None
+    is_complete_list: bool = False
+    notes: str | None = None
+    id: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Outing:
+    id: int
+    uuid: str
+    outing_date: date
+    start_time: str | None
+    end_time: str | None
+    place_id: int | None
+    place_name: str | None
+    title: str | None
+    weather: Weather | None
+    temperature_c: float | None
+    wind: Wind | None
+    visibility: Visibility | None
+    is_complete_list: bool
+    notes: str | None
+    sightings: int = 0
+    species: int = 0
+
+    @property
+    def display_title(self) -> str:
+        """The title, or 'Rainham Marshes · Sun 12 Oct 2026' made from place and date."""
+        if self.title:
+            return self.title
+        day = fmt_date(self.outing_date)
+        return f"{self.place_name} · {day}" if self.place_name else f"Outing · {day}"
+
+    @property
+    def in_progress(self) -> bool:
+        return self.start_time is not None and self.end_time is None
+
+    def covers(self, time: str | None) -> bool:
+        """True if a sighting at `time` ('HH:MM') falls within this outing's times."""
+        if time is None or self.start_time is None:
+            return True
+        return self.start_time <= time and (self.end_time is None or time <= self.end_time)
+
+    def to_draft(self) -> OutingDraft:
+        return OutingDraft(
+            id=self.id,
+            outing_date=self.outing_date,
+            start_time=self.start_time,
+            end_time=self.end_time,
+            place_id=self.place_id,
+            title=self.title,
+            weather=self.weather,
+            temperature_c=self.temperature_c,
+            wind=self.wind,
+            visibility=self.visibility,
+            is_complete_list=self.is_complete_list,
+            notes=self.notes,
+        )

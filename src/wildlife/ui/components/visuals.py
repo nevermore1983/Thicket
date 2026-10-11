@@ -8,26 +8,10 @@ from functools import lru_cache
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QGuiApplication, QPainter, QPainterPath, QPixmap
 
+from wildlife.domain.dates import DAYS, DAYS_LONG, MONTHS, MONTHS_LONG, fmt_date  # noqa: F401 (re-exported)
 from wildlife.domain.models import Category
 from wildlife.ui.theme.icons import pixmap as icon_pixmap
 from wildlife.ui.theme.tokens import Tokens
-
-DAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-MONTHS_LONG = (
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-)
 
 
 def category_colours(category: Category, tokens: Tokens) -> tuple[str, str]:
@@ -93,20 +77,6 @@ def rounded(pm: QPixmap, size: int, radius: int = 8) -> QPixmap:
     return out
 
 
-def fmt_date(d: date, style: str = "short") -> str:
-    """UK-style dates: short 'Sun 11 Oct 2026', medium '11 Oct 2026', day '11 Oct', full."""
-    if style == "medium":
-        return f"{d.day} {MONTHS[d.month - 1]} {d.year}"
-    if style == "day":
-        return f"{d.day} {MONTHS[d.month - 1]}"
-    if style == "full":
-        return (
-            f"{('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')[d.weekday()]} "
-            f"{d.day} {MONTHS_LONG[d.month - 1]} {d.year}"
-        )
-    return f"{DAYS[d.weekday()]} {d.day} {MONTHS[d.month - 1]} {d.year}"
-
-
 def relative_day(d: date, today: date) -> str:
     delta = (today - d).days
     if delta == 0:
@@ -114,9 +84,7 @@ def relative_day(d: date, today: date) -> str:
     if delta == 1:
         return "Yesterday"
     if 1 < delta < 7:
-        return ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")[
-            d.weekday()
-        ]
+        return DAYS_LONG[d.weekday()]
     return fmt_date(d, "day" if delta < 300 else "medium")
 
 

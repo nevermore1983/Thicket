@@ -83,6 +83,30 @@ class LocationMethod(_Labelled):
     IMPORT = "import"
 
 
+class Weather(_Labelled):
+    SUNNY = "sunny"
+    PARTLY_CLOUDY = "partly_cloudy"
+    OVERCAST = "overcast"
+    RAIN = "rain"
+    DRIZZLE = "drizzle"
+    SNOW = "snow"
+    FOG = "fog"
+
+
+class Wind(_Labelled):
+    CALM = "calm"
+    LIGHT = "light"
+    MODERATE = "moderate"
+    STRONG = "strong"
+    GALE = "gale"
+
+
+class Visibility(_Labelled):
+    GOOD = "good"
+    MODERATE = "moderate"
+    POOR = "poor"
+
+
 _EXPLANATIONS = {
     "signs": "Tracks, droppings, feathers, nests, feeding remains",
     "trapped": "For example in a moth trap or small-mammal trap",
@@ -99,4 +123,5 @@ _LABELS = {
     "approx": "Approximate",
     "at_least": "At least",
     "grid_ref": "Grid reference",
+    "fog": "Fog / mist",
 }
