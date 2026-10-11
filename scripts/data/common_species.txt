@@ -1,0 +1,298 @@
+# Commonly recorded UK animals (UKSI preferred English names).
+# These get a boost in the species picker until your own records take over.
+# One name per line; lines starting with # are ignored. Edit freely.
+
+# Birds: gardens, parks, farmland, wetlands, coasts
+Robin
+Blackbird
+Blue Tit
+Great Tit
+Coal Tit
+Long-tailed Tit
+Marsh Tit
+Goldfinch
+Greenfinch
+Chaffinch
+Bullfinch
+Siskin
+Linnet
+House Sparrow
+Tree Sparrow
+Dunnock
+Wren
+Starling
+Song Thrush
+Mistle Thrush
+Redwing
+Fieldfare
+Goldcrest
+Nuthatch
+Treecreeper
+Woodpigeon
+Stock Dove
+Collared Dove
+Rock Dove
+Magpie
+Jay
+Jackdaw
+Rook
+Carrion Crow
+Raven
+Great Spotted Woodpecker
+Green Woodpecker
+Lesser Spotted Woodpecker
+Pied Wagtail
+Grey Wagtail
+Yellow Wagtail
+Meadow Pipit
+Skylark
+Swallow
+House Martin
+Sand Martin
+Swift
+Chiffchaff
+Willow Warbler
+Blackcap
+Garden Warbler
+Whitethroat
+Lesser Whitethroat
+Sedge Warbler
+Reed Warbler
+Cetti's Warbler
+Spotted Flycatcher
+Stonechat
+Wheatear
+Redstart
+Black Redstart
+Yellowhammer
+Reed Bunting
+Corn Bunting
+Pheasant
+Red-legged Partridge
+Grey Partridge
+Buzzard
+Red Kite
+Kestrel
+Sparrowhawk
+Peregrine
+Hobby
+Marsh Harrier
+Hen Harrier
+Osprey
+Barn Owl
+Tawny Owl
+Little Owl
+Short-eared Owl
+Kingfisher
+Cuckoo
+Grey Heron
+Little Egret
+Great White Egret
+Cormorant
+Mute Swan
+Whooper Swan
+Canada Goose
+Greylag Goose
+Brent Goose
+Pink-footed Goose
+Egyptian Goose
+Mallard
+Gadwall
+Teal
+Wigeon
+Shoveler
+Pintail
+Tufted Duck
+Pochard
+Goldeneye
+Shelduck
+Mandarin Duck
+Moorhen
+Coot
+Water Rail
+Little Grebe
+Great Crested Grebe
+Lapwing
+Golden Plover
+Ringed Plover
+Oystercatcher
+Avocet
+Curlew
+Redshank
+Black-tailed Godwit
+Bar-tailed Godwit
+Dunlin
+Snipe
+Turnstone
+Sanderling
+Knot
+Black-headed Gull
+Common Gull
+Herring Gull
+Lesser Black-backed Gull
+Great Black-backed Gull
+Kittiwake
+Common Tern
+Sandwich Tern
+Arctic Tern
+Little Tern
+Puffin
+Common Guillemot
+Razorbill
+Gannet
+Fulmar
+Ring-necked Parakeet
+
+# Mammals
+Grey Squirrel
+Red Squirrel
+Red Fox
+Badger
+Hedgehog
+Rabbit
+Brown Hare
+Mountain Hare
+Roe Deer
+Red Deer
+Fallow Deer
+Muntjac
+Sika Deer
+Otter
+Stoat
+Weasel
+Pine Marten
+Wood Mouse
+House Mouse
+Bank Vole
+Field Vole
+Brown Rat
+Common Shrew
+Pygmy Shrew
+Mole
+Common Pipistrelle
+Soprano Pipistrelle
+Noctule
+Daubenton's Bat
+Brown Long-eared Bat
+Grey Seal
+Harbour Seal
+Common Porpoise
+Bottle-nosed Dolphin
+
+# Amphibians and reptiles
+Common Frog
+Common Toad
+Natterjack Toad
+Smooth Newt
+Palmate Newt
+Great Crested Newt
+Grass Snake
+Adder
+Smooth Snake
+Slow-worm
+Common Lizard
+Sand Lizard
+
+# Butterflies
+Red Admiral
+Peacock
+Small Tortoiseshell
+Comma
+Painted Lady
+Brimstone
+Orange-tip
+Large White
+Small White
+Green-veined White
+Holly Blue
+Common Blue
+Small Copper
+Brown Argus
+Meadow Brown
+Gatekeeper
+Ringlet
+Speckled Wood
+Small Heath
+Wall
+Marbled White
+Small Skipper
+Essex Skipper
+Large Skipper
+Silver-washed Fritillary
+Dark Green Fritillary
+White Admiral
+Purple Emperor
+Purple Hairstreak
+Green Hairstreak
+Clouded Yellow
+Grizzled Skipper
+Dingy Skipper
+Small Pearl-bordered Fritillary
+
+# Moths (frequent garden and day-flying species)
+Large Yellow Underwing
+Elephant Hawk-moth
+Humming-bird Hawk-moth
+Cinnabar
+Six-spot Burnet
+Silver Y
+Garden Tiger
+Angle Shades
+Heart & Dart
+Setaceous Hebrew Character
+Box Tree Moth
+Brimstone Moth
+Mint Moth
+Poplar Hawk-moth
+Lime Hawk-moth
+Eyed Hawk-moth
+Buff-tip
+
+# Dragonflies and damselflies
+Common Darter
+Ruddy Darter
+Southern Hawker
+Migrant Hawker
+Brown Hawker
+Emperor Dragonfly
+Broad-bodied Chaser
+Four-spotted Chaser
+Black-tailed Skimmer
+Golden-ringed Dragonfly
+Banded Demoiselle
+Beautiful Demoiselle
+Azure Damselfly
+Common Blue Damselfly
+Blue-tailed Damselfly
+Large Red Damselfly
+Emerald Damselfly
+
+# Other insects and invertebrates
+Buff-tailed Bumblebee
+White-tailed Bumblebee
+Red-tailed Bumblebee
+Common Carder Bee
+Tree Bumblebee
+Early Bumblebee
+Western Honey Bee
+Common Wasp
+Hornet
+7-spot Ladybird
+Harlequin Ladybird
+2-spot Ladybird
+Stag Beetle
+Common Cockchafer
+Marmalade Hoverfly
+Green Shieldbug
+Field Grasshopper
+Speckled Bush-cricket
+Dark Bush-cricket
+Garden Spider
+Wasp Spider
+Common House Spider
+Giant House Spider
+Common Garden Snail
+Brown-lipped Snail
+Common Earthworm
+Common Shiny Woodlouse
+Green Shore Crab

@@ -1,0 +1,32 @@
+"""The one filter shared by every screen (list, calendar, map, statistics, export)."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field, replace
+from datetime import date
+
+from wildlife.domain.codes import Evidence
+
+
+@dataclass(frozen=True, slots=True)
+class SightingFilter:
+    text: str = ""  # free text: species names, place, notes
+    category_ids: frozenset[int] = field(default_factory=frozenset)
+    taxon_ids: frozenset[int] = field(default_factory=frozenset)  # includes their subspecies
+    date_from: date | None = None
+    date_to: date | None = None
+    place_ids: frozenset[int] = field(default_factory=frozenset)
+    outing_id: int | None = None
+    evidence: frozenset[Evidence] = field(default_factory=frozenset)
+    has_photos: bool | None = None
+    needs_location: bool = False
+
+    @property
+    def is_empty(self) -> bool:
+        return self == SightingFilter()
+
+    def cleared(self) -> SightingFilter:
+        return SightingFilter()
+
+    def with_(self, **changes) -> SightingFilter:
+        return replace(self, **changes)

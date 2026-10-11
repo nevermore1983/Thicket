@@ -28,6 +28,8 @@ class Settings:
     show_grid_refs: bool = True
     recycle_bin_days: int = 30
     allow_online: bool = True
+    backup_folder: str = ""  # empty = <data folder>\backups (same drive: choose another!)
+    auto_backup: bool = True
 
     @classmethod
     def from_stored(cls, stored: dict[str, Any]) -> Settings:

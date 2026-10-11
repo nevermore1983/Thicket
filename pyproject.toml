@@ -41,4 +41,6 @@ ignore = ["E501"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+pythonpath = ["tests"]
+markers = ["slow: takes more than a few seconds (installs the full species list)"]
 qt_api = "pyside6"

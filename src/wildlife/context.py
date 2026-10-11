@@ -7,15 +7,20 @@ module can stay small and receive exactly what it needs.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from wildlife.config.paths import DataPaths
 from wildlife.data import snapshot
 from wildlife.data.db import Database
 from wildlife.data.migrate import migrate
 from wildlife.domain.errors import DatabaseError
+from wildlife.services.backup import BackupService
 from wildlife.services.events import EventHub
+from wildlife.services.photos import PhotoService
+from wildlife.services.places import PlaceService
 from wildlife.services.settings import SettingsService
+from wildlife.services.sightings import SightingService
+from wildlife.services.species_catalogue import SpeciesCatalogue
 
 log = logging.getLogger(__name__)
 
@@ -27,6 +32,18 @@ class AppContext:
     events: EventHub
     settings: SettingsService
     schema_version: int
+    catalogue: SpeciesCatalogue = field(init=False)
+    sightings: SightingService = field(init=False)
+    places: PlaceService = field(init=False)
+    photos: PhotoService = field(init=False)
+    backup: BackupService = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.catalogue = SpeciesCatalogue(self.db, self.events)
+        self.sightings = SightingService(self.db, self.events, self.settings)
+        self.places = PlaceService(self.db, self.events)
+        self.photos = PhotoService(self.paths, self.db, self.events)
+        self.backup = BackupService(self.paths, self.db, self.events, self.settings)
 
     @classmethod
     def open(cls, paths: DataPaths) -> AppContext:
