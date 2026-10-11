@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<style>html, body, #map { margin: 0; height: 100%; }</style>
+<script src="qwebchannel.js"></script>
+</head>
+<body>
+<div id="map"></div>
+<script type="module">
+import * as maplibregl from './vendor/maplibre-gl.mjs';
+
+const report = (key, value) => window.bridge && window.bridge.report(key, JSON.stringify(value));
+
+new QWebChannel(qt.webChannelTransport, (channel) => {
+  window.bridge = channel.objects.bridge;
+
+  // 1. Is WebGL available? (MapLibre needs WebGL 2)
+  const c = document.createElement('canvas');
+  const gl = c.getContext('webgl2');
+  const dbg = gl && gl.getExtension('WEBGL_debug_renderer_info');
+  report('webgl', { webgl2: !!gl, renderer: dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : null });
+  if (!gl) return;
+
+  maplibregl.setWorkerUrl(new URL('./vendor/maplibre-gl-worker.mjs', import.meta.url).href);
+  report('maplibre', maplibregl.getVersion());
+
+  const map = new maplibregl.Map({
+    container: 'map',
+    style: 'https://tiles.openfreemap.org/styles/liberty',
+    center: [-2.5, 54.2], zoom: 4.6,
+  });
+
+  // 2000 random points over GB, to test clustering + heat
+  const features = [];
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i < 2000; i++) {
+    features.push({ type: 'Feature', id: i, properties: { cat: i % 8 },
+      geometry: { type: 'Point', coordinates: [-5 + rnd() * 6.5, 50.3 + rnd() * 7.5] } });
+  }
+  const t0 = performance.now();
+  map.on('load', () => {
+    map.addSource('s', { type: 'geojson', data: { type: 'FeatureCollection', features }, cluster: true, clusterRadius: 40 });
+    map.addLayer({ id: 'heat', type: 'heatmap', source: 's', paint: { 'heatmap-opacity': 0.5 } });
+    map.addLayer({ id: 'clusters', type: 'circle', source: 's', filter: ['has', 'point_count'],
+      paint: { 'circle-color': '#2e7d4f', 'circle-radius': 16, 'circle-stroke-width': 2, 'circle-stroke-color': '#fff' } });
+    map.addLayer({ id: 'points', type: 'circle', source: 's', filter: ['!', ['has', 'point_count']],
+      paint: { 'circle-color': '#2a78d6', 'circle-radius': 6 } });
+    map.on('click', 'points', (e) => report('clicked', e.features[0].id));
+    map.once('idle', () => report('idle', { ms: Math.round(performance.now() - t0), layers: map.getStyle().layers.length }));
+  });
+  map.on('error', (e) => report('error', String(e.error && e.error.message || e)));
+});
+</script>
+</body>
+</html>

@@ -1,10 +1,10 @@
 # WildLife — Phase 3: Architecture & Database Design
 
 **Date:** 11 October 2026
-**Status:** Draft for your review
+**Status:** Approved. See [05-foundation-and-spikes.md](05-foundation-and-spikes.md) for changes made in Phase 5 (MapLibre 6, name-based category rules, PyInstaller).
 **Builds on:** [01 Research](01-research-and-architecture.md) · [02 Product specification](02-product-specification.md)
 **Companion files:**
-- [`design/schema_v1.sql`](design/schema_v1.sql): the complete database schema, with comments
+- [`0001_initial.sql`](../src/wildlife/data/migrations/0001_initial.sql): the complete database schema, with comments
 - [`../spikes/schema_check/check_schema.py`](../spikes/schema_check/check_schema.py): the stress test that proves it works
 
 This document defines **how the app is put together**: the layers, every module and its job, the database, the files on disk, and how data, errors and background work flow through the app. No application code exists yet. Phase 4 designs the screens, and Phase 5 starts building.
@@ -96,7 +96,7 @@ src/wildlife/
 ├─ data/
 │  ├─ db.py                 Database: per-thread connections, PRAGMAs, transaction()
 │  ├─ migrate.py            applies migrations/NNNN_*.sql atomically, backup first
-│  ├─ migrations/0001_initial.sql   (= docs/design/schema_v1.sql)
+│  ├─ migrations/0001_initial.sql   (= src/wildlife/data/migrations/0001_initial.sql)
 │  ├─ sql_filters.py        SightingFilter → (WHERE clause, parameters); COUNTABLE rule
 │  └─ repositories/         one module per table group; functions take a connection
 │     ├─ sightings.py   taxa.py   categories.py   places.py
@@ -153,7 +153,7 @@ src/wildlife/
 
 ## 4. Database design
 
-The full schema with comments is in [`design/schema_v1.sql`](design/schema_v1.sql). Here's the overview.
+The full schema with comments is in [`0001_initial.sql`](../src/wildlife/data/migrations/0001_initial.sql). Here's the overview.
 
 ### 4.1 Tables and relationships
 
@@ -229,9 +229,9 @@ At stress scale this sorted 40,104 taxa in one statement, e.g. Lepidoptera → B
 ```python
 @dataclass(frozen=True)
 class SightingFilter:
-    text: str | None = None              # global search text
+    text: str | None = None  # global search text
     category_ids: frozenset[int] = frozenset()
-    taxon_ids: frozenset[int] = frozenset()   # includes subspecies of chosen species
+    taxon_ids: frozenset[int] = frozenset()  # includes subspecies of chosen species
     date_from: date | None = None
     date_to: date | None = None
     place_ids: frozenset[int] = frozenset()

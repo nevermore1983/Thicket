@@ -4,7 +4,7 @@ Run from the project folder:
     uv run --no-project --python 3.13 spikes/schema_check/check_schema.py
 
 What it does
-  1. Builds a fresh database from docs/design/schema_v1.sql using the planned
+  1. Builds a fresh database from src/wildlife/data/migrations/0001_initial.sql using the planned
      migration approach (one atomic script per schema version).
   2. Checks that bad data is rejected and that a failed migration rolls back.
   3. Generates a stress dataset (20k sightings, 40k taxa, 5k photos, ...).
@@ -32,7 +32,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-SCHEMA = ROOT / "docs" / "design" / "schema_v1.sql"
+SCHEMA = ROOT / "src" / "wildlife" / "data" / "migrations" / "0001_initial.sql"
 
 N_SYNTHETIC_TAXA = 40_000
 N_PLACES = 300
@@ -462,11 +462,11 @@ def resolve_categories(conn):
     """Most specific matching rule wins; falls back to the fallback category."""
     conn.execute("""
         UPDATE taxon SET category_id = COALESCE(
-            (SELECT category_id FROM category_rule WHERE rank = 'family'  AND taxon_name = taxon.tax_family),
-            (SELECT category_id FROM category_rule WHERE rank = 'order'   AND taxon_name = taxon.tax_order),
-            (SELECT category_id FROM category_rule WHERE rank = 'class'   AND taxon_name = taxon.tax_class),
-            (SELECT category_id FROM category_rule WHERE rank = 'phylum'  AND taxon_name = taxon.tax_phylum),
-            (SELECT category_id FROM category_rule WHERE rank = 'kingdom' AND taxon_name = taxon.tax_kingdom),
+            (SELECT category_id FROM category_rule WHERE taxon_name = taxon.tax_family),
+            (SELECT category_id FROM category_rule WHERE taxon_name = taxon.tax_order),
+            (SELECT category_id FROM category_rule WHERE taxon_name = taxon.tax_class),
+            (SELECT category_id FROM category_rule WHERE taxon_name = taxon.tax_phylum),
+            (SELECT category_id FROM category_rule WHERE taxon_name = taxon.tax_kingdom),
             (SELECT id FROM category WHERE is_fallback = 1))
         WHERE category_is_manual = 0
     """)

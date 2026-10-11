@@ -1,6 +1,8 @@
--- WildLife database schema, version 1
+-- WildLife database schema, version 1 (migration 0001)
 -- ---------------------------------------------------------------------------
--- In Phase 5 this file becomes src/wildlife/data/migrations/0001_initial.sql.
+-- Never edit this file once released: change the schema with a new numbered
+-- migration (0002_....sql) instead. The migration runner wraps each file in a
+-- transaction and sets PRAGMA user_version.
 --
 -- Conventions
 --   * Every table is STRICT: SQLite refuses values of the wrong type.
@@ -34,14 +36,15 @@ CREATE TABLE category (
 -- Only one category can be the fallback ("Other").
 CREATE UNIQUE INDEX category_one_fallback ON category (is_fallback) WHERE is_fallback = 1;
 
--- Taxonomic group -> category. The most specific matching rule wins
--- (family > order > class > phylum > kingdom).
+-- Taxonomic group name -> category. A rule matches a taxon when the name
+-- appears anywhere in its lineage; the most specific match wins
+-- (family > order > class > phylum > kingdom). Rules match by name rather
+-- than by rank because the UK Species Inventory sometimes files an order
+-- (e.g. Odonata) in the "class" field.
 CREATE TABLE category_rule (
     id            INTEGER PRIMARY KEY,
     category_id   INTEGER NOT NULL REFERENCES category (id) ON DELETE CASCADE,
-    rank          TEXT    NOT NULL CHECK (rank IN ('kingdom', 'phylum', 'class', 'order', 'family')),
-    taxon_name    TEXT    NOT NULL COLLATE NOCASE,
-    UNIQUE (rank, taxon_name)
+    taxon_name    TEXT    NOT NULL COLLATE NOCASE UNIQUE
 ) STRICT;
 
 -- ===========================================================================
@@ -302,18 +305,15 @@ INSERT INTO category (id, name, colour, icon, sort_order, is_fallback) VALUES
     (8, 'Other invertebrate',      '#e34948', 'snail',      80, 0),
     (9, 'Other',                   '#7d847e', 'paw-print',  90, 1);
 
-INSERT INTO category_rule (category_id, rank, taxon_name) VALUES
-    (8, 'kingdom', 'Animalia'),        -- any animal not matched below
-    (9, 'phylum',  'Chordata'),        -- vertebrates not matched below
-    (1, 'class',   'Aves'),
-    (2, 'class',   'Mammalia'),
-    (3, 'class',   'Actinopterygii'),
-    (3, 'class',   'Actinopteri'),
-    (3, 'class',   'Elasmobranchii'),
-    (3, 'class',   'Petromyzonti'),
-    (3, 'class',   'Myxini'),
-    (6, 'class',   'Reptilia'),
-    (6, 'class',   'Amphibia'),
-    (7, 'class',   'Insecta'),
-    (4, 'order',   'Lepidoptera'),
-    (5, 'order',   'Odonata');
+INSERT INTO category_rule (category_id, taxon_name) VALUES
+    (8, 'Animalia'),            -- any animal not matched below
+    (9, 'Chordata'),            -- vertebrates and relatives not matched below
+    (1, 'Aves'),
+    (2, 'Mammalia'),
+    (3, 'Actinopterygii'), (3, 'Actinopteri'), (3, 'Chondrichthyes'), (3, 'Elasmobranchii'),
+    (3, 'Holocephali'), (3, 'Cephalaspidomorphi'), (3, 'Petromyzonti'), (3, 'Myxini'), (3, 'Pisces'),
+    (6, 'Reptilia'), (6, 'Amphibia'),
+    (7, 'Insecta'), (7, 'Coleoptera'), (7, 'Diptera'), (7, 'Hymenoptera'), (7, 'Hemiptera'),
+    (7, 'Trichoptera'), (7, 'Neuroptera'), (7, 'Orthoptera'), (7, 'Ephemeroptera'), (7, 'Plecoptera'),
+    (4, 'Lepidoptera'),
+    (5, 'Odonata');

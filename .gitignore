@@ -24,3 +24,8 @@ local_data/
 .idea/
 Thumbs.db
 desktop.ini
+spikes/*/vendor/
+spikes/*/output/
+spikes/*/*.log
+/build/
+spikes/packaging/

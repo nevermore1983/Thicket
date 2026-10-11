@@ -109,7 +109,7 @@ Category colours mark identity on map pins, calendar dots and legends. Many colo
   - Reptile and Amphibian are merged (UK recorders often group them anyway).
   - Spiders join Other invertebrate.
 
-  You can still add categories. A new category reuses one of the 8 colours and gets its own icon, because a 9th "generated" colour would break colour-blind safety. The database design (`schema_v1.sql`) has been updated, and the stress test still passes 26/26.
+  You can still add categories. A new category reuses one of the 8 colours and gets its own icon, because a 9th "generated" colour would break colour-blind safety. The database design (`0001_initial.sql`) has been updated, and the stress test still passes 26/26.
 
 ### 3.4 Data scales
 
