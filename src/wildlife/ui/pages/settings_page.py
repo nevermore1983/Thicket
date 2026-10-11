@@ -159,6 +159,25 @@ class SettingsPage(QWidget):
             )
         )
 
+        # online
+        online = QCheckBox("Allow")
+        online.setChecked(s.allow_online)
+        online.toggled.connect(lambda on: ctx.settings.update(allow_online=on))
+        page.add(
+            _section(
+                "Online features",
+                [
+                    _row(
+                        "Online background map",
+                        "Map tiles come from OpenFreeMap. Only the map areas you view are "
+                        "requested; your sightings never leave this PC. When off, the map "
+                        "shows a plain outline.",
+                        online,
+                    ),
+                ],
+            )
+        )
+
         # backup
         page.add(_section("Backup", self._backup_rows()))
 

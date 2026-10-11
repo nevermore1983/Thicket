@@ -1,0 +1,14 @@
+{
+  "package": "maplibre-gl",
+  "version": "6.11.2",
+  "licence": "BSD-3-Clause (LICENSE.txt)",
+  "source": "https://www.npmjs.com/package/maplibre-gl/v/6.11.2 (dist/ folder)",
+  "verified": "2026-10-11 against jsDelivr's published per-file SHA-256 hashes",
+  "sha256": {
+    "LICENSE.txt": "ee5fc05a0677eaf69601d2c7db0d9ecd6cc27c3abc1d0733bc9ed34707cf8ef2",
+    "maplibre-gl-shared.mjs": "76b5f55bdee928c65d592684aaff2b913d50b6b17b0ec6334e88b09b6aa47960",
+    "maplibre-gl-worker.mjs": "01ad197aa7f4cec258a890febd71b7515e96309881b036a7095befc01a45296e",
+    "maplibre-gl.css": "d8617d8421930e3fc6185365400e788c374c1a5d9fbe87999998c0bc14a202d3",
+    "maplibre-gl.mjs": "3f55566295583644617fe17d008a36c580414b8c71dd2e1fcff1309de6fdee5d"
+  }
+}

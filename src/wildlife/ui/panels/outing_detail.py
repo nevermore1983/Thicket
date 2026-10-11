@@ -49,6 +49,7 @@ class OutingDetail(PanelView):
     end_requested = Signal(int)
     add_requested = Signal(object)  # Outing: add a sighting to it
     show_list = Signal(object)  # SightingFilter
+    show_map = Signal(object)  # SightingFilter
 
     def __init__(self, ctx: AppContext, theme: ThemeManager, outing_id: int) -> None:
         super().__init__()
@@ -134,13 +135,17 @@ class OutingDetail(PanelView):
         if items:
             for s in items:
                 b.addWidget(day_row(self.ctx, t, s, firsts.mark(s.id), self.open_sighting.emit))
-            b.addWidget(
+            links = QHBoxLayout()
+            links.addWidget(
                 button(
                     "Show in the sightings list", "link", None, t, lambda: self.show_list.emit(flt)
-                ),
-                0,
-                Qt.AlignmentFlag.AlignLeft,
+                )
             )
+            links.addWidget(
+                button("Show on the map", "link", None, t, lambda: self.show_map.emit(flt))
+            )
+            links.addStretch(1)
+            b.addLayout(links)
         else:
             none = QLabel("No sightings in this outing yet.")
             none.setProperty("role", "muted")

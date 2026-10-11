@@ -48,6 +48,13 @@ def test_theme_switch_from_settings_is_saved(window, qtbot):
     assert window.theme.tokens is LIGHT
 
 
+def test_pages_are_narrow_enough_for_the_sidebar_to_collapse(window):
+    """The sidebar shrinks below 900 px, so at full width (228 px) no page may need over 671."""
+    for i in range(window.pages.count()):
+        page = window.pages.widget(i)
+        assert page.minimumSizeHint().width() <= 671, type(page).__name__
+
+
 def test_sidebar_collapses_when_narrow(window):
     window.setMinimumSize(0, 0)
     window.resize(820, 700)

@@ -1,0 +1,22 @@
+/* Colours arrive from Python as CSS variables (see setTheme in map.js). */
+:root { --surface: #ffffff; --text: #17201a; --text-2: #556058; --border: #dfe3dc; --bg: #f3f5f1; }
+html, body, #map { margin: 0; height: 100%; background: var(--bg); }
+body { font: 13px "Segoe UI Variable Text", "Segoe UI", sans-serif; color: var(--text); overflow: hidden; }
+#tip {
+  position: absolute; z-index: 5; pointer-events: none; max-width: 260px;
+  background: var(--surface); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 9px; box-shadow: 0 4px 14px rgba(0, 0, 0, .18); line-height: 1.35;
+}
+#tip b { font-weight: 600; }
+#tip span { color: var(--text-2); }
+/* MapLibre's own controls, in the app's colours (light and dark) */
+.maplibregl-ctrl-group { background: var(--surface); border: 1px solid var(--border); box-shadow: none; }
+.maplibregl-ctrl-group button + button { border-top: 1px solid var(--border); }
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: var(--icon-filter, none); }
+.maplibregl-ctrl.maplibregl-ctrl-attrib, .maplibregl-ctrl-attrib.maplibregl-compact {
+  background: var(--surface); color: var(--text-2); font-size: 11px;
+}
+.maplibregl-ctrl-attrib a { color: var(--text-2); }
+.maplibregl-ctrl-attrib-button { filter: var(--icon-filter, none); }
+.maplibregl-ctrl-scale { background: var(--surface); color: var(--text-2); border-color: var(--text-2); }
+.maplibregl-canvas:focus-visible { outline: 2px solid var(--text-2); outline-offset: -2px; }

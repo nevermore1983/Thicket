@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from wildlife.context import AppContext
+from wildlife.domain.codes import LocationMethod
 from wildlife.domain.dates import DateQuery
 from wildlife.domain.errors import BackupError, NotFoundError
 from wildlife.domain.filters import SightingFilter
@@ -34,6 +35,7 @@ from wildlife.ui.pages import simple
 from wildlife.ui.pages.calendar_page import CalendarPage
 from wildlife.ui.pages.dashboard_page import DashboardPage
 from wildlife.ui.pages.list_pages import PlacesPage, SpeciesPage
+from wildlife.ui.pages.map_page import MapPage
 from wildlife.ui.pages.settings_page import SettingsPage
 from wildlife.ui.pages.sightings_page import SightingsPage
 from wildlife.ui.panels.day_panel import DayPanel
@@ -42,6 +44,7 @@ from wildlife.ui.panels.outing_editor import OutingEditor
 from wildlife.ui.panels.place_editor import PlaceEditor
 from wildlife.ui.panels.sighting_detail import SightingDetail
 from wildlife.ui.panels.sighting_editor import SightingEditor
+from wildlife.ui.panels.sighting_list import SightingListPanel
 from wildlife.ui.qt_events import QtEvents
 from wildlife.ui.theme.icons import icon, pixmap
 from wildlife.ui.theme.manager import ThemeManager
@@ -73,6 +76,7 @@ REFRESH_ON = {  # which data changes each page cares about
     "dashboard": {"sightings", "places", "photos", "backup", "settings", "taxa"},
     "sightings": {"sightings", "outings", "places", "taxa", "settings"},
     "calendar": {"sightings", "outings", "taxa", "settings"},
+    "map": {"sightings", "taxa", "settings"},
     "species": {"sightings", "taxa", "settings"},
     "places": {"places", "sightings"},
     "settings": {"backup", "settings", "sightings", "taxa"},
@@ -223,12 +227,14 @@ class MainWindow(QMainWindow):
         self.settings_page = SettingsPage(ctx, t)
         self.settings_page.backup_requested.connect(self.backup_now)
         self.settings_page.toast.connect(self._toast)
+        self.map_page = MapPage(ctx, t)
+        self.map_page.open_sighting.connect(lambda sid: self.open_sighting(sid))
+        self.map_page.show_ids.connect(self.show_sighting_list)
+        self.map_page.add_at.connect(self.add_at)
+        self.map_page.new_place_at.connect(lambda lat, lon: self.edit_place(None, at=(lat, lon)))
+        self.map_page.show_sightings.connect(self.show_sightings)
+        self.calendar_page.show_map.connect(self.show_map)
         later = {
-            "map": (
-                "map",
-                "The map arrives in Phase 8",
-                "Sightings with a location will appear as pins, a heat map or grid squares.",
-            ),
             "photos": (
                 "image",
                 "The photo library arrives in Phase 9",
@@ -244,6 +250,7 @@ class MainWindow(QMainWindow):
             "dashboard": self.dashboard,
             "sightings": self.sightings_page,
             "calendar": self.calendar_page,
+            "map": self.map_page,
             "species": self.species_page,
             "places": self.places_page,
             "settings": self.settings_page,
@@ -300,6 +307,10 @@ class MainWindow(QMainWindow):
                     self._stale.add(key)
         if topic in ("outings", "sightings"):
             self._update_outing_chip()
+        if topic == "places":
+            self.map_page.places_changed()
+        if topic == "settings":
+            self.map_page.settings_changed()
         view = self.panel.current()
         reload_on = {
             SightingDetail: ("sightings", "taxa"),
@@ -343,6 +354,7 @@ class MainWindow(QMainWindow):
         detail = SightingDetail(self.ctx, self.theme, sighting_id)
         detail.edit_requested.connect(self.edit_sighting)
         detail.delete_requested.connect(self.delete_sighting)
+        detail.show_on_map.connect(self.show_sighting_on_map)
         self.panel.show_view(detail, push=push and self.panel.isVisible())
 
     def edit_sighting(self, sighting_id: int) -> None:
@@ -400,6 +412,7 @@ class MainWindow(QMainWindow):
         detail.end_requested.connect(self.end_outing)
         detail.add_requested.connect(self.add_to_outing)
         detail.show_list.connect(lambda flt: (self.panel.close_panel(), self.show_sightings(flt)))
+        detail.show_map.connect(lambda flt: (self.panel.close_panel(), self.show_map(flt)))
         self.panel.show_view(detail, push=push and self.panel.isVisible())
 
     def new_outing(self, day: date | None) -> None:
@@ -462,10 +475,38 @@ class MainWindow(QMainWindow):
                 f"●  {where} · since {live.start_time} · {live.sightings:,} seen"
             )
 
+    # ---- map ---------------------------------------------------------------------
+    def show_map(self, flt: SightingFilter) -> None:
+        """Open the map showing these sightings (e.g. one day or one outing)."""
+        self.go("map")
+        self.map_page.set_filter(flt)
+
+    def show_sighting_on_map(self, s) -> None:
+        self.panel.close_panel()
+        self.go("map")
+        self.map_page.show_location(s.eff_latitude, s.eff_longitude)
+
+    def show_sighting_list(self, ids: list[int]) -> None:
+        panel = SightingListPanel(self.ctx, self.theme, ids, "Sightings here")
+        panel.open_sighting.connect(lambda sid: self.open_sighting(sid, push=True))
+        self.panel.show_view(panel)
+
+    def add_at(self, lat: float, lon: float, uncertainty_m: int) -> None:
+        self.add_sighting(
+            SightingDraft(
+                taxon_id=None,
+                observed_date=None,
+                latitude=round(lat, 6),
+                longitude=round(lon, 6),
+                uncertainty_m=uncertainty_m,
+                location_method=LocationMethod.MAP,
+            )
+        )
+
     # ---- places -----------------------------------------------------------------
-    def edit_place(self, place_id: int | None) -> None:
+    def edit_place(self, place_id: int | None, at: tuple[float, float] | None = None) -> None:
         editor = PlaceEditor(
-            self.ctx, self.theme, self.ctx.places.get(place_id) if place_id else None
+            self.ctx, self.theme, self.ctx.places.get(place_id) if place_id else None, at=at
         )
         editor.saved.connect(
             lambda place: (self._toast(f"{place.name} saved", None), self.panel.close_panel())

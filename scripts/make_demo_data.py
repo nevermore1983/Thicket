@@ -111,6 +111,16 @@ def main() -> int:
                 "SELECT id, informal_group, priority FROM taxon WHERE rank = 'species' AND priority >= 7"
             ).fetchall()
         garden_pool = [r for r in pool if r["informal_group"] in GARDEN_GROUPS]
+        spots = {  # each place's favourite spots, within its radius
+            p.id: [
+                (
+                    p.latitude + rng.uniform(-0.6, 0.6) * p.radius_m / 111_320,
+                    p.longitude + rng.uniform(-0.6, 0.6) * p.radius_m / 111_320 * 1.6,
+                )
+                for _ in range(rng.randint(2, 5))
+            ]
+            for p in places
+        }
         today = date.today()
         start = today - timedelta(days=365 * args.years)
 
@@ -149,9 +159,11 @@ def main() -> int:
                 located = rng.random()
                 lat = lon = unc = method = None
                 if located < 0.55:
-                    d = place.radius_m / 111_320
-                    lat = round(place.latitude + rng.uniform(-d, d), 6)
-                    lon = round(place.longitude + rng.uniform(-d, d) * 1.6, 6)
+                    # Bell-shaped scatter around a few favourite spots (hides, paths), like real records
+                    spot = spots[place.id][rng.randrange(len(spots[place.id]))]
+                    d = place.radius_m / 111_320 / 3
+                    lat = round(spot[0] + rng.gauss(0, d), 6)
+                    lon = round(spot[1] + rng.gauss(0, d) * 1.6, 6)
                     unc, method = (
                         rng.choice([10, 10, 100]),
                         rng.choice([LocationMethod.MAP, LocationMethod.PHOTO]),

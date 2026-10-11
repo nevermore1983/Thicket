@@ -59,6 +59,7 @@ class CalendarPage(QWidget):
     open_day = Signal(object, object)  # date, SightingFilter
     open_outing = Signal(int)
     new_outing = Signal(object)  # date
+    show_map = Signal(object)  # SightingFilter: the day on the map
 
     def __init__(self, ctx: AppContext, theme: ThemeManager) -> None:
         super().__init__()
@@ -111,6 +112,9 @@ class CalendarPage(QWidget):
         self.day_view.add_on.connect(self.add_on)
         self.day_view.open_outing.connect(self.open_outing)
         self.day_view.new_outing.connect(self.new_outing)
+        self.day_view.show_map.connect(
+            lambda d: self.show_map.emit(self.filter.with_(date_from=d, date_to=d))
+        )
 
         year_box = QWidget()
         yb = QVBoxLayout(year_box)

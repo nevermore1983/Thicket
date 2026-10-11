@@ -7,6 +7,9 @@ from PySide6.QtWidgets import QApplication
 from wildlife.config.settings import Theme
 from wildlife.ui.main_window import MainWindow
 from wildlife.ui.theme.manager import ThemeManager
+from wildlife.ui.web import scheme
+
+scheme.prepare()  # imported before pytest-qt creates the QApplication
 
 
 @pytest.fixture

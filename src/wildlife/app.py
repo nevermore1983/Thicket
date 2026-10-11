@@ -41,6 +41,9 @@ def main(argv: list[str] | None = None) -> int:
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
+    from wildlife.ui.web import scheme
+
+    scheme.prepare()  # before QApplication: the map's web engine needs it
     app = QApplication(sys.argv[:1])
 
     # Imported after QApplication exists (these create Qt objects)
@@ -70,7 +73,8 @@ def main(argv: list[str] | None = None) -> int:
         InstanceServer(lambda: (window.showNormal(), window.raise_(), window.activateWindow()), app)
     window.show()
     if args.smoke_test:
-        QTimer.singleShot(1500, lambda: (_smoke_checks(), app.quit()))
+        ctx.settings.update(allow_online=False)  # a build check must not depend on the internet
+        QTimer.singleShot(500, lambda: _smoke_checks(window, app))
     else:
         QTimer.singleShot(0, lambda: _after_start(ctx, theme, window))
     try:
@@ -80,8 +84,9 @@ def main(argv: list[str] | None = None) -> int:
         log.info("Closed")
 
 
-def _smoke_checks() -> None:
-    """Checks a packaged build can reach its bundled files (used by scripts/build_exe.py)."""
+def _smoke_checks(window, app) -> None:
+    """Checks a packaged build can reach its bundled files and run the map
+    (used by scripts/build_exe.py). Quits when done."""
     from wildlife.services.species_catalogue import bundled_catalogue, read_records
 
     path, info = bundled_catalogue()
@@ -92,7 +97,22 @@ def _smoke_checks() -> None:
         f"{info['taxa']:,}",
         first["k"],
     )
-    log.info("Smoke test OK")
+    window.go("map")
+    waited = 0
+
+    def check_map() -> None:
+        nonlocal waited
+        page = window.map_page
+        if page.ready or page.failed or waited >= 20_000:
+            log.info("Smoke test: map %s", "ready" if page.ready else "FAILED")
+            if page.ready:
+                log.info("Smoke test OK")
+            app.quit()
+            return
+        waited += 250
+        QTimer.singleShot(250, check_map)
+
+    check_map()
 
 
 def _after_start(ctx: AppContext, theme, window) -> None:

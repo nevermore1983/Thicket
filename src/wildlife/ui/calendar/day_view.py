@@ -57,6 +57,7 @@ class DayView(QWidget):
     add_on = Signal(object)  # date
     open_outing = Signal(int)
     new_outing = Signal(object)  # date
+    show_map = Signal(object)  # date
 
     def __init__(self, ctx: AppContext, theme: ThemeManager) -> None:
         super().__init__()
@@ -87,6 +88,9 @@ class DayView(QWidget):
         if items:
             title = f"{plural(len(items), 'sighting')} · {plural(species_count(items), 'species', 'species')}"
             card, v, head = _card(title + (" (filtered)" if filtered else ""))
+            head.addWidget(
+                button("Show on map", "secondary", "map", t, lambda: self.show_map.emit(day))
+            )
             head.addWidget(
                 button("Add on this date", "secondary", "plus", t, lambda: self.add_on.emit(day))
             )

@@ -32,7 +32,13 @@ class PlaceEditor(PanelView):
     removed = Signal(str)  # message
     cancelled = Signal()
 
-    def __init__(self, ctx: AppContext, theme: ThemeManager, place: Place | None = None) -> None:
+    def __init__(
+        self,
+        ctx: AppContext,
+        theme: ThemeManager,
+        place: Place | None = None,
+        at: tuple[float, float] | None = None,  # a new place's centre, e.g. from the map
+    ) -> None:
         super().__init__()
         self.ctx, self.place = ctx, place
         self.title = "Edit place" if place else "New place"
@@ -54,6 +60,8 @@ class PlaceEditor(PanelView):
                 geo.grid_ref_for(place.latitude, place.longitude, 10)
                 or f"{place.latitude:.5f}, {place.longitude:.5f}"
             )
+        if at is not None and place is None:
+            self.position.setText(geo.grid_ref_for(*at, 10) or f"{at[0]:.5f}, {at[1]:.5f}")
         self.f_position = _Field("Centre", self.position, "The middle of the place")
         self._timer = QTimer(self, singleShot=True, interval=250)
         self._timer.timeout.connect(self._update_position_note)

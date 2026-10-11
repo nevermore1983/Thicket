@@ -57,19 +57,24 @@ PATHS: dict[str, str] = {
 }
 
 
-@lru_cache(maxsize=512)
-def pixmap(name: str, colour: str, size: int = 18, stroke: float = 1.8) -> QPixmap:
-    """Render icon `name` in `colour` at `size` logical pixels (sharp on high-DPI screens)."""
+def render(painter: QPainter, name: str, colour: str, rect: QRectF, stroke: float = 1.8) -> None:
+    """Draw icon `name` into `rect` with an existing painter (any size, any device)."""
     svg = (
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="{colour}" '
         f'stroke-width="{stroke}" stroke-linecap="round" stroke-linejoin="round">{PATHS[name]}</svg>'
     )
+    QSvgRenderer(QByteArray(svg.encode())).render(painter, rect)
+
+
+@lru_cache(maxsize=512)
+def pixmap(name: str, colour: str, size: int = 18, stroke: float = 1.8) -> QPixmap:
+    """Render icon `name` in `colour` at `size` logical pixels (sharp on high-DPI screens)."""
     app = QGuiApplication.instance()
     ratio = app.devicePixelRatio() if app else 1.0
     pm = QPixmap(QSize(round(size * ratio), round(size * ratio)))
     pm.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pm)
-    QSvgRenderer(QByteArray(svg.encode())).render(painter, QRectF(0, 0, pm.width(), pm.height()))
+    render(painter, name, colour, QRectF(0, 0, pm.width(), pm.height()), stroke)
     painter.end()
     pm.setDevicePixelRatio(ratio)
     return pm

@@ -157,11 +157,11 @@ class Callout(QFrame):
         layout.setSpacing(10)
         self._icon = QLabel()
         self._icon.setAlignment(Qt.AlignmentFlag.AlignTop)
-        label = QLabel(text)
-        label.setWordWrap(True)
-        label.setTextFormat(Qt.TextFormat.RichText)
+        self._label = QLabel(text)
+        self._label.setWordWrap(True)
+        self._label.setTextFormat(Qt.TextFormat.RichText)
         layout.addWidget(self._icon)
-        layout.addWidget(label, 1)
+        layout.addWidget(self._label, 1)
 
         def paint() -> None:
             t = theme.tokens
@@ -170,6 +170,9 @@ class Callout(QFrame):
 
         paint()
         theme.changed.connect(paint)
+
+    def set_text(self, text: str) -> None:
+        self._label.setText(text)
 
 
 class Page(QWidget):

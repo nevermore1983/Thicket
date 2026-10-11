@@ -42,6 +42,7 @@ def location_text(s: Sighting) -> str:
 class SightingDetail(PanelView):
     edit_requested = Signal(int)
     delete_requested = Signal(int)
+    show_on_map = Signal(object)  # Sighting
 
     def __init__(self, ctx: AppContext, theme: ThemeManager, sighting_id: int) -> None:
         super().__init__()
@@ -189,6 +190,11 @@ class SightingDetail(PanelView):
         delete.setToolTip("Move to the recycle bin (Delete)")
         delete.clicked.connect(lambda: self.delete_requested.emit(s.id))
         fh.addWidget(edit)
+        if s.has_location:
+            on_map = QPushButton("Show on map")
+            on_map.setIcon(icon("map", t.text_2, 16))
+            on_map.clicked.connect(lambda: self.show_on_map.emit(s))
+            fh.addWidget(on_map)
         fh.addStretch(1)
         fh.addWidget(delete)
         v.addWidget(foot)

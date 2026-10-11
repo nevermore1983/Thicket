@@ -17,6 +17,7 @@ from wildlife.domain.errors import DatabaseError
 from wildlife.services.backup import BackupService
 from wildlife.services.calendar import CalendarService
 from wildlife.services.events import EventHub
+from wildlife.services.map import MapService
 from wildlife.services.outings import OutingService
 from wildlife.services.photos import PhotoService
 from wildlife.services.places import PlaceService
@@ -43,6 +44,7 @@ class AppContext:
     backup: BackupService = field(init=False)
     stats: StatsService = field(init=False)
     calendar: CalendarService = field(init=False)
+    map: MapService = field(init=False)
 
     def __post_init__(self) -> None:
         self.catalogue = SpeciesCatalogue(self.db, self.events)
@@ -53,6 +55,7 @@ class AppContext:
         self.backup = BackupService(self.paths, self.db, self.events, self.settings)
         self.stats = StatsService(self.db, self.settings)
         self.calendar = CalendarService(self.db, self.settings)
+        self.map = MapService(self.db, self.settings)
 
     def set_today(self, today) -> None:
         """Fix 'today' (used by tests and demos so dates are predictable)."""

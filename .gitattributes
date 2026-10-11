@@ -3,3 +3,6 @@
 *.jpg binary
 *.heic binary
 *.db binary
+
+# Third-party files are kept byte-for-byte (their SHA-256 is checked by a test)
+src/wildlife/ui/web/assets/vendor/** -text

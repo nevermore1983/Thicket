@@ -308,3 +308,50 @@ def distance_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     dp, dl = p2 - p1, math.radians(lon2 - lon1)
     h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
     return 2 * r * math.asin(math.sqrt(h))
+
+
+# --- map geometry -------------------------------------------------------------
+def grid_square(easting: float, northing: float, size_m: int) -> tuple[int, int]:
+    """South-west corner of the size_m grid square containing a grid position."""
+    return int(easting // size_m * size_m), int(northing // size_m * size_m)
+
+
+def square_polygon(easting: int, northing: int, size_m: int) -> list[tuple[float, float]]:
+    """A grid square's outline as WGS84 (lon, lat) points, closed, anticlockwise."""
+    corners = [
+        (easting, northing),
+        (easting + size_m, northing),
+        (easting + size_m, northing + size_m),
+        (easting, northing + size_m),
+    ]
+    ring = [(lon, lat) for lat, lon in (grid_to_wgs84(e, n) for e, n in corners)]
+    return [*ring, ring[0]]
+
+
+def circle_polygon(
+    lat: float, lon: float, radius_m: float, steps: int = 48
+) -> list[tuple[float, float]]:
+    """A circle on the ground as (lon, lat) points, closed (fine for the radii of places)."""
+    r = 6_371_008.8
+    dlat = math.degrees(radius_m / r)
+    dlon = dlat / max(math.cos(math.radians(lat)), 1e-6)
+    ring = [
+        (
+            lon + dlon * math.cos(2 * math.pi * i / steps),
+            lat + dlat * math.sin(2 * math.pi * i / steps),
+        )
+        for i in range(steps)
+    ]
+    return [*ring, ring[0]]
+
+
+NICE_UNCERTAINTIES = (5, 10, 25, 50, 100, 250, 500, 1_000, 2_500, 5_000, 10_000, 25_000, 50_000)
+
+
+def click_uncertainty(lat: float, zoom: float, pixels: float = 12) -> int:
+    """How precise a map click is: about `pixels` screen pixels at this zoom, rounded up
+    to a tidy value (street level ≈ 10 m, county level ≈ 1 km)."""
+    # MapLibre zoom levels use 512-pixel tiles: the equator is 512 * 2**zoom pixels round
+    metres_per_pixel = 78_271.52 * math.cos(math.radians(lat)) / 2**zoom
+    wanted = metres_per_pixel * pixels
+    return next((u for u in NICE_UNCERTAINTIES if u >= wanted), NICE_UNCERTAINTIES[-1])

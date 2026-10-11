@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, QTimer
@@ -35,6 +36,9 @@ def main() -> int:
     paths = DataPaths(data_dir).ensure()
     setup_logging(paths.logs)
     QCoreApplication.setOrganizationName("WildLife-Screenshots")  # don't touch real window state
+    from wildlife.ui.web import scheme
+
+    scheme.prepare()
     app = QApplication(sys.argv[:1])
 
     from wildlife.ui.main_window import MainWindow
@@ -86,6 +90,13 @@ def main() -> int:
                     window.open_outing(outings[0].id)
                 else:
                     window.edit_outing(outings[0].id)
+        elif target.startswith("map-"):  # map-pins / map-heat / map-squares
+            window.go("map")
+            wait(lambda: window.map_page.ready or window.map_page.failed, 15)
+            window.map_page.set_mode(target.split("-", 1)[1])
+            wait(lambda: window.map_page._bounds is not None, 5)
+            window.map_page.fit()
+            wait(lambda: False, 4)  # tiles, data and squares load in the background
         elif target == "outings":
             window.go("sightings")
             window.sightings_page.show_tab("outings")
@@ -93,6 +104,13 @@ def main() -> int:
             window.go(target)
             if target == "sightings":
                 window.sightings_page.show_tab("sightings")
+
+    def wait(done, seconds: float) -> None:
+        """Keep the app running (so the map can load) until done() or the time is up."""
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline and not done():
+            app.processEvents()
+            time.sleep(0.02)
 
     def capture() -> None:
         for theme_name in args.themes:
