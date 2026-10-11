@@ -36,7 +36,8 @@ extend-exclude = ["spikes", "prototype"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
 # The formatter manages line length; long text strings (messages, SVG paths) are fine.
-ignore = ["E501"]
+# RUF001-003: on-screen text deliberately uses proper typography (– × › “ ”).
+ignore = ["E501", "RUF001", "RUF002", "RUF003"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

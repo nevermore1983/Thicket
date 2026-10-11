@@ -42,21 +42,45 @@ def main() -> int:
 
     ctx = AppContext.open(paths)
     theme = ThemeManager(app)
+    theme.apply()  # as the real app does, before any window exists
     window = MainWindow(ctx, theme)
     w, h = (int(v) for v in args.size.split("x"))
     window.resize(w, h)
     window.show()
     args.out.mkdir(parents=True, exist_ok=True)
 
+    def show(target: str) -> None:
+        """'dashboard' etc. = a page; 'add' / 'detail' / 'edit' = the side panel over Sightings."""
+        window.panel.close_panel()
+        if target in ("add", "detail", "edit"):
+            window.go("sightings")
+            first = (
+                window.sightings_page.model.rows[0].id if window.sightings_page.model.rows else None
+            )
+            if target == "add":
+                window.add_sighting()
+                window.panel.current().picker.edit.setText("gold")
+                window.panel.current().picker._refresh()
+            elif first and target == "detail":
+                window.open_sighting(first)
+            elif first:
+                window.edit_sighting(first)
+        else:
+            window.go(target)
+
     def capture() -> None:
         for theme_name in args.themes:
             theme.set_theme(Theme(theme_name))
-            for page in args.pages:
-                window.go(page)
-                app.processEvents()
-                target = args.out / f"{page}-{theme_name}.png"
-                window.grab().save(str(target))
-                print(target)
+            for target in args.pages:
+                show(target)
+                for _ in range(3):
+                    app.processEvents()
+                path = args.out / f"{target}-{theme_name}.png"
+                window.grab().save(str(path))
+                print(path)
+                if window.panel.current() is not None:
+                    window.panel.current()._dirty = False
+        window.panel.close_panel()
         app.quit()
 
     QTimer.singleShot(500, capture)

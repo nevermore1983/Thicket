@@ -70,12 +70,37 @@ def main(argv: list[str] | None = None) -> int:
         InstanceServer(lambda: (window.showNormal(), window.raise_(), window.activateWindow()), app)
     window.show()
     if args.smoke_test:
-        QTimer.singleShot(1500, lambda: (log.info("Smoke test OK"), app.quit()))
+        QTimer.singleShot(1500, lambda: (_smoke_checks(), app.quit()))
+    else:
+        QTimer.singleShot(0, lambda: _after_start(ctx, theme, window))
     try:
         return app.exec()
     finally:
         ctx.close()
         log.info("Closed")
+
+
+def _smoke_checks() -> None:
+    """Checks a packaged build can reach its bundled files (used by scripts/build_exe.py)."""
+    from wildlife.services.species_catalogue import bundled_catalogue, read_records
+
+    path, info = bundled_catalogue()
+    first = read_records(path)[0]
+    log.info("Smoke test: catalogue %s, %s taxa, first %s", info["version"], f"{info['taxa']:,}", first["k"])
+    log.info("Smoke test OK")
+
+
+def _after_start(ctx: AppContext, theme, window) -> None:
+    """Jobs that run once the window is showing."""
+    from wildlife.ui.dialogs import FirstRunDialog
+
+    if ctx.catalogue.needs_install():
+        FirstRunDialog(ctx, theme, updating=ctx.catalogue.installed_version() is not None).exec()
+    removed = ctx.sightings.purge_recycle_bin()
+    if removed:
+        log.info("Emptied %d old sightings from the recycle bin", removed)
+    if ctx.backup.is_due():
+        window.backup_now("auto")
 
 
 def _startup_failed(message: str, paths: DataPaths) -> None:

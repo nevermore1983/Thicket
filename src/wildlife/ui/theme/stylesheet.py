@@ -134,7 +134,10 @@ QLineEdit, QComboBox, QSpinBox, QDateEdit, QTimeEdit, QPlainTextEdit, QTextEdit 
     border-radius: 8px; padding: 0 10px; min-height: 34px;
     selection-background-color: {t.accent}; selection-color: {t.accent_fg};
 }}
-QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus {{ border-color: {t.accent}; }}
+QLineEdit:focus, QComboBox:focus, QPlainTextEdit:focus, QDateEdit:focus, QSpinBox:focus {{ border-color: {t.accent}; }}
+QComboBox::drop-down, QDateEdit::drop-down {{ subcontrol-origin: padding; subcontrol-position: center right;
+    width: 26px; border: none; background: transparent; }}
+QSpinBox::up-button, QSpinBox::down-button {{ border: none; background: transparent; width: 18px; }}
 QScrollBar:vertical {{ background: transparent; width: 12px; margin: 2px; }}
 QScrollBar::handle:vertical {{ background: {t.border_strong}; border-radius: 4px; min-height: 32px; }}
 QScrollBar::handle:vertical:hover {{ background: {t.text_3}; }}
@@ -142,4 +145,85 @@ QScrollBar::add-line, QScrollBar::sub-line {{ height: 0; width: 0; }}
 QScrollBar:horizontal {{ background: transparent; height: 12px; margin: 2px; }}
 QScrollBar::handle:horizontal {{ background: {t.border_strong}; border-radius: 4px; min-width: 32px; }}
 QScrollArea {{ border: none; }}
+QScrollArea > QWidget > QWidget#PanelBody, QWidget#PanelBody {{ background: {t.surface}; }}
+
+/* ---- side panel ---- */
+QFrame#SidePanel {{ background: {t.surface}; border-left: 1px solid {t.border}; }}
+QFrame#PanelHead {{ background: {t.surface}; border-bottom: 1px solid {t.border}; }}
+QFrame#PanelFoot {{ background: {t.surface}; border-top: 1px solid {t.border}; }}
+
+/* ---- form fields ---- */
+QLabel[role="fieldLabel"] {{ font-size: 12.5px; font-weight: 600; color: {t.text_2}; }}
+QLabel[role="help"] {{ font-size: 12.5px; color: {t.text_3}; }}
+QLabel[role="error"] {{ font-size: 12.5px; color: {t.danger}; }}
+QLabel[role="ok"] {{ font-size: 12.5px; color: {t.good_text}; }}
+QLabel[role="warning"] {{ color: {t.warning}; }}
+QLabel[role="callout"] {{ background: {t.surface_2}; border-radius: {RADIUS_MD}px; padding: 10px 12px; color: {t.text_2}; }}
+QLineEdit[invalid="true"], QComboBox[invalid="true"], QDateEdit[invalid="true"], QPlainTextEdit[invalid="true"] {{
+    border-color: {t.danger}; }}
+QFrame#ChosenSpecies {{ background: {t.surface}; border: 1px solid {t.border_strong}; border-radius: 8px; }}
+QListWidget#Suggestions {{ background: {t.surface}; border: 1px solid {t.border}; border-radius: {RADIUS_MD}px;
+    outline: 0; padding: 2px; }}
+QListWidget#Suggestions::item {{ border-radius: 6px; color: {t.text_2}; }}
+QListWidget#Suggestions::item:selected, QListWidget#Suggestions::item:hover {{ background: {t.surface_2}; }}
+QPushButton[chip="true"], QComboBox[chip="true"] {{
+    min-height: 28px; border-radius: 14px; padding: 0 12px; font-size: 12.5px; font-weight: 500; }}
+QPushButton[chip="true"]:checked {{
+    background: {t.accent_subtle}; border-color: {t.accent_subtle}; color: {t.accent_subtle_text}; }}
+QFrame#DropZone {{ background: {t.surface_2}; border: 1.5px dashed {t.border_strong}; border-radius: {RADIUS_MD}px; }}
+QFrame#DropZone:hover, QFrame#DropZone[over="true"] {{ border-color: {t.accent}; }}
+QCheckBox {{ spacing: 8px; color: {t.text}; }}
+
+/* ---- filter bar & bulk bar ---- */
+QPushButton[filterChip="idle"], QPushButton[filterChip="active"] {{
+    min-height: 32px; border-radius: 16px; padding: 0 12px; font-size: 13px; font-weight: 500; }}
+QPushButton[filterChip="active"] {{
+    background: {t.accent_subtle}; border-color: {t.accent_subtle}; color: {t.accent_subtle_text}; }}
+QFrame#BulkBar {{ background: {t.text}; border-radius: {RADIUS_MD}px; }}
+QLabel#BulkLabel {{ color: {t.surface}; font-weight: 600; }}
+QPushButton[variant="bulk"] {{ background: transparent; color: {t.surface}; border-color: {t.text_3}; min-height: 30px; }}
+QPushButton[variant="bulk"]:hover {{ background: {t.text_2}; }}
+
+/* ---- tables ---- */
+QTableView, QTableWidget {{
+    background: {t.surface}; border: 1px solid {t.border}; border-radius: {RADIUS_LG}px; gridline-color: {t.border};
+    selection-background-color: {t.accent_subtle}; selection-color: {t.text}; outline: 0; }}
+QTableView::item, QTableWidget::item {{ padding: 0 10px; border-bottom: 1px solid {t.border}; }}
+QTableView::item:hover, QTableWidget::item:hover {{ background: {t.surface_2}; }}
+QTableView::item:selected, QTableWidget::item:selected {{ background: {t.accent_subtle}; color: {t.text}; }}
+QHeaderView {{ background: transparent; }}
+QHeaderView::section {{ background: {t.surface}; color: {t.text_2}; border: none; border-bottom: 1px solid {t.border};
+    padding: 9px 10px; font-size: 12px; font-weight: 600; }}
+QHeaderView::section:first {{ border-top-left-radius: {RADIUS_LG}px; }}
+QTableCornerButton::section {{ background: {t.surface}; border: none; }}
+
+/* ---- badges, tiles, clickable rows ---- */
+QLabel[badge="lifer"] {{ background: {t.accent_subtle}; color: {t.accent_subtle_text}; border-radius: 9px;
+    padding: 2px 9px; font-size: 12px; font-weight: 650; }}
+QLabel[badge="warn"] {{ background: {t.warning_subtle}; color: {t.warning}; border-radius: 9px;
+    padding: 2px 9px; font-size: 12px; font-weight: 650; }}
+QLabel[badge="plain"] {{ background: {t.surface_3}; color: {t.text_2}; border-radius: 9px;
+    padding: 2px 9px; font-size: 12px; font-weight: 650; }}
+QFrame#Tile {{ background: {t.surface}; border: 1px solid {t.border}; border-radius: {RADIUS_LG}px; }}
+QLabel#TileLabel {{ color: {t.text_2}; font-size: 12.5px; font-weight: 600; }}
+QLabel#TileValue {{ font-family: "{FONT_DISPLAY}", {fonts}; font-size: 30px; font-weight: 600; color: {t.text}; }}
+QLabel[role="deltaUp"] {{ color: {t.good_text}; font-size: 12.5px; }}
+QLabel[role="delta"] {{ color: {t.text_3}; font-size: 12.5px; }}
+QFrame#RowButton {{ background: transparent; border-radius: 9px; }}
+QFrame#RowButton:hover {{ background: {t.surface_2}; }}
+QFrame#RowButton:focus {{ border: 2px solid {t.accent}; }}
+QLabel#RowTitle {{ font-weight: 600; color: {t.text}; }}
+QLabel#RowMeta {{ font-size: 12.5px; color: {t.text_2}; }}
+QLabel#RowSide {{ font-size: 12.5px; color: {t.text_3}; }}
+
+/* ---- menus, combo popups, progress ---- */
+QMenu {{ background: {t.surface}; color: {t.text}; border: 1px solid {t.border}; border-radius: {RADIUS_MD}px; padding: 6px; }}
+QMenu::item {{ padding: 6px 28px 6px 10px; border-radius: 6px; }}
+QMenu::item:selected {{ background: {t.surface_2}; color: {t.text}; }}
+QMenu::separator {{ height: 1px; background: {t.border}; margin: 6px 4px; }}
+QComboBox QAbstractItemView {{ background: {t.surface}; color: {t.text}; border: 1px solid {t.border};
+    selection-background-color: {t.surface_2}; selection-color: {t.text}; outline: 0; }}
+QProgressBar {{ background: {t.surface_3}; border: none; border-radius: 4px; max-height: 8px; text-align: center; }}
+QProgressBar::chunk {{ background: {t.accent}; border-radius: 4px; }}
+QDialog {{ background: {t.surface}; }}
 """

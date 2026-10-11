@@ -255,7 +255,7 @@ _LINK_RES = (
     re.compile(rf"#map=\d+(?:\.\d+)?/({_DEC})/({_DEC})"),  # OpenStreetMap #map=15/51.5/-0.12
 )
 _DMS_RE = re.compile(
-    r"(\d{1,3})[°\s]+(\d{1,2})['′\s]+(\d{1,2}(?:\.\d+)?)[\"″]?\s*([NSEW])",  # noqa: RUF001 (prime marks are intended)
+    r"(\d{1,3})[°\s]+(\d{1,2})['′\s]+(\d{1,2}(?:\.\d+)?)[\"″]?\s*([NSEW])",
     re.IGNORECASE,
 )
 

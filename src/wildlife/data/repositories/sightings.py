@@ -82,6 +82,11 @@ def _sighting(r: sqlite3.Row) -> Sighting:
     )
 
 
+def _code(value) -> str | None:
+    """Enum or plain string -> stored code (str() of a StrEnum is its value)."""
+    return None if value is None else str(value)
+
+
 def _values(d: SightingDraft) -> dict[str, Any]:
     return {
         "taxon_id": d.taxon_id,
@@ -91,15 +96,15 @@ def _values(d: SightingDraft) -> dict[str, Any]:
         "latitude": d.latitude,
         "longitude": d.longitude,
         "uncertainty_m": d.uncertainty_m,
-        "location_method": d.location_method.value if d.location_method else None,
+        "location_method": _code(d.location_method),
         "location_text": d.location_text,
         "count": d.count,
-        "count_qualifier": d.count_qualifier.value,
-        "evidence": d.evidence.value,
-        "identification": d.identification.value,
-        "sex": d.sex.value if d.sex else None,
-        "life_stage": d.life_stage.value if d.life_stage else None,
-        "habitat": d.habitat.value if d.habitat else None,
+        "count_qualifier": _code(d.count_qualifier),
+        "evidence": _code(d.evidence),
+        "identification": _code(d.identification),
+        "sex": _code(d.sex),
+        "life_stage": _code(d.life_stage),
+        "habitat": _code(d.habitat),
         "is_not_wild": int(d.is_not_wild),
         "outing_id": d.outing_id,
         "notes": d.notes,

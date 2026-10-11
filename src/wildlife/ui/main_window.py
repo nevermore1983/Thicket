@@ -1,7 +1,8 @@
-"""The application shell: sidebar navigation, top bar and the page area."""
+"""The application shell: sidebar, top bar, pages and the side panel, and the flows between them."""
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from PySide6.QtCore import QSettings, Qt
@@ -19,12 +20,28 @@ from PySide6.QtWidgets import (
 )
 
 from wildlife.context import AppContext
+from wildlife.domain.errors import BackupError, NotFoundError
+from wildlife.domain.filters import SightingFilter
+from wildlife.domain.models import SightingDraft
+from wildlife.services.sightings import SaveResult
 from wildlife.ui.components.common import button
+from wildlife.ui.components.side_panel import SidePanel
 from wildlife.ui.components.toast import ToastHost
+from wildlife.ui.dialogs import SearchPopup
 from wildlife.ui.pages import simple
+from wildlife.ui.pages.dashboard_page import DashboardPage
+from wildlife.ui.pages.list_pages import PlacesPage, SpeciesPage
 from wildlife.ui.pages.settings_page import SettingsPage
+from wildlife.ui.pages.sightings_page import SightingsPage
+from wildlife.ui.panels.place_editor import PlaceEditor
+from wildlife.ui.panels.sighting_detail import SightingDetail
+from wildlife.ui.panels.sighting_editor import SightingEditor
+from wildlife.ui.qt_events import QtEvents
 from wildlife.ui.theme.icons import icon, pixmap
 from wildlife.ui.theme.manager import ThemeManager
+from wildlife.ui.workers import run_in_background
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -46,6 +63,13 @@ NAV = (
 )
 SETTINGS = NavEntry("settings", "Settings", "settings")
 RAIL_BELOW = 900  # window width at which the sidebar shrinks to icons
+REFRESH_ON = {  # which data changes each page cares about
+    "dashboard": {"sightings", "places", "photos", "backup", "settings", "taxa"},
+    "sightings": {"sightings", "places", "taxa", "settings"},
+    "species": {"sightings", "taxa", "settings"},
+    "places": {"places", "sightings"},
+    "settings": {"backup", "settings", "sightings", "taxa"},
+}
 
 
 class MainWindow(QMainWindow):
@@ -67,18 +91,22 @@ class MainWindow(QMainWindow):
         self.pages = QStackedWidget()
         main.addWidget(self.pages, 1)
         layout.addLayout(main, 1)
+        self.panel = SidePanel(theme)
+        layout.addWidget(self.panel)
         self.toasts = ToastHost(root, theme)
 
         self._page_index: dict[str, int] = {}
+        self._stale: set[str] = set()
         self._build_pages()
         self._install_shortcuts()
         self._paint_icons()
         theme.changed.connect(self._paint_icons)
-        self.go(
-            ctx.settings.current.start_page
-            if ctx.settings.current.start_page in self._page_index
-            else "dashboard"
-        )
+        self.events = QtEvents(ctx.events, self)
+        self.events.changed.connect(self._on_data_changed)
+        self.search_popup = SearchPopup(ctx, theme, self.search)
+        self.search_popup.chosen.connect(self.show_sightings)
+        start = ctx.settings.current.start_page
+        self.go(start if start in self._page_index else "dashboard")
         self._restore_geometry()
 
     # ---- building -------------------------------------------------------
@@ -107,7 +135,6 @@ class MainWindow(QMainWindow):
         names.addWidget(self._brand_sub)
         brand.addLayout(names, 1)
         v.addLayout(brand)
-
         self._nav_group = QButtonGroup(self)
         self._nav_buttons: dict[str, QPushButton] = {}
         for i, entry in enumerate((*NAV, SETTINGS)):
@@ -142,9 +169,6 @@ class MainWindow(QMainWindow):
         self.search.setMaximumWidth(560)
         self._search_action = QAction(self.search)
         self.search.addAction(self._search_action, QLineEdit.ActionPosition.LeadingPosition)
-        self.search.returnPressed.connect(
-            lambda: self.toasts.show("Search arrives with sightings in the next phase")
-        )
         h.addWidget(self.search, 1)
         h.addStretch()
         self.add_button = button("Add sighting", "primary", "plus", self.theme, self.add_sighting)
@@ -153,58 +177,59 @@ class MainWindow(QMainWindow):
         return bar
 
     def _build_pages(self) -> None:
-        t = self.theme
+        t, ctx = self.theme, self.ctx
+        self.dashboard = DashboardPage(ctx, t)
+        self.dashboard.open_sighting.connect(self.open_sighting)
+        self.dashboard.add_requested.connect(self.add_sighting)
+        self.dashboard.show_sightings.connect(self.show_sightings)
+        self.dashboard.backup_requested.connect(self.backup_now)
+        self.sightings_page = SightingsPage(ctx, t)
+        self.sightings_page.open_sighting.connect(self.open_sighting)
+        self.sightings_page.add_requested.connect(self.add_sighting)
+        self.sightings_page.toast.connect(self._toast)
+        self.species_page = SpeciesPage(ctx, t)
+        self.species_page.show_sightings.connect(self.show_sightings)
+        self.places_page = PlacesPage(ctx, t)
+        self.places_page.new_place.connect(lambda: self.edit_place(None))
+        self.places_page.edit_place.connect(self.edit_place)
+        self.settings_page = SettingsPage(ctx, t)
+        self.settings_page.backup_requested.connect(self.backup_now)
+        self.settings_page.toast.connect(self._toast)
         later = {
-            "sightings": (
-                "list",
-                "No sightings yet",
-                "Sightings you add appear here. You'll be able to sort, filter and edit many at once.",
-            ),
             "calendar": (
                 "calendar",
-                "Your calendar is empty",
+                "Calendar arrives in Phase 7",
                 "Your sightings will appear here by date, in year, month, week and day views.",
             ),
             "map": (
                 "map",
-                "Nothing on the map yet",
-                "Sightings with a location appear here as pins, a heat map or grid squares.",
+                "The map arrives in Phase 8",
+                "Sightings with a location will appear as pins, a heat map or grid squares.",
             ),
             "photos": (
                 "image",
-                "No photos yet",
-                "Import photos from your phone or camera. WildLife reads the date, time and place from "
-                "each one, then you choose the species.",
+                "The photo library arrives in Phase 9",
+                "You can already attach photos to sightings. The gallery, viewer and Photo Inbox come next.",
             ),
             "statistics": (
                 "chart",
-                "Statistics appear once you have sightings",
-                "Your species list, busiest months and best places will show here.",
-            ),
-            "species": (
-                "leaf",
-                "Your species list is empty",
-                "Each species you record is added here, with when and where you first and last saw it.",
-            ),
-            "places": (
-                "pin",
-                "No places yet",
-                "Save the spots you visit often, like your garden or a local reserve, to record faster.",
+                "Statistics arrive in Phase 10",
+                "Your species growth, busiest months and best places will show here.",
             ),
         }
         pages = {
-            "dashboard": simple.dashboard(
-                t, self.add_sighting, self._coming_soon, self._coming_soon
-            )
+            "dashboard": self.dashboard,
+            "sightings": self.sightings_page,
+            "species": self.species_page,
+            "places": self.places_page,
+            "settings": self.settings_page,
         }
-        for entry in NAV[1:]:
-            ic, heading, text = later[entry.key]
-            pages[entry.key] = simple.coming_soon(
-                t, entry.label, ic, heading, text, self.add_sighting
+        for key, (ic, heading, text) in later.items():
+            pages[key] = simple.coming_soon(
+                t, next(e.label for e in NAV if e.key == key), ic, heading, text, self.add_sighting
             )
-        pages["settings"] = SettingsPage(self.ctx, t)
-        for key, page in pages.items():
-            self._page_index[key] = self.pages.addWidget(page)
+        for key in [e.key for e in NAV] + ["settings"]:
+            self._page_index[key] = self.pages.addWidget(pages[key])
 
     def _install_shortcuts(self) -> None:
         for i, entry in enumerate(NAV):
@@ -212,31 +237,161 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+N"), self, activated=self.add_sighting)
         QShortcut(QKeySequence("Ctrl+K"), self, activated=self.focus_search)
         QShortcut(QKeySequence("Ctrl+Z"), self, activated=self._undo)
+        QShortcut(
+            QKeySequence(Qt.Key.Key_Escape),
+            self.panel,
+            activated=self._escape,
+            context=Qt.ShortcutContext.WidgetWithChildrenShortcut,
+        )
 
-    # ---- behaviour ------------------------------------------------------
+    # ---- navigation ---------------------------------------------------------
     def go(self, key: str) -> None:
         self.pages.setCurrentIndex(self._page_index[key])
         self._nav_buttons[key].setChecked(True)
+        if key in self._stale:
+            self._stale.discard(key)
+            getattr(self.pages.currentWidget(), "refresh", lambda: None)()
 
     def current_page(self) -> str:
         index = self.pages.currentIndex()
         return next(k for k, i in self._page_index.items() if i == index)
 
+    def show_sightings(self, flt: SightingFilter) -> None:
+        self.search.clear()
+        self.go("sightings")
+        self.sightings_page.set_filter(flt)
+
     def focus_search(self) -> None:
         self.search.setFocus(Qt.FocusReason.ShortcutFocusReason)
         self.search.selectAll()
 
-    def add_sighting(self) -> None:
-        self.toasts.show("Adding sightings arrives in the next phase")
+    def _on_data_changed(self, topic: str, _ids: tuple) -> None:
+        """Refresh the visible page now; mark the others to refresh when next shown."""
+        current = self.current_page()
+        for key, topics in REFRESH_ON.items():
+            if topic in topics:
+                if key == current:
+                    getattr(self.pages.widget(self._page_index[key]), "refresh", lambda: None)()
+                else:
+                    self._stale.add(key)
+        view = self.panel.current()
+        if topic in ("sightings", "taxa") and isinstance(view, SightingDetail):
+            try:
+                view.reload()
+            except NotFoundError:
+                self.panel.close_panel()
 
-    def _coming_soon(self) -> None:
-        self.toasts.show("This arrives in a later phase")
+    # ---- sightings ------------------------------------------------------------
+    def add_sighting(self, prefill: SightingDraft | None = None) -> None:
+        editor = SightingEditor(
+            self.ctx, self.theme, prefill=prefill if isinstance(prefill, SightingDraft) else None
+        )
+        self._wire_editor(editor)
+        self.panel.show_view(editor)
+
+    def open_sighting(self, sighting_id: int) -> None:
+        detail = SightingDetail(self.ctx, self.theme, sighting_id)
+        detail.edit_requested.connect(self.edit_sighting)
+        detail.delete_requested.connect(self.delete_sighting)
+        self.panel.show_view(detail)
+
+    def edit_sighting(self, sighting_id: int) -> None:
+        editor = SightingEditor(self.ctx, self.theme, existing=self.ctx.sightings.get(sighting_id))
+        self._wire_editor(editor)
+        self.panel.show_view(editor, push=isinstance(self.panel.current(), SightingDetail))
+
+    def _wire_editor(self, editor: SightingEditor) -> None:
+        editor.saved.connect(lambda result, another: self._saved(editor, result, another))
+        editor.cancelled.connect(self._close_or_back)
+
+    def _saved(self, editor: SightingEditor, result: SaveResult, another: bool) -> None:
+        s = result.sighting
+        verb = "saved" if result.created else "updated"
+        message = f"{s.display_name} {verb}" + (
+            " · ★ new species for your life list!" if result.is_lifer else ""
+        )
+        self._toast(
+            message,
+            result.undo.run,
+            open_=(lambda: self.open_sighting(s.id)) if result.created else None,
+        )
+        if another:
+            prefill = SightingDraft(
+                taxon_id=None,
+                observed_date=s.observed_date,
+                observed_time=s.observed_time,
+                place_id=s.place_id,
+            )
+            fresh = SightingEditor(self.ctx, self.theme, prefill=prefill)
+            self._wire_editor(fresh)
+            self.panel.replace_top(fresh)
+        else:
+            self._close_or_back()
+
+    def _close_or_back(self) -> None:
+        view = self.panel.current()
+        if view is not None:
+            view._dirty = False  # already saved or deliberately cancelled
+        self.panel.back()
+
+    def delete_sighting(self, sighting_id: int) -> None:
+        s = self.ctx.sightings.get(sighting_id)
+        undo = self.ctx.sightings.delete([sighting_id])
+        self.panel.close_panel()
+        self._toast(f"{s.display_name} moved to the recycle bin", undo.run)
+
+    # ---- places -----------------------------------------------------------------
+    def edit_place(self, place_id: int | None) -> None:
+        editor = PlaceEditor(
+            self.ctx, self.theme, self.ctx.places.get(place_id) if place_id else None
+        )
+        editor.saved.connect(
+            lambda place: (self._toast(f"{place.name} saved", None), self.panel.close_panel())
+        )
+        editor.removed.connect(
+            lambda message: (self._toast(message, None), self.panel.close_panel())
+        )
+        editor.cancelled.connect(self.panel.close_panel)
+        self.panel.show_view(editor)
+
+    # ---- backups ------------------------------------------------------------------
+    def backup_now(self, kind: str = "manual") -> None:
+        if kind == "manual":
+            self._toast("Backing up…", None)
+
+        def done(result) -> None:
+            if kind == "manual":
+                self._toast(
+                    f"Backed up and verified · {result.sightings:,} sightings, "
+                    f"{result.photos_copied} new photos copied",
+                    None,
+                )
+
+        def failed(exc: BaseException) -> None:
+            message = (
+                exc.user_message if isinstance(exc, BackupError) else "The backup didn't complete."
+            )
+            self._toast(f"Backup failed: {message}", None)
+
+        run_in_background(
+            lambda: self.ctx.backup.backup_now(kind if isinstance(kind, str) else "manual"),
+            on_done=done,
+            on_error=failed,
+        )
+
+    # ---- helpers ------------------------------------------------------------------
+    def _toast(self, message: str, undo, open_=None) -> None:
+        self.toasts.show(message, undo=undo, open_=open_)
 
     def _undo(self) -> None:
         if self.toasts.last_undo:
             undo, self.toasts.last_undo = self.toasts.last_undo, None
             undo()
             self.toasts.show("Undone")
+
+    def _escape(self) -> None:
+        if self.panel.isVisible():
+            self.panel.back()
 
     def _paint_icons(self) -> None:
         t = self.theme.tokens
@@ -256,14 +411,21 @@ class MainWindow(QMainWindow):
         for entry in (*NAV, SETTINGS):
             self._nav_buttons[entry.key].setText("" if rail else entry.label)
 
-    # ---- window state ---------------------------------------------------
     def _restore_geometry(self) -> None:
         geometry = QSettings().value("window/geometry")
         if geometry is not None:
             self.restoreGeometry(geometry)
         else:
-            self.resize(1280, 820)
+            self.resize(1360, 860)
 
     def closeEvent(self, event: QCloseEvent) -> None:
+        if self.panel.isVisible() and not self.panel.close_panel():
+            event.ignore()  # unsaved changes and the user chose to keep editing
+            return
         QSettings().setValue("window/geometry", self.saveGeometry())
+        if self.ctx.backup.needed_on_exit():
+            try:
+                self.ctx.backup.backup_now("exit")
+            except BackupError as exc:
+                log.warning("Backup on exit failed: %s", exc.user_message)
         super().closeEvent(event)

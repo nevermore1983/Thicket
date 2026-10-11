@@ -42,7 +42,7 @@ def save(conn: sqlite3.Connection, d: PlaceDraft) -> int:
         d.latitude,
         d.longitude,
         d.radius_m,
-        d.habitat.value if d.habitat else None,
+        str(d.habitat) if d.habitat else None,  # enum or plain string
         d.notes,
         int(d.is_favourite),
     )

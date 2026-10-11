@@ -134,7 +134,7 @@ def ctx(paths: DataPaths):
     context = AppContext.open(paths)
     with context.db.transaction() as conn:
         taxa_repo.install_catalogue(conn, MINI_CATALOGUE)
-    context.sightings._today = lambda: TODAY
+    context.set_today(TODAY)
     yield context
     context.close()
 

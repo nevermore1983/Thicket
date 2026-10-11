@@ -21,6 +21,7 @@ from wildlife.services.places import PlaceService
 from wildlife.services.settings import SettingsService
 from wildlife.services.sightings import SightingService
 from wildlife.services.species_catalogue import SpeciesCatalogue
+from wildlife.services.stats import StatsService
 
 log = logging.getLogger(__name__)
 
@@ -37,6 +38,7 @@ class AppContext:
     places: PlaceService = field(init=False)
     photos: PhotoService = field(init=False)
     backup: BackupService = field(init=False)
+    stats: StatsService = field(init=False)
 
     def __post_init__(self) -> None:
         self.catalogue = SpeciesCatalogue(self.db, self.events)
@@ -44,6 +46,12 @@ class AppContext:
         self.places = PlaceService(self.db, self.events)
         self.photos = PhotoService(self.paths, self.db, self.events)
         self.backup = BackupService(self.paths, self.db, self.events, self.settings)
+        self.stats = StatsService(self.db, self.settings)
+
+    def set_today(self, today) -> None:
+        """Fix 'today' (used by tests and demos so dates are predictable)."""
+        self.sightings._today = lambda: today
+        self.stats.today = lambda: today
 
     @classmethod
     def open(cls, paths: DataPaths) -> AppContext:

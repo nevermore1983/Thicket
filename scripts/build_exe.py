@@ -121,7 +121,7 @@ def smoke_test() -> None:
         result = subprocess.run([str(exe), "--smoke-test", "--data-dir", tmp], timeout=60)
         elapsed = time.perf_counter() - start
         log = (Path(tmp) / "logs" / "wildlife.log").read_text(encoding="utf-8")
-    ok = result.returncode == 0 and "Smoke test OK" in log
+    ok = result.returncode == 0 and "Smoke test OK" in log and "Smoke test: catalogue" in log
     print(
         f"Smoke test: {'PASS' if ok else 'FAIL'} (exit {result.returncode}, {elapsed:.1f} s incl. 1.5 s wait)"
     )

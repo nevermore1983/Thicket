@@ -14,6 +14,11 @@ class _Labelled(StrEnum):
     def label(self) -> str:
         return _LABELS.get(self.value, self.value.replace("_", " ").capitalize())
 
+    @property
+    def explanation(self) -> str:
+        """A longer description for menus and tooltips (empty if the label says it all)."""
+        return _EXPLANATIONS.get(self.value, "")
+
 
 class Evidence(_Labelled):
     SEEN = "seen"
@@ -78,10 +83,16 @@ class LocationMethod(_Labelled):
     IMPORT = "import"
 
 
+_EXPLANATIONS = {
+    "signs": "Tracks, droppings, feathers, nests, feeding remains",
+    "trapped": "For example in a moth trap or small-mammal trap",
+    "heard": "Identified by call or song only",
+    "probable": "Fairly sure, but not certain",
+    "possible": "Not sure: worth checking later",
+}
+
 _LABELS = {
     "seen_heard": "Seen & heard",
-    "signs": "Signs (tracks, droppings, nest…)",
-    "trapped": "Trapped (e.g. moth trap)",
     "larva": "Larva / caterpillar",
     "heath_moorland": "Heath & moorland",
     "garden_urban": "Garden & urban",
