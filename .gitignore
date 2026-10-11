@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Build output
+build/
+dist/
+*.spec.bak
+
+# Local data (the app's real data never lives in the repo)
+*.db
+*.db-wal
+*.db-shm
+local_data/
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
