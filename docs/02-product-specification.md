@@ -248,7 +248,9 @@ Realise 8 "Ruddy Darter" sightings were actually Common Darter → filter → se
 | Order | auto | Order in lists and legends, changed by dragging |
 | Taxonomic groups | No | e.g. class Aves → Bird. Used to categorise species automatically. |
 
-**Default categories:** Bird · Mammal · Reptile · Amphibian · Fish · Butterfly & Moth · Dragonfly & Damselfly · Other insect · Spider & other arachnid · Other invertebrate · Other. The UK recording community treats butterflies, moths and dragonflies as separate groups, so they get their own categories. Everything is editable.
+**Default categories:** Bird · Mammal · Fish · Butterfly & Moth · Dragonfly & Damselfly · Reptile & Amphibian · Other insect · Other invertebrate · Other. The UK recording community treats butterflies, moths and dragonflies as separate groups, so they get their own categories. Everything is editable.
+
+*Updated in Phase 4:* this list was 11 categories. It became 8 + Other so that every category colour stays distinguishable for colour-blind users (see [04-ui-ux-design.md §3.3](04-ui-ux-design.md)).
 
 ### 6.4 Place
 

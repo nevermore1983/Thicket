@@ -112,7 +112,7 @@ def constraint_tests(conn):
     with transaction(conn):
         conn.execute(
             "INSERT INTO taxon (id, scientific_name, rank, category_id, is_custom) "
-            "VALUES (900001, 'Testus testus', 'species', 11, 1)"
+            "VALUES (900001, 'Testus testus', 'species', 9, 1)"
         )
         conn.execute(
             "INSERT INTO place (id, name, latitude, longitude) VALUES (900001, 'Test place', 51.5, -0.1)"
@@ -344,7 +344,7 @@ def build_dataset(conn):
         conn.executemany(
             "INSERT INTO taxon (id, uksi_key, scientific_name, common_name, rank, parent_id, "
             "tax_kingdom, tax_phylum, tax_class, tax_order, tax_family, priority, category_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, 'Animalia', ?, ?, ?, ?, ?, 11)",
+            "VALUES (?, ?, ?, ?, ?, ?, 'Animalia', ?, ?, ?, ?, ?, 9)",
             taxa,
         )
         # species_id: self for species, parent for subspecies, NULL for broader ranks.

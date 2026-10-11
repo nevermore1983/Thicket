@@ -289,31 +289,31 @@ WHERE s.deleted_at IS NULL;
 -- Starter data: default categories and taxonomy rules
 -- ===========================================================================
 INSERT INTO category (id, name, colour, icon, sort_order, is_fallback) VALUES
-    (1,  'Bird',                     '#2F80ED', 'bird',      10, 0),
-    (2,  'Mammal',                   '#A0522D', 'rabbit',    20, 0),
-    (3,  'Reptile',                  '#6B8E23', 'turtle',    30, 0),
-    (4,  'Amphibian',                '#20A39E', 'droplets',  40, 0),
-    (5,  'Fish',                     '#1E6FB8', 'fish',      50, 0),
-    (6,  'Butterfly & Moth',         '#D9480F', 'flower',    60, 0),
-    (7,  'Dragonfly & Damselfly',    '#7048E8', 'wind',      70, 0),
-    (8,  'Other insect',             '#E8A100', 'bug',       80, 0),
-    (9,  'Spider & other arachnid',  '#5F3DC4', 'bug-off',   90, 0),
-    (10, 'Other invertebrate',       '#C2255C', 'shell',    100, 0),
-    (11, 'Other',                    '#6C757D', 'paw-print', 110, 1);
+    -- Colours are the 8 validated categorical slots, in their fixed order
+    -- (colour-blind safe for neighbours; see docs/04-ui-ux-design.md).
+    -- The UI picks the dark-theme step of each slot automatically.
+    (1, 'Bird',                    '#2a78d6', 'bird',       10, 0),
+    (2, 'Mammal',                  '#eb6834', 'rabbit',     20, 0),
+    (3, 'Fish',                    '#1baf7a', 'fish',       30, 0),
+    (4, 'Butterfly & Moth',        '#eda100', 'butterfly',  40, 0),
+    (5, 'Dragonfly & Damselfly',   '#e87ba4', 'dragonfly',  50, 0),
+    (6, 'Reptile & Amphibian',     '#008300', 'frog',       60, 0),
+    (7, 'Other insect',            '#4a3aa7', 'bug',        70, 0),
+    (8, 'Other invertebrate',      '#e34948', 'snail',      80, 0),
+    (9, 'Other',                   '#7d847e', 'paw-print',  90, 1);
 
 INSERT INTO category_rule (category_id, rank, taxon_name) VALUES
-    (10, 'kingdom', 'Animalia'),        -- any animal not matched below
-    (11, 'phylum',  'Chordata'),        -- vertebrates not matched below
-    (1,  'class',   'Aves'),
-    (2,  'class',   'Mammalia'),
-    (3,  'class',   'Reptilia'),
-    (4,  'class',   'Amphibia'),
-    (5,  'class',   'Actinopterygii'),
-    (5,  'class',   'Actinopteri'),
-    (5,  'class',   'Elasmobranchii'),
-    (5,  'class',   'Petromyzonti'),
-    (5,  'class',   'Myxini'),
-    (8,  'class',   'Insecta'),
-    (9,  'class',   'Arachnida'),
-    (6,  'order',   'Lepidoptera'),
-    (7,  'order',   'Odonata');
+    (8, 'kingdom', 'Animalia'),        -- any animal not matched below
+    (9, 'phylum',  'Chordata'),        -- vertebrates not matched below
+    (1, 'class',   'Aves'),
+    (2, 'class',   'Mammalia'),
+    (3, 'class',   'Actinopterygii'),
+    (3, 'class',   'Actinopteri'),
+    (3, 'class',   'Elasmobranchii'),
+    (3, 'class',   'Petromyzonti'),
+    (3, 'class',   'Myxini'),
+    (6, 'class',   'Reptilia'),
+    (6, 'class',   'Amphibia'),
+    (7, 'class',   'Insecta'),
+    (4, 'order',   'Lepidoptera'),
+    (5, 'order',   'Odonata');
