@@ -180,6 +180,7 @@ class SpeciesDelegate(QStyledItemDelegate):
 class SightingsPage(QWidget):
     open_sighting = Signal(int)
     add_requested = Signal()
+    export_requested = Signal(object)  # SightingFilter: the sightings shown now
     toast = Signal(str, object)  # message, undo callable or None
 
     def __init__(self, ctx: AppContext, theme: ThemeManager) -> None:
@@ -205,7 +206,7 @@ class SightingsPage(QWidget):
                 "secondary",
                 "download",
                 theme,
-                lambda: self.toast.emit("Export arrives in a later phase", None),
+                lambda: self.export_requested.emit(self.model.filter),
             )
         )
         head.addWidget(button("Add sighting", "primary", "plus", theme, self.add_requested.emit))

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+import uuid as uuid_mod
 
 from wildlife.domain.codes import Habitat
 from wildlife.domain.models import Place, PlaceDraft
@@ -48,9 +49,9 @@ def save(conn: sqlite3.Connection, d: PlaceDraft) -> int:
     )
     if d.id is None:
         return conn.execute(
-            "INSERT INTO place (name, latitude, longitude, radius_m, habitat, notes, is_favourite) "
-            "VALUES (?,?,?,?,?,?,?)",
-            values,
+            "INSERT INTO place (name, latitude, longitude, radius_m, habitat, notes, is_favourite, "
+            "uuid) VALUES (?,?,?,?,?,?,?,?)",
+            (*values, str(uuid_mod.uuid4())),
         ).lastrowid
     conn.execute(
         f"UPDATE place SET name=?, latitude=?, longitude=?, radius_m=?, habitat=?, notes=?, "

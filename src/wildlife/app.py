@@ -7,7 +7,7 @@ import logging
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QCoreApplication, Qt, QTimer, QUrl
+from PySide6.QtCore import QCoreApplication, Qt, QThread, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QApplication, QMessageBox
 
@@ -26,6 +26,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--debug", action="store_true", help="write detailed logs")
     # Used to check a packaged build: open the window, then close and exit 0.
     parser.add_argument("--smoke-test", action="store_true", help=argparse.SUPPRESS)
+    # Set when WildLife restarts itself (after choosing a backup to restore): wait for the
+    # old window to close instead of handing over to it.
+    parser.add_argument("--restarting", action="store_true", help=argparse.SUPPRESS)
     return parser.parse_args(argv)
 
 
@@ -49,12 +52,16 @@ def main(argv: list[str] | None = None) -> int:
     # Imported after QApplication exists (these create Qt objects)
     from wildlife.ui import error_handler
     from wildlife.ui.main_window import MainWindow
-    from wildlife.ui.single_instance import InstanceServer, another_instance_is_running
+    from wildlife.ui.single_instance import InstanceServer
     from wildlife.ui.theme.manager import ThemeManager
 
-    if not args.smoke_test and another_instance_is_running():
+    if not args.smoke_test and _already_running(args.restarting):
         log.info("Already running; asked the existing window to come forward")
         return 0
+
+    from wildlife.data.restore import apply_pending_restore
+
+    restored = apply_pending_restore(paths)  # before anything opens the database
 
     reporter = error_handler.ErrorReporter()
     error_handler.install(reporter)
@@ -76,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
         ctx.settings.update(allow_online=False)  # a build check must not depend on the internet
         QTimer.singleShot(500, lambda: _run_smoke_checks(window, app))
     else:
-        QTimer.singleShot(0, lambda: _after_start(ctx, theme, window))
+        QTimer.singleShot(0, lambda: _after_start(ctx, theme, window, restored))
     try:
         return app.exec()
     finally:
@@ -135,9 +142,24 @@ def _smoke_raw() -> None:
     log.info("Smoke test: RAW ok (LibRaw %s, numpy %s)", version, numpy.__version__)
 
 
-def _after_start(ctx: AppContext, theme, window) -> None:
+def _already_running(restarting: bool) -> bool:
+    from wildlife.ui.single_instance import another_instance_is_running
+
+    if not restarting:
+        return another_instance_is_running()
+    for _ in range(40):  # the old window is closing: wait up to ~12 s for it to go
+        if not another_instance_is_running(ask_to_show=False):
+            return False
+        QThread.msleep(300)
+    return another_instance_is_running()
+
+
+def _after_start(ctx: AppContext, theme, window, restored=None) -> None:
     """Jobs that run once the window is showing."""
     from wildlife.ui.dialogs import FirstRunDialog
+
+    if restored is not None:
+        window.show_restore_outcome(restored)
 
     if ctx.catalogue.needs_install():
         FirstRunDialog(ctx, theme, updating=ctx.catalogue.installed_version() is not None).exec()

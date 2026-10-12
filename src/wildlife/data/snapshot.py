@@ -31,9 +31,19 @@ def take_snapshot(conn: sqlite3.Connection, dest: Path) -> Path:
     target = sqlite3.connect(dest)
     try:
         conn.backup(target)
+        # One self-contained file: a WAL-mode copy would grow -wal/-shm side files
+        # whenever it's opened (e.g. to verify it), and those would be left behind.
+        target.execute("PRAGMA journal_mode = DELETE")
     finally:
         target.close()
     return dest
+
+
+def remove(path: Path) -> None:
+    """Delete a snapshot with its manifest and any side files."""
+    for extra in ("", "-wal", "-shm"):
+        Path(str(path) + extra).unlink(missing_ok=True)
+    path.with_suffix(".json").unlink(missing_ok=True)
 
 
 def verify(path: Path) -> Verification:

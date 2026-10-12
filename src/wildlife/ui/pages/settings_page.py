@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMessageBox,
+    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -27,6 +28,8 @@ from PySide6.QtWidgets import (
 from wildlife import __version__
 from wildlife.config.settings import Theme
 from wildlife.context import AppContext
+from wildlife.domain.filters import SightingFilter
+from wildlife.services.import_history import SOURCE_NAMES
 from wildlife.ui.components.common import Callout, Page, Segmented, button
 from wildlife.ui.components.visuals import fmt_date, plural
 from wildlife.ui.theme.manager import ThemeManager
@@ -79,7 +82,11 @@ def _pair(*widgets: QWidget) -> QWidget:
 
 class SettingsPage(QWidget):
     backup_requested = Signal()
-    import_inaturalist = Signal()
+    import_requested = Signal(str)  # 'inaturalist', 'csv' or 'wildlife'
+    export_requested = Signal()
+    health_requested = Signal()
+    restore_requested = Signal()
+    show_sightings = Signal(object)  # SightingFilter
     toast = Signal(str, object)
 
     def __init__(self, ctx: AppContext, theme: ThemeManager) -> None:
@@ -182,22 +189,8 @@ class SettingsPage(QWidget):
         # backup
         page.add(_section("Backup", self._backup_rows()))
 
-        # import
-        page.add(
-            _section(
-                "Import",
-                [
-                    _row(
-                        "iNaturalist",
-                        "Bring in your observations from an iNaturalist export. Importing again "
-                        "later only adds what's new or changed.",
-                        button(
-                            "Import…", "secondary", "upload", theme, self.import_inaturalist.emit
-                        ),
-                    ),
-                ],
-            )
-        )
+        # import & export
+        page.add(_section("Import & export", self._exchange_rows()))
 
         # data
         bin_items = ctx.sightings.recycle_bin()
@@ -240,6 +233,11 @@ class SettingsPage(QWidget):
                 f"{plural(len(bin_items), 'sighting')} · emptied automatically after "
                 f"{s.recycle_bin_days} days",
                 empty_bin,
+            ),
+            _row(
+                "Health check",
+                "Checks your data file, every photo file, backups and the species list.",
+                button("Check now", "secondary", "shield", theme, self.health_requested.emit),
             ),
             _row(
                 "Species list",
@@ -345,7 +343,88 @@ class SettingsPage(QWidget):
                 button("Back up now", "primary", "shield", theme, self.backup_requested.emit),
             )
         )
+        rows.append(
+            _row(
+                "Restore",
+                "Bring back your data as it was in an earlier backup. Your current data is "
+                "kept as a safety copy.",
+                button("Restore…", "secondary", "rotate", theme, self.restore_requested.emit),
+            )
+        )
         return rows
+
+    def _exchange_rows(self) -> list[QWidget]:
+        theme = self.theme
+
+        def importer(kind: str) -> QPushButton:
+            return button(
+                "Import…", "secondary", "upload", theme, lambda: self.import_requested.emit(kind)
+            )
+
+        rows: list[QWidget] = [
+            _row(
+                "From iNaturalist",
+                "Your observations from an iNaturalist export. Importing again later only adds "
+                "what's new or changed.",
+                importer("inaturalist"),
+            ),
+            _row(
+                "From a spreadsheet",
+                "Any table of sightings saved as CSV (Excel, Google Sheets, other apps).",
+                importer("csv"),
+            ),
+            _row(
+                "From a WildLife export",
+                "Records (and photos) exported from WildLife on this or another PC.",
+                importer("wildlife"),
+            ),
+            _row(
+                "Export",
+                "A spreadsheet, Darwin Core for iRecord / NBN Atlas, map data, or everything "
+                "with photos.",
+                button("Export…", "secondary", "download", theme, self.export_requested.emit),
+            ),
+        ]
+        for batch in self.ctx.import_history.batches()[:5]:
+            rows.append(self._batch_row(batch))
+        return rows
+
+    def _batch_row(self, batch) -> QWidget:
+        when = datetime.fromisoformat(batch.imported_at).astimezone()
+        source = SOURCE_NAMES.get(batch.source, batch.source)
+        title = f"Imported {fmt_date(when.date(), 'medium')} · {source}"
+        if batch.live:
+            detail = f"{batch.file_name or ''} · {plural(batch.live, 'sighting')}"
+        else:
+            detail = f"{batch.file_name or ''} · removed"
+        show = button(
+            "Show",
+            "link",
+            None,
+            None,
+            lambda: self.show_sightings.emit(SightingFilter(import_batch_id=batch.id)),
+        )
+        remove = button("Remove…", "ghost", None, None, lambda: self._remove_batch(batch))
+        show.setEnabled(bool(batch.live))
+        remove.setEnabled(bool(batch.live))
+        return _row(title, detail, _pair(show, remove))
+
+    def _remove_batch(self, batch) -> None:
+        answer = QMessageBox.question(
+            self,
+            "Remove this import?",
+            f"Move the {plural(batch.live, 'sighting')} from this import to the recycle bin? "
+            "You can undo this, or restore them from the bin for "
+            f"{self.ctx.settings.current.recycle_bin_days} days.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            undo = self.ctx.import_history.remove(batch.id)
+            self.toast.emit(
+                f"Import removed ({plural(batch.live, 'sighting')} in the recycle bin)",
+                undo.run if undo else None,
+            )
+            self.refresh()
 
     # ---- actions --------------------------------------------------------------
     def _set_theme(self, key: str) -> None:

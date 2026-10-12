@@ -17,6 +17,9 @@ from wildlife.domain.errors import DatabaseError
 from wildlife.services.backup import BackupService
 from wildlife.services.calendar import CalendarService
 from wildlife.services.events import EventHub
+from wildlife.services.export import ExportService
+from wildlife.services.health import HealthService
+from wildlife.services.import_history import ImportHistory
 from wildlife.services.inaturalist import InaturalistImporter
 from wildlife.services.map import MapService
 from wildlife.services.outings import OutingService
@@ -25,8 +28,10 @@ from wildlife.services.places import PlaceService
 from wildlife.services.settings import SettingsService
 from wildlife.services.sightings import SightingService
 from wildlife.services.species_catalogue import SpeciesCatalogue
+from wildlife.services.spreadsheet_import import SpreadsheetImporter
 from wildlife.services.statistics import StatisticsService
 from wildlife.services.stats import StatsService
+from wildlife.services.wildlife_import import WildlifeImporter
 
 log = logging.getLogger(__name__)
 
@@ -49,6 +54,11 @@ class AppContext:
     map: MapService = field(init=False)
     statistics: StatisticsService = field(init=False)
     inaturalist: InaturalistImporter = field(init=False)
+    export: ExportService = field(init=False)
+    spreadsheet: SpreadsheetImporter = field(init=False)
+    wildlife_import: WildlifeImporter = field(init=False)
+    health: HealthService = field(init=False)
+    import_history: ImportHistory = field(init=False)
 
     def __post_init__(self) -> None:
         self.catalogue = SpeciesCatalogue(self.db, self.events)
@@ -64,6 +74,13 @@ class AppContext:
         self.inaturalist = InaturalistImporter(
             self.paths, self.db, self.events, self.settings, self.photos
         )
+        self.export = ExportService(self.paths, self.db, self.settings)
+        self.wildlife_import = WildlifeImporter(self.paths, self.db, self.events, self.photos)
+        self.health = HealthService(self.paths, self.db, self.backup, self.catalogue)
+        self.import_history = ImportHistory(self.db, self.sightings)
+        self.spreadsheet = SpreadsheetImporter(
+            self.paths, self.db, self.events, self.settings, self.photos
+        )
 
     def set_today(self, today) -> None:
         """Fix 'today' (used by tests and demos so dates are predictable)."""
@@ -72,6 +89,7 @@ class AppContext:
         self.stats.today = lambda: today
         self.statistics.today = lambda: today
         self.inaturalist._today = lambda: today
+        self.spreadsheet._today = lambda: today
 
     @classmethod
     def open(cls, paths: DataPaths) -> AppContext:

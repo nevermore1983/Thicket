@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, Qt, QTimer
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QLabel, QScrollArea
 
 
 def main() -> int:
@@ -147,6 +147,47 @@ def main() -> int:
             page.table.selectRow(0)
         elif target.startswith("inat"):  # inat-start / inat-check / inat-done (invented rows)
             return import_dialog(target)
+        elif target == "csv-map":  # a spreadsheet's columns being matched (invented rows)
+            window.go("settings")
+            sheet = Path(tempfile.mkdtemp(prefix="wildlife-csv-")) / "Garden list 2025.csv"
+            sheet.write_text(
+                "Bird,Date seen,Time,Site,How many,Comments\n"
+                "Robin,03/05/2025,07:40,Garden,2,Singing from the fence\n"
+                "Blackbird,04/05/2025,18:15,Garden,c. 3,\n",
+                encoding="utf-8",
+            )
+            dialog = window.import_data("csv")
+            dialog.resize(640, 640)
+            dialog.open_file(sheet)
+            wait(lambda: dialog.pages.currentIndex() == 1, 10)
+            return dialog
+        elif target == "settings-exchange":  # Settings, scrolled to Import & export
+            window.go("settings")
+            page = window.settings_page
+            heading = next(w for w in page.findChildren(QLabel) if w.text() == "Import & export")
+            scroll = page.findChild(QScrollArea)
+            scroll.ensureWidgetVisible(heading, 0, 0)
+            scroll.verticalScrollBar().setValue(heading.parentWidget().y() - 8)
+        elif target == "export":
+            window.go("settings")
+            dialog = window.export_data(None)
+            dialog.formats["dwc"].setChecked(True)
+            dialog.with_photos.setChecked(True)
+            dialog.blur.set_current("1000")
+            dialog.blur.changed.emit("1000")
+            wait(lambda: False, 0.3)
+            return dialog
+        elif target == "health":
+            window.go("settings")
+            dialog = window.health_check()
+            dialog.resize(620, 560)
+            wait(lambda: dialog.report is not None, 30)
+            return dialog
+        elif target == "restore":
+            window.go("settings")
+            dialog = window.restore_backup()
+            wait(lambda: False, 0.3)
+            return dialog
         elif target == "outings":
             window.go("sightings")
             window.sightings_page.show_tab("outings")
@@ -159,17 +200,17 @@ def main() -> int:
         if ctx.catalogue.needs_install():
             ctx.catalogue.install()
         window.go("settings")
-        dialog = window.import_inaturalist()
+        dialog = window.import_data("inaturalist")
         dialog.resize(640, 560)
         if target != "inat-start":
             export = Path(tempfile.mkdtemp(prefix="wildlife-inat-")) / "observations-12345.csv"
             write_invented_export(export)
             dialog.open_file(export)
-            wait(lambda: dialog.pages.currentIndex() == 1, 10)
+            wait(lambda: dialog.pages.currentIndex() == 2, 10)
         if target == "inat-done":
             dialog.photos_box.setChecked(False)  # never download in a screenshot
             dialog._import()
-            wait(lambda: dialog.result is not None, 10)
+            wait(lambda: dialog.outcome is not None, 10)
         wait(lambda: False, 0.3)
         return dialog
 
@@ -191,8 +232,8 @@ def main() -> int:
                 (extra or window).grab().save(str(path))
                 print(path)
                 if extra is not None:
-                    if getattr(extra, "result", None) is not None:
-                        extra.result.undo.run()  # leave the demo library as it was
+                    if getattr(extra, "outcome", None) is not None:
+                        extra.outcome.undo.run()  # leave the demo library as it was
                     extra.close()
                 if window.panel.current() is not None:
                     window.panel.current()._dirty = False

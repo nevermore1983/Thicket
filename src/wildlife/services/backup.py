@@ -19,7 +19,7 @@ from pathlib import Path
 
 from wildlife import __version__
 from wildlife.config.paths import DataPaths
-from wildlife.data import snapshot
+from wildlife.data import restore, snapshot
 from wildlife.data.db import Database
 from wildlife.data.migrate import current_version
 from wildlife.data.repositories import photos as photos_repo
@@ -234,9 +234,17 @@ class BackupService:
                     keep.add(snap)
         for snap in snaps:
             if snap not in keep:
-                snap.unlink(missing_ok=True)
-                snap.with_suffix(".json").unlink(missing_ok=True)
+                snapshot.remove(snap)
 
     def snapshots(self) -> list[Path]:
         folder = self.folder() / "snapshots"
         return sorted(folder.glob("*.db"), reverse=True) if folder.exists() else []
+
+    # ---- restoring -------------------------------------------------------------------
+    def backups(self) -> list[restore.BackupInfo]:
+        """The backups in the backup folder, newest first."""
+        return [restore.describe(p) for p in self.snapshots()]
+
+    def request_restore(self, backup: Path) -> restore.BackupInfo:
+        """Check `backup` and arrange for it to be restored when WildLife restarts."""
+        return restore.request_restore(self._paths, backup)

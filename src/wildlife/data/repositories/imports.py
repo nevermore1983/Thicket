@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
+from datetime import date
 
 from wildlife.data.repositories import sightings as sightings_repo
 from wildlife.domain.models import SightingDraft
@@ -164,3 +165,58 @@ def sightings_without_photos(conn: sqlite3.Connection, source: str) -> dict[str,
         (source,),
     )
     return dict(rows.fetchall())
+
+
+def taxon_by_key(conn: sqlite3.Connection, uksi_key: str) -> int | None:
+    row = conn.execute("SELECT id FROM taxon WHERE uksi_key = ?", (uksi_key.strip(),)).fetchone()
+    return row[0] if row else None
+
+
+def live_drafts(conn: sqlite3.Connection) -> list[SightingDraft]:
+    """Just enough of every live sighting to spot duplicates (see importer.duplicate_key)."""
+    rows = conn.execute(
+        "SELECT taxon_id, observed_date, observed_time, latitude, longitude, place_id, "
+        "location_text FROM sighting WHERE deleted_at IS NULL"
+    )
+    return [
+        SightingDraft(
+            taxon_id=r[0],
+            observed_date=date.fromisoformat(r[1]),
+            observed_time=r[2],
+            latitude=r[3],
+            longitude=r[4],
+            place_id=r[5],
+            location_text=r[6],
+        )
+        for r in rows
+    ]
+
+
+@dataclass(frozen=True, slots=True)
+class Batch:
+    id: int
+    source: str
+    file_name: str | None
+    imported_at: str  # UTC ISO
+    added: int
+    updated: int
+    live: int  # its sightings not in the recycle bin
+
+
+def batches(conn: sqlite3.Connection) -> list[Batch]:
+    rows = conn.execute(
+        """SELECT b.id, b.source, b.file_name, b.imported_at, b.added, b.updated,
+                  (SELECT COUNT(*) FROM sighting s WHERE s.import_batch_id = b.id
+                   AND s.deleted_at IS NULL)
+           FROM import_batch b ORDER BY b.imported_at DESC, b.id DESC"""
+    )
+    return [Batch(*r) for r in rows]
+
+
+def batch_sightings(conn: sqlite3.Connection, batch_id: int) -> list[int]:
+    return [
+        r[0]
+        for r in conn.execute(
+            "SELECT id FROM sighting WHERE import_batch_id = ? AND deleted_at IS NULL", (batch_id,)
+        )
+    ]

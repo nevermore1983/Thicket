@@ -344,6 +344,13 @@ class PhotoService:
             raise
         return photo, True, 1 if raw_rel else 0
 
+    def add_raw(self, photo_id: int, raw: Path) -> Photo:
+        """Keep a RAW original with a photo that has none yet (e.g. from an export)."""
+        photo = self.get(photo_id)
+        if photo.has_raw:
+            return photo
+        return self._add_raw(photo, raw, file_sha256(raw))
+
     def _add_raw(self, photo: Photo, raw: Path, raw_sha: str) -> Photo:
         rel, dest = self._copy_in(raw, raw_sha, photo.taken_at)
         with self._db.transaction() as conn:

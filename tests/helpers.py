@@ -282,3 +282,15 @@ def inat_csv(rows: list[dict[str, str]]) -> str:
     writer.writeheader()
     writer.writerows(rows)
     return out.getvalue()
+
+
+def jpeg_with_gps(path, colour=(30, 120, 60), lat=(51, 30, 0), lon=(0, 7, 0)):
+    """A small JPEG whose EXIF says where it was taken (north and west)."""
+    from PIL import Image
+
+    exif = Image.Exif()
+    exif[0x010F] = "TestCam"
+    gps = exif.get_ifd(0x8825)
+    gps.update({1: "N", 2: tuple(float(x) for x in lat), 3: "W", 4: tuple(float(x) for x in lon)})
+    Image.new("RGB", (64, 48), colour).save(path, "JPEG", exif=exif, quality=90)
+    return path

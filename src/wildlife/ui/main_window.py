@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMessageBox,
     QPushButton,
     QStackedWidget,
     QVBoxLayout,
@@ -31,7 +32,10 @@ from wildlife.ui.components.common import button
 from wildlife.ui.components.side_panel import SidePanel
 from wildlife.ui.components.toast import ToastHost
 from wildlife.ui.dialogs import SearchPopup
-from wildlife.ui.imports.inaturalist_dialog import InatImportDialog
+from wildlife.ui.exchange.export_dialog import ExportDialog
+from wildlife.ui.exchange.import_dialog import ImportDialog
+from wildlife.ui.maintenance.health_dialog import HealthDialog
+from wildlife.ui.maintenance.restore_dialog import RestoreDialog
 from wildlife.ui.pages.calendar_page import CalendarPage
 from wildlife.ui.pages.dashboard_page import DashboardPage
 from wildlife.ui.pages.list_pages import PlacesPage, SpeciesPage
@@ -50,6 +54,7 @@ from wildlife.ui.panels.sighting_list import SightingListPanel
 from wildlife.ui.panels.species_profile import SpeciesProfile
 from wildlife.ui.photos.viewer import PhotoViewer
 from wildlife.ui.qt_events import QtEvents
+from wildlife.ui.single_instance import restart_wildlife
 from wildlife.ui.theme.icons import icon, pixmap
 from wildlife.ui.theme.manager import ThemeManager
 from wildlife.ui.workers import run_in_background
@@ -215,6 +220,7 @@ class MainWindow(QMainWindow):
         self.sightings_page = SightingsPage(ctx, t)
         self.sightings_page.open_sighting.connect(self.open_sighting)
         self.sightings_page.add_requested.connect(self.add_sighting)
+        self.sightings_page.export_requested.connect(self.export_data)
         self.sightings_page.toast.connect(self._toast)
         self.sightings_page.outings.open_outing.connect(self.open_outing)
         self.sightings_page.outings.new_outing.connect(lambda: self.new_outing(None))
@@ -234,7 +240,11 @@ class MainWindow(QMainWindow):
         self.settings_page = SettingsPage(ctx, t)
         self.settings_page.backup_requested.connect(self.backup_now)
         self.settings_page.toast.connect(self._toast)
-        self.settings_page.import_inaturalist.connect(self.import_inaturalist)
+        self.settings_page.import_requested.connect(self.import_data)
+        self.settings_page.export_requested.connect(self.export_data)
+        self.settings_page.health_requested.connect(self.health_check)
+        self.settings_page.restore_requested.connect(self.restore_backup)
+        self.settings_page.show_sightings.connect(self.show_sightings)
         self.map_page = MapPage(ctx, t)
         self.map_page.open_sighting.connect(lambda sid: self.open_sighting(sid))
         self.map_page.show_ids.connect(self.show_sighting_list)
@@ -294,17 +304,71 @@ class MainWindow(QMainWindow):
         index = self.pages.currentIndex()
         return next(k for k, i in self._page_index.items() if i == index)
 
-    def import_inaturalist(self) -> InatImportDialog:
-        dialog = InatImportDialog(self.ctx, self.theme, self)
+    def import_data(self, kind: str = "inaturalist") -> ImportDialog:
+        """Open the import window for 'inaturalist', 'csv' or 'wildlife'."""
+        dialog = ImportDialog(self.ctx, self.theme, kind, self)
         dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        title = dialog.windowTitle().removeprefix("Import from ").removeprefix("Import a ")
         dialog.imported.connect(
             lambda r: self._toast(
-                f"iNaturalist import: {r.describe()}", r.undo.run if r.undo else None
+                f"Import ({title}): {r.describe()}", r.undo.run if r.undo else None
             )
         )
         dialog.show_sightings.connect(self.show_sightings)
         dialog.open()
         return dialog
+
+    def export_data(self, flt: SightingFilter | None = None) -> ExportDialog:
+        dialog = ExportDialog(self.ctx, self.theme, flt, self)
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        dialog.open()
+        return dialog
+
+    def health_check(self) -> HealthDialog:
+        dialog = HealthDialog(self.ctx, self.theme, self)
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        dialog.backup_requested.connect(lambda: self.backup_now("manual"))
+        dialog.restore_requested.connect(self.restore_backup)
+        dialog.choose_backup_folder.connect(self.settings_page._choose_folder)
+        dialog.open()
+        return dialog
+
+    def restore_backup(self) -> RestoreDialog:
+        dialog = RestoreDialog(self.ctx, self.theme, self)
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        dialog.restart_requested.connect(self.restart_to_restore)
+        dialog.open()
+        return dialog
+
+    def restart_to_restore(self) -> None:
+        """A backup is waiting to be restored: start a fresh WildLife, then close this one."""
+        if self.panel.isVisible() and not self.panel.close_panel():
+            self._toast("The backup will be restored next time WildLife starts.", None)
+            return
+        if not restart_wildlife(str(self.ctx.paths.root)):
+            QMessageBox.information(
+                self,
+                "Restore",
+                "Please close WildLife and open it again to finish restoring the backup.",
+            )
+            return
+        self.close()
+
+    def show_restore_outcome(self, outcome) -> None:
+        if outcome.ok:
+            when = outcome.created.astimezone()
+            extra = (
+                f" · {outcome.photos_copied:,} photo files brought back"
+                if outcome.photos_copied
+                else ""
+            )
+            self._toast(
+                f"Backup from {when:%d %b %Y at %H:%M} restored{extra}. "
+                "Your previous data is in the safety-copies folder.",
+                None,
+            )
+        else:
+            QMessageBox.warning(self, "Restore", outcome.message)
 
     def show_sightings(self, flt: SightingFilter) -> None:
         self.search.clear()

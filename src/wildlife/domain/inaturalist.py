@@ -1,6 +1,6 @@
 """Reading iNaturalist's CSV export (inaturalist.org › Your observations › Export).
 
-Each row becomes an `InatRecord`: the observation in WildLife's terms (date, UK clock
+Each row becomes an `ImportRecord`: the observation in WildLife's terms (date, UK clock
 time, position, how sure the ID is), plus the names iNaturalist used, which the
 importer then matches to the UK species list. Rows that can't become a sighting
 (no date, no name) keep a `problem` explaining why, so the preview can show them.
@@ -12,13 +12,13 @@ import csv
 import io
 import re
 import zipfile
-from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 
 from wildlife.domain.codes import Evidence, Identification
 from wildlife.domain.dates import uk_local
 from wildlife.domain.errors import ImportFileError
+from wildlife.domain.import_records import ImportRecord
 
 SOURCE = "inaturalist"
 OBSERVATION_URL = "https://www.inaturalist.org/observations/{}"
@@ -38,33 +38,6 @@ _ENTERED = re.compile(
 )
 
 
-@dataclass(frozen=True, slots=True)
-class InatRecord:
-    line: int  # line in the file (the header is line 1), for messages
-    source_id: str
-    url: str
-    observed_date: date | None
-    observed_time: str | None  # 'HH:MM', UK clock time
-    latitude: float | None
-    longitude: float | None
-    uncertainty_m: int | None
-    location_text: str | None
-    notes: str | None
-    identification: Identification
-    evidence: Evidence
-    is_not_wild: bool
-    scientific_name: str | None
-    common_name: str | None
-    kingdom: str | None  # 'Animalia', 'Plantae', 'Fungi' or None if unknown
-    image_url: str | None
-    updated_at: str | None  # iNaturalist's "last changed", to spot later edits there
-    problem: str | None = None  # why this row can't be imported
-
-    @property
-    def name(self) -> str:
-        return self.scientific_name or self.common_name or "(no name)"
-
-
 def is_inaturalist(header: list[str]) -> bool:
     """Does this CSV header look like an iNaturalist export?"""
     return all(col in header for col in NEEDED) and (
@@ -72,7 +45,7 @@ def is_inaturalist(header: list[str]) -> bool:
     )
 
 
-def read_file(path: Path) -> list[InatRecord]:
+def read_file(path: Path) -> list[ImportRecord]:
     """Read an export: the .csv, or the .zip iNaturalist downloads it in.
     Raises ImportFileError if it isn't an iNaturalist export."""
     try:
@@ -96,7 +69,7 @@ def _zipped_csv(path: Path) -> bytes:
         return archive.read(csvs[0])
 
 
-def read_text(text: str) -> list[InatRecord]:
+def read_text(text: str) -> list[ImportRecord]:
     reader = csv.DictReader(io.StringIO(text, newline=""))
     header = [h.strip() for h in reader.fieldnames or []]
     if not is_inaturalist(header):
@@ -178,7 +151,7 @@ def _notes(row: dict) -> str | None:
     return notes[:MAX_NOTES] or None
 
 
-def parse_row(line: int, row: dict) -> InatRecord:
+def parse_row(line: int, row: dict) -> ImportRecord:
     source_id = _text(row, "id") or ""
     day, clock = _when(row)
     lat, lon, uncertainty = _position(row)
@@ -197,7 +170,7 @@ def parse_row(line: int, row: dict) -> InatRecord:
         problem = "No date"
     elif not scientific and not common:
         problem = "Not identified yet"
-    return InatRecord(
+    return ImportRecord(
         line=line,
         source_id=source_id,
         url=_text(row, "url") or OBSERVATION_URL.format(source_id),

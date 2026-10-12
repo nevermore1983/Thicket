@@ -355,3 +355,35 @@ def click_uncertainty(lat: float, zoom: float, pixels: float = 12) -> int:
     metres_per_pixel = 78_271.52 * math.cos(math.radians(lat)) / 2**zoom
     wanted = metres_per_pixel * pixels
     return next((u for u in NICE_UNCERTAINTIES if u >= wanted), NICE_UNCERTAINTIES[-1])
+
+
+# --- blurring locations for sharing -------------------------------------------------
+@dataclass(frozen=True, slots=True)
+class Generalised:
+    latitude: float
+    longitude: float
+    uncertainty_m: int  # covers the whole square
+    grid_ref: str | None  # the square itself, e.g. 'TQ 30 80' (None outside Great Britain)
+
+
+def generalise(lat: float, lon: float, size_m: int) -> Generalised:
+    """Blur a position to the centre of its 1 km or 10 km square, for sharing records
+    without giving away the exact spot. In Great Britain the square is the National
+    Grid square; elsewhere latitude and longitude are rounded instead."""
+    if size_m not in (1_000, 10_000):
+        raise ValueError("size_m must be 1000 or 10000")
+    if in_gb_grid(lat, lon):
+        easting, northing = grid_square(*wgs84_to_grid(lat, lon), size_m)
+        c_lat, c_lon = grid_to_wgs84(easting + size_m / 2, northing + size_m / 2)
+        # 'TQ 29 79' for a 1 km square; a 10 km square is written 'TQ27'
+        ref = format_grid_ref(easting, northing, *((4, True) if size_m == 1_000 else (2, False)))
+        return Generalised(
+            round(c_lat, 5), round(c_lon, 5), math.ceil(size_m * math.sqrt(0.5)), ref
+        )
+    places = 2 if size_m == 1_000 else 1
+    step = 10.0**-places  # degrees
+    height = step * 111_320
+    width = height * math.cos(math.radians(lat))
+    return Generalised(
+        round(lat, places), round(lon, places), math.ceil(math.hypot(height, width) / 2), None
+    )
