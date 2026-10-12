@@ -9,6 +9,7 @@ from datetime import UTC, date, datetime, timedelta
 
 from wildlife.data.db import Database
 from wildlife.data.repositories import outings as outings_repo
+from wildlife.data.repositories import photos as photos_repo
 from wildlife.data.repositories import places as places_repo
 from wildlife.data.repositories import sightings as repo
 from wildlife.data.repositories import taxa as taxa_repo
@@ -158,9 +159,14 @@ class SightingService:
         cutoff = (datetime.now(UTC) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
         with self._db.transaction() as conn:
             ids = repo.deleted_before(conn, cutoff)
+            photo_ids = repo.photo_ids(conn, ids)
             repo.hard_delete(conn, ids)
+            # Their photos were in the bin with them. Any that no other sighting uses are
+            # marked deleted as of the cutoff, so the photo purge that follows removes them.
+            orphans = [p.id for p in photos_repo.unlinked(conn, photo_ids)]
+            photos_repo.mark_deleted(conn, orphans, cutoff)
         if ids:
-            log.info("Recycle bin: removed %d sightings", len(ids))
+            log.info("Recycle bin: removed %d sightings and %d photos", len(ids), len(orphans))
             self._events.publish(TOPIC, tuple(ids))
         return len(ids)
 

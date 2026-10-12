@@ -196,6 +196,19 @@ def recycle_bin(conn: sqlite3.Connection) -> list[tuple[int, str, str, str]]:
     ]
 
 
+def photo_ids(conn: sqlite3.Connection, ids: list[int]) -> list[int]:
+    """Photos attached to these sightings."""
+    if not ids:
+        return []
+    marks = ",".join("?" * len(ids))
+    return [
+        r[0]
+        for r in conn.execute(
+            f"SELECT DISTINCT photo_id FROM sighting_photo WHERE sighting_id IN ({marks})", ids
+        )
+    ]
+
+
 def taxon_of(conn: sqlite3.Connection, ids: list[int]) -> dict[int, int]:
     marks = ",".join("?" * len(ids))
     return dict(

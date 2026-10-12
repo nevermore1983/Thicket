@@ -41,6 +41,7 @@ from wildlife.domain.codes import (
 from wildlife.domain.counting import CountError, format_count, parse_count
 from wildlife.domain.errors import NotFoundError, ValidationError
 from wildlife.domain.models import Photo, Sighting, SightingDraft
+from wildlife.domain.photo_groups import draft_from_photos
 from wildlife.services.photos import SUPPORTED, ImportSummary
 from wildlife.services.sightings import SaveResult
 from wildlife.ui.components.common import clear_layout
@@ -208,6 +209,11 @@ class SightingEditor(PanelView):
 
         # place
         self._place_id = draft.place_id if (existing or prefill) else ctx.sightings.default_place()
+        # A place you (or the sighting) chose beats one worked out from a photo's GPS;
+        # 'remember the last place' is only a guess, so a photo's position replaces it
+        self._place_chosen = existing is not None or (
+            prefill is not None and prefill.place_id is not None
+        )
         self._place_box, self._place_flow = flow_box(6)
         self._build_place_chips()
         self.f_place = _Field("Place", self._place_box)
@@ -253,14 +259,14 @@ class SightingEditor(PanelView):
 
         # photos
         self._photo_zone = _DropZone(theme, self._add_photo_files, self._browse_photos)
-        self._photo_strip = QHBoxLayout()
-        self._photo_strip.setSpacing(8)
+        # thumbnails wrap onto new rows, so many photos never widen the panel
+        self._photo_strip_box, self._photo_strip = flow_box(8)
         photos_box = QWidget()
         pv = QVBoxLayout(photos_box)
         pv.setContentsMargins(0, 0, 0, 0)
         pv.setSpacing(8)
         pv.addWidget(self._photo_zone)
-        pv.addLayout(self._photo_strip)
+        pv.addWidget(self._photo_strip_box)
         self.f_photos = _Field("Photos", photos_box)
         form.addWidget(self.f_photos)
 
@@ -398,7 +404,7 @@ class SightingEditor(PanelView):
             chip.setProperty("chip", True)
             chip.setCheckable(True)
             chip.setChecked(place.id == self._place_id)
-            chip.clicked.connect(lambda _=False, pid=place.id: self._set_place(pid))
+            chip.clicked.connect(lambda _=False, pid=place.id: self._choose_place(pid))
             self._chips.addButton(chip)
             layout.addWidget(chip)
         other = QComboBox()
@@ -407,14 +413,19 @@ class SightingEditor(PanelView):
         for place in self.ctx.places.all():
             other.addItem(place.name, place.id)
         other.activated.connect(
-            lambda i: self._set_place(other.itemData(i)) if other.itemData(i) else None
+            lambda i: self._choose_place(other.itemData(i)) if other.itemData(i) else None
         )
         layout.addWidget(other)
         if self._place_id:
             none = QPushButton("No place")
             none.setProperty("chip", True)
-            none.clicked.connect(lambda: self._set_place(None))
+            none.clicked.connect(lambda: self._choose_place(None))
             layout.addWidget(none)
+
+    def _choose_place(self, place_id: int | None) -> None:
+        """You picked a place (or 'No place'): photos won't change it any more."""
+        self._place_chosen = True
+        self._set_place(place_id)
 
     def _set_place(self, place_id: int | None) -> None:
         self._place_id = place_id
@@ -572,30 +583,34 @@ class SightingEditor(PanelView):
         raise exc
 
     def _autofill_from_photos(self, photos: list[Photo]) -> None:
+        """Fill empty date, time and position from the photos (rules in domain.photo_groups)."""
         filled = []
-        dated = [p for p in photos if p.taken_at]
-        if dated and not self._date_touched:
-            first = min(dated, key=lambda p: p.taken_at)
-            day = date.fromisoformat(first.taken_at[:10])
+        draft = draft_from_photos(photos, self.ctx.sightings._today())
+        if draft.observed_time is not None and not self._date_touched:
+            day = draft.observed_date
             self.date.blockSignals(True)
             self.date.setDate(QDate(day.year, day.month, day.day))
             self.date.blockSignals(False)
             self._date_touched = True
-            self.time.setText(first.taken_at[11:16])
-            filled.append("date and time")
-        located = next((p for p in photos if p.gps_latitude is not None), None)
-        if located and not self.location.text().strip():
-            self._lat, self._lon, self._unc = located.gps_latitude, located.gps_longitude, 10
-            self._method = LocationMethod.PHOTO
+            self.time.setText(draft.observed_time)
+            from_name = any(p.taken_source == "file_name" for p in photos if p.taken_at)
+            filled.append("date and time" + (" (from the file name)" if from_name else ""))
+            self._fill_outings()
+        if draft.latitude is not None and not self.location.text().strip():
+            self._lat, self._lon, self._unc = draft.latitude, draft.longitude, draft.uncertainty_m
+            self._method = draft.location_method
             self._location_edited = False
             self.location.setText(
-                geo.grid_ref_for(self._lat, self._lon, 10) or f"{self._lat:.5f}, {self._lon:.5f}"
+                geo.grid_ref_for(self._lat, self._lon, self._unc)
+                or f"{self._lat:.5f}, {self._lon:.5f}"
             )
             filled.append("position")
-            if self._place_id is None and (near := self.ctx.places.nearest(self._lat, self._lon)):
-                self._set_place(near.id)
+            if not self._place_chosen:
+                near = self.ctx.places.nearest(self._lat, self._lon)
+                self._set_place(near.id if near else None)
         if filled:
-            self._photo_note.setText(f"Filled in the {' and '.join(filled)} from your photo.")
+            noun = "photo" if len(photos) == 1 else "photos"
+            self._photo_note.setText(f"Filled in the {' and '.join(filled)} from your {noun}.")
             self._photo_note.show()
             self._update_location_note()
 
@@ -625,7 +640,6 @@ class SightingEditor(PanelView):
             remove.clicked.connect(lambda _=False, p=photo: self._remove_photo(p))
             hv.addWidget(remove)
             self._photo_strip.addWidget(holder)
-        self._photo_strip.addStretch(1)
         self._photo_zone.set_count(len(self._photos))
 
     def _remove_photo(self, photo: Photo) -> None:

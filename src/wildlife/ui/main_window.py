@@ -36,6 +36,7 @@ from wildlife.ui.pages.calendar_page import CalendarPage
 from wildlife.ui.pages.dashboard_page import DashboardPage
 from wildlife.ui.pages.list_pages import PlacesPage, SpeciesPage
 from wildlife.ui.pages.map_page import MapPage
+from wildlife.ui.pages.photos_page import PhotosPage
 from wildlife.ui.pages.settings_page import SettingsPage
 from wildlife.ui.pages.sightings_page import SightingsPage
 from wildlife.ui.panels.day_panel import DayPanel
@@ -45,6 +46,7 @@ from wildlife.ui.panels.place_editor import PlaceEditor
 from wildlife.ui.panels.sighting_detail import SightingDetail
 from wildlife.ui.panels.sighting_editor import SightingEditor
 from wildlife.ui.panels.sighting_list import SightingListPanel
+from wildlife.ui.photos.viewer import PhotoViewer
 from wildlife.ui.qt_events import QtEvents
 from wildlife.ui.theme.icons import icon, pixmap
 from wildlife.ui.theme.manager import ThemeManager
@@ -77,6 +79,7 @@ REFRESH_ON = {  # which data changes each page cares about
     "sightings": {"sightings", "outings", "places", "taxa", "settings"},
     "calendar": {"sightings", "outings", "taxa", "settings"},
     "map": {"sightings", "taxa", "settings"},
+    "photos": {"photos", "sightings", "taxa", "places"},
     "species": {"sightings", "taxa", "settings"},
     "places": {"places", "sightings"},
     "settings": {"backup", "settings", "sightings", "taxa"},
@@ -234,12 +237,14 @@ class MainWindow(QMainWindow):
         self.map_page.new_place_at.connect(lambda lat, lon: self.edit_place(None, at=(lat, lon)))
         self.map_page.show_sightings.connect(self.show_sightings)
         self.calendar_page.show_map.connect(self.show_map)
+        self.photos_page = PhotosPage(ctx, t)
+        self.photos_page.open_sighting.connect(lambda sid: self.open_sighting(sid))
+        self.photos_page.create_sighting.connect(self.add_from_photos)
+        self.photos_page.toast.connect(self._toast)
+        self.dashboard.open_inbox.connect(
+            lambda: (self.go("photos"), self.photos_page.show_tab("inbox"))
+        )
         later = {
-            "photos": (
-                "image",
-                "The photo library arrives in Phase 9",
-                "You can already attach photos to sightings. The gallery, viewer and Photo Inbox come next.",
-            ),
             "statistics": (
                 "chart",
                 "Statistics arrive in Phase 10",
@@ -251,6 +256,7 @@ class MainWindow(QMainWindow):
             "sightings": self.sightings_page,
             "calendar": self.calendar_page,
             "map": self.map_page,
+            "photos": self.photos_page,
             "species": self.species_page,
             "places": self.places_page,
             "settings": self.settings_page,
@@ -355,6 +361,7 @@ class MainWindow(QMainWindow):
         detail.edit_requested.connect(self.edit_sighting)
         detail.delete_requested.connect(self.delete_sighting)
         detail.show_on_map.connect(self.show_sighting_on_map)
+        detail.view_photo.connect(self.view_sighting_photos)
         self.panel.show_view(detail, push=push and self.panel.isVisible())
 
     def edit_sighting(self, sighting_id: int) -> None:
@@ -474,6 +481,27 @@ class MainWindow(QMainWindow):
             self.outing_chip.setText(
                 f"●  {where} · since {live.start_time} · {live.sightings:,} seen"
             )
+
+    # ---- photos ------------------------------------------------------------------
+    def add_from_photos(self, photo_ids: list[int]) -> None:
+        """'Create sighting' from Inbox photos: date, time and position come from them."""
+        editor = SightingEditor(self.ctx, self.theme, photo_ids=photo_ids)
+        self._wire_editor(editor)
+        self.panel.show_view(editor)
+
+    def view_sighting_photos(self, sighting_id: int, index: int) -> None:
+        s = self.ctx.sightings.get(sighting_id)
+        photos = self.ctx.photos.for_sighting(sighting_id)
+        viewer = PhotoViewer(
+            self.ctx,
+            self.theme,
+            photos,
+            index,
+            sighting_id=sighting_id,
+            titles=[s.display_name] * len(photos),
+            parent=self,
+        )
+        viewer.open_full()
 
     # ---- map ---------------------------------------------------------------------
     def show_map(self, flt: SightingFilter) -> None:

@@ -97,6 +97,33 @@ def main() -> int:
             wait(lambda: window.map_page._bounds is not None, 5)
             window.map_page.fit()
             wait(lambda: False, 4)  # tiles, data and squares load in the background
+        elif target.startswith("photos-"):  # photos-library / photos-inbox / photos-selected
+            page = window.photos_page
+            window.go("photos")
+            page.show_tab("library" if target == "photos-library" else "inbox")
+            if target == "photos-selected" and page._inbox_grids:
+                page._inbox_grids[0].select_all()
+            wait(lambda: False, 1)
+            page.loader.wait_idle()
+            wait(lambda: False, 0.5)
+        elif target in ("viewer", "viewer-info", "add-from-photos"):
+            page = window.photos_page
+            window.go("photos")
+            if target == "add-from-photos":
+                page.show_tab("inbox")
+                if page._inbox_grids:
+                    page._inbox_grids[0].select_all()
+                    page._create_sighting()
+                return None
+            page.show_tab("library")
+            viewer = page.open_viewer(
+                [i.photo for i in page._library], 0, [i.name for i in page._library]
+            )
+            viewer.resize(window.size())
+            if target == "viewer-info":
+                viewer.toggle_info()
+            wait(lambda: False, 2)
+            return viewer
         elif target == "outings":
             window.go("sightings")
             window.sightings_page.show_tab("outings")
@@ -116,12 +143,14 @@ def main() -> int:
         for theme_name in args.themes:
             theme.set_theme(Theme(theme_name))
             for target in args.pages:
-                show(target)
+                extra = show(target)  # a separate window to capture instead (the viewer)
                 for _ in range(3):
                     app.processEvents()
                 path = args.out / f"{target}-{theme_name}.png"
-                window.grab().save(str(path))
+                (extra or window).grab().save(str(path))
                 print(path)
+                if extra is not None:
+                    extra.close()
                 if window.panel.current() is not None:
                     window.panel.current()._dirty = False
         window.panel.close_panel()

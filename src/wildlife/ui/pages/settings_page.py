@@ -364,7 +364,7 @@ class SettingsPage(QWidget):
 
 
 class RecycleBinDialog(QDialog):
-    """Deleted sightings, kept for 30 days: select and restore."""
+    """Deleted sightings and photos, kept for 30 days: select and restore."""
 
     def __init__(self, ctx: AppContext, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -374,7 +374,7 @@ class RecycleBinDialog(QDialog):
         v = QVBoxLayout(self)
         v.setContentsMargins(20, 18, 20, 16)
         note = QLabel(
-            f"Deleted sightings are kept for {ctx.settings.current.recycle_bin_days} days. "
+            f"Deleted sightings and photos are kept for {ctx.settings.current.recycle_bin_days} days. "
             "Select any to restore."
         )
         note.setProperty("role", "muted")
@@ -387,7 +387,13 @@ class RecycleBinDialog(QDialog):
                 f"{name}  ·  seen {fmt_date(date.fromisoformat(observed), 'medium')}"
                 f"  ·  deleted {deleted[:10]}"
             )
-            item.setData(Qt.ItemDataRole.UserRole, sid)
+            item.setData(Qt.ItemDataRole.UserRole, ("sighting", sid))
+            self.list.addItem(item)
+        for photo in ctx.photos.recycle_bin():
+            if photo.sighting_ids:
+                continue  # in the bin with its sighting: restoring the sighting brings it back
+            item = QListWidgetItem(f"Photo: {photo.original_name}")
+            item.setData(Qt.ItemDataRole.UserRole, ("photo", photo.id))
             self.list.addItem(item)
         v.addWidget(self.list, 1)
         buttons = QDialogButtonBox()
@@ -399,8 +405,12 @@ class RecycleBinDialog(QDialog):
         v.addWidget(buttons)
 
     def _restore(self) -> None:
-        ids = [i.data(Qt.ItemDataRole.UserRole) for i in self.list.selectedItems()]
-        if ids:
-            self.ctx.sightings.restore(ids)
-            self.restored += len(ids)
+        chosen = [i.data(Qt.ItemDataRole.UserRole) for i in self.list.selectedItems()]
+        sightings = [i for kind, i in chosen if kind == "sighting"]
+        photos = [i for kind, i in chosen if kind == "photo"]
+        if sightings:
+            self.ctx.sightings.restore(sightings)
+        if photos:
+            self.ctx.photos.restore(photos)  # back to the Photo Inbox
+        self.restored += len(chosen)
         self.accept()

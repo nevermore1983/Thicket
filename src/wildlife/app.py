@@ -74,7 +74,7 @@ def main(argv: list[str] | None = None) -> int:
     window.show()
     if args.smoke_test:
         ctx.settings.update(allow_online=False)  # a build check must not depend on the internet
-        QTimer.singleShot(500, lambda: _smoke_checks(window, app))
+        QTimer.singleShot(500, lambda: _run_smoke_checks(window, app))
     else:
         QTimer.singleShot(0, lambda: _after_start(ctx, theme, window))
     try:
@@ -82,6 +82,15 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         ctx.close()
         log.info("Closed")
+
+
+def _run_smoke_checks(window, app) -> None:
+    """A build check must never wait for a person: any error is logged and exits with 1."""
+    try:
+        _smoke_checks(window, app)
+    except Exception:
+        log.exception("Smoke test FAILED")
+        app.exit(1)
 
 
 def _smoke_checks(window, app) -> None:
@@ -97,6 +106,7 @@ def _smoke_checks(window, app) -> None:
         f"{info['taxa']:,}",
         first["k"],
     )
+    _smoke_raw()
     window.go("map")
     waited = 0
 
@@ -115,6 +125,16 @@ def _smoke_checks(window, app) -> None:
     check_map()
 
 
+def _smoke_raw() -> None:
+    """Prove the RAW libraries (rawpy with LibRaw, and numpy) were bundled and load.
+    Rendering RAW files is covered by the tests, against tests/fixtures/photos/sample.dng."""
+    import numpy
+    import rawpy
+
+    version = ".".join(map(str, rawpy.libraw_version))
+    log.info("Smoke test: RAW ok (LibRaw %s, numpy %s)", version, numpy.__version__)
+
+
 def _after_start(ctx: AppContext, theme, window) -> None:
     """Jobs that run once the window is showing."""
     from wildlife.ui.dialogs import FirstRunDialog
@@ -125,6 +145,7 @@ def _after_start(ctx: AppContext, theme, window) -> None:
     if removed:
         log.info("Emptied %d old sightings from the recycle bin", removed)
     ctx.outings.purge_deleted()
+    ctx.photos.purge_recycle_bin()  # after sightings: their unused photos go with them
     if ctx.backup.is_due():
         window.backup_now("auto")
 

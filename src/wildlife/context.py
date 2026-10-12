@@ -51,7 +51,7 @@ class AppContext:
         self.sightings = SightingService(self.db, self.events, self.settings)
         self.places = PlaceService(self.db, self.events)
         self.outings = OutingService(self.db, self.events, self.settings)
-        self.photos = PhotoService(self.paths, self.db, self.events)
+        self.photos = PhotoService(self.paths, self.db, self.events, self.settings)
         self.backup = BackupService(self.paths, self.db, self.events, self.settings)
         self.stats = StatsService(self.db, self.settings)
         self.calendar = CalendarService(self.db, self.settings)

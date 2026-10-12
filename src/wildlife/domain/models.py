@@ -18,6 +18,7 @@ from wildlife.domain.codes import (
     Wind,
 )
 from wildlife.domain.dates import fmt_date
+from wildlife.domain.photo_files import RAW_SUFFIXES
 
 
 @dataclass(frozen=True, slots=True)
@@ -199,6 +200,24 @@ class Photo:
     rotation: int = 0
     caption: str | None = None
     sighting_ids: tuple[int, ...] = field(default_factory=tuple)
+    raw_rel_path: str | None = None  # the RAW original kept beside it (e.g. a Pixel .dng)
+    raw_name: str | None = None
+    raw_size: int | None = None
+    camera: str | None = None  # e.g. 'Google Pixel 10 Pro'
+    taken_source: str | None = None  # 'exif', 'file_name' or 'manual'
+
+    @property
+    def is_raw(self) -> bool:
+        """The main file is itself a RAW file (imported without a JPEG)."""
+        return self.rel_path.lower().endswith(RAW_SUFFIXES)
+
+    @property
+    def has_raw(self) -> bool:
+        return self.raw_rel_path is not None or self.is_raw
+
+    @property
+    def in_inbox(self) -> bool:
+        return not self.sighting_ids
 
 
 @dataclass(frozen=True, slots=True)

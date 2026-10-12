@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import html
 
-from PySide6.QtCore import QSize, Qt, QUrl, Signal
-from PySide6.QtGui import QDesktopServices, QIcon, QPixmap
+from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
@@ -43,6 +43,7 @@ class SightingDetail(PanelView):
     edit_requested = Signal(int)
     delete_requested = Signal(int)
     show_on_map = Signal(object)  # Sighting
+    view_photo = Signal(int, int)  # sighting id, index of the photo to show first
 
     def __init__(self, ctx: AppContext, theme: ThemeManager, sighting_id: int) -> None:
         super().__init__()
@@ -107,22 +108,18 @@ class SightingDetail(PanelView):
         if photos:
             strip = QHBoxLayout()
             strip.setSpacing(8)
-            for photo in photos[:6]:
+            for index, photo in enumerate(photos[:6]):
                 thumb = self.ctx.photos.thumbnail(photo, 256)
                 btn = QPushButton()
                 btn.setFixedSize(98, 98)
                 btn.setProperty("variant", "ghost")
-                btn.setToolTip(f"{photo.original_name}: click to open")
+                btn.setToolTip(f"{photo.original_name}: click to view")
                 if thumb:
                     btn.setIcon(QIcon(rounded(QPixmap(str(thumb)), 94, 10)))
                     btn.setIconSize(QSize(94, 94))
                 else:
                     btn.setText("File missing")
-                btn.clicked.connect(
-                    lambda _=False, p=photo: QDesktopServices.openUrl(
-                        QUrl.fromLocalFile(str(self.ctx.photos.path_of(p)))
-                    )
-                )
+                btn.clicked.connect(lambda _=False, i=index: self.view_photo.emit(s.id, i))
                 strip.addWidget(btn)
             strip.addStretch(1)
             b.addLayout(strip)

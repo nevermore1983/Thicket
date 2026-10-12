@@ -125,6 +125,7 @@ def smoke_test() -> None:
         result.returncode == 0
         and "Smoke test: catalogue" in log
         and "Smoke test: map ready" in log
+        and "Smoke test: RAW ok" in log
         and "Smoke test OK" in log
     )
     print(

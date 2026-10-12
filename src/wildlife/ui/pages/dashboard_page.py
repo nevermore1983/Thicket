@@ -33,6 +33,7 @@ class DashboardPage(QWidget):
     add_requested = Signal()
     show_sightings = Signal(object)  # SightingFilter
     backup_requested = Signal()
+    open_inbox = Signal()
     toast = Signal(str, object)
 
     def __init__(self, ctx: AppContext, theme: ThemeManager) -> None:
@@ -158,10 +159,10 @@ class DashboardPage(QWidget):
                 attention_row(
                     self.theme,
                     "image",
-                    f"{plural(inbox, 'photo')} not attached to a sighting",
-                    "The Photo Inbox arrives in Phase 9",
+                    f"{plural(inbox, 'photo')} in your Photo Inbox",
+                    "Say what they show to turn them into sightings",
                     "warning",
-                    None,
+                    self.open_inbox.emit,
                 )
             )
         av.addWidget(self._backup_row())
