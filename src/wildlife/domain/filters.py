@@ -22,6 +22,7 @@ class SightingFilter:
     needs_location: bool = False
     months: frozenset[int] = field(default_factory=frozenset)  # 1-12, any year (e.g. "in May")
     hours: frozenset[int] = field(default_factory=frozenset)  # 0-23, of the recorded time
+    import_batch_id: int | None = None  # the sightings one import added or updated
 
     @property
     def is_empty(self) -> bool:

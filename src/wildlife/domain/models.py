@@ -145,6 +145,8 @@ class Sighting:
     updated_at: str
     photo_count: int = 0
     cover_photo: str | None = None  # relative path of the first photo
+    source: str | None = None  # None = recorded in WildLife; "inaturalist" = imported
+    source_id: str | None = None  # the record's id there
 
     @property
     def display_name(self) -> str:

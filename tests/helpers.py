@@ -103,6 +103,95 @@ MINI_CATALOGUE = [
         "l": ["Animalia", "Arthropoda", "Insecta", "Coleoptera", "Carabidae"],
         "pr": 0,
     },
+    # Names that test matching: a subgenus, a renamed butterfly, a reptile
+    {
+        "k": "H1",
+        "p": "K1",
+        "r": "species",
+        "s": "Deraeocoris (Deraeocoris) flavilinea",
+        "l": ["Animalia", "Arthropoda", "Insecta", "Hemiptera", "Miridae"],
+    },
+    {
+        "k": "F1",
+        "p": "K1",
+        "r": "species",
+        "s": "Speyeria aglaja",
+        "c": "Dark Green Fritillary",
+        "l": ["Animalia", "Arthropoda", "Insecta", "Lepidoptera", "Nymphalidae"],
+        "pr": 8,
+    },
+    {
+        "k": "L1",
+        "p": "K1",
+        "r": "species",
+        "s": "Zootoca vivipara",
+        "c": "Common Lizard",
+        "l": ["Animalia", "Chordata", "Reptilia", "Squamata", "Lacertidae"],
+        "pr": 8,
+    },
+    {  # Prunella is a bird genus (Dunnock) and a plant genus (Selfheal)
+        "k": "U0",
+        "p": "K1",
+        "r": "genus",
+        "s": "Prunella",
+        "l": ["Animalia", "Chordata", "Aves", "Passeriformes", "Prunellidae"],
+    },
+    # Plants and fungi
+    {"k": "K2", "r": "kingdom", "s": "Plantae", "l": ["Plantae"]},
+    {"k": "K3", "r": "kingdom", "s": "Fungi", "l": ["Fungi"]},
+    {
+        "k": "V0",
+        "p": "K2",
+        "r": "genus",
+        "s": "Prunella",
+        "l": ["Plantae", None, "Magnoliopsida", "Lamiales", "Lamiaceae"],
+    },
+    {
+        "k": "V1",
+        "p": "V0",
+        "r": "species",
+        "s": "Prunella vulgaris",
+        "c": "Selfheal",
+        "l": ["Plantae", None, "Magnoliopsida", "Lamiales", "Lamiaceae"],
+        "pr": 9,
+    },
+    {
+        "k": "V2",
+        "p": "K2",
+        "r": "species",
+        "s": "Rubus fruticosus",
+        "c": "Bramble",
+        "l": ["Plantae", None, "Magnoliopsida", "Rosales", "Rosaceae"],
+        "pr": 9,
+    },
+    {
+        "k": "V3",
+        "p": "K2",
+        "r": "species",
+        "s": "Potentilla anserina",
+        "c": "Silverweed",
+        "sy": ["Argentina anserina"],
+        "l": ["Plantae", None, "Magnoliopsida", "Rosales", "Rosaceae"],
+        "pr": 5,
+    },
+    {
+        "k": "G1",
+        "p": "K3",
+        "r": "species",
+        "s": "Amanita muscaria",
+        "c": "Fly Agaric",
+        "l": ["Fungi", "Basidiomycota", "Agaricomycetes", "Agaricales", "Amanitaceae"],
+        "pr": 7,
+    },
+    {
+        "k": "G2",
+        "p": "K3",
+        "r": "species",
+        "s": "Xanthoria parietina",
+        "c": "Common Orange Lichen",
+        "l": ["Fungi", "Ascomycota", "Lecanoromycetes", "Teloschistales", "Teloschistaceae"],
+        "pr": 7,
+    },
 ]
 
 
@@ -111,3 +200,85 @@ def taxon_id(ctx: AppContext, scientific_name: str) -> int:
         return conn.execute(
             "SELECT id FROM taxon WHERE scientific_name = ?", (scientific_name,)
         ).fetchone()[0]
+
+
+# iNaturalist's export columns, in its order. Test rows are invented: never real records.
+INAT_COLUMNS = [
+    "id",
+    "uuid",
+    "observed_on_string",
+    "observed_on",
+    "time_observed_at",
+    "time_zone",
+    "user_id",
+    "user_login",
+    "user_name",
+    "created_at",
+    "updated_at",
+    "quality_grade",
+    "license",
+    "url",
+    "image_url",
+    "sound_url",
+    "tag_list",
+    "description",
+    "num_identification_agreements",
+    "num_identification_disagreements",
+    "captive_cultivated",
+    "oauth_application_id",
+    "place_guess",
+    "latitude",
+    "longitude",
+    "positional_accuracy",
+    "private_place_guess",
+    "private_latitude",
+    "private_longitude",
+    "public_positional_accuracy",
+    "geoprivacy",
+    "taxon_geoprivacy",
+    "coordinates_obscured",
+    "positioning_method",
+    "positioning_device",
+    "species_guess",
+    "scientific_name",
+    "common_name",
+    "iconic_taxon_name",
+    "taxon_id",
+]
+
+
+def inat_row(n: int, scientific: str = "Erithacus rubecula", **kw) -> dict[str, str]:
+    """An invented iNaturalist row (observation id 1000 + n) seen at a park in May 2026."""
+    row = dict.fromkeys(INAT_COLUMNS, "")
+    row.update(
+        id=str(1000 + n),
+        observed_on_string="2026-05-03 07:40:12",
+        observed_on="2026-05-03",
+        time_observed_at="2026-05-03 06:40:12 UTC",
+        time_zone="London",
+        updated_at="2026-05-04 10:00:00 UTC",
+        quality_grade="research",
+        url=f"https://www.inaturalist.org/observations/{1000 + n}",
+        image_url=f"https://inaturalist-open-data.s3.amazonaws.com/photos/{5000 + n}/medium.jpg",
+        captive_cultivated="false",
+        place_guess="Test Park, Testshire, UK",
+        latitude="51.5",
+        longitude="-0.12",
+        positional_accuracy="12",
+        coordinates_obscured="false",
+        scientific_name=scientific,
+        iconic_taxon_name="Aves",
+    )
+    row.update({k: str(v) for k, v in kw.items()})
+    return row
+
+
+def inat_csv(rows: list[dict[str, str]]) -> str:
+    import csv
+    import io
+
+    out = io.StringIO()
+    writer = csv.DictWriter(out, INAT_COLUMNS, lineterminator="\n")
+    writer.writeheader()
+    writer.writerows(rows)
+    return out.getvalue()

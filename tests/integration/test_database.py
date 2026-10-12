@@ -137,7 +137,7 @@ def test_category_rules_match_anywhere_in_lineage(db):
         (3, "Insecta", "Coleoptera", 7),
         (4, "Actinopterygii", "Salmoniformes", 3),
         (5, "Aves", "Passeriformes", 1),
-        (6, "Gastropoda", "Stylommatophora", 8),
+        (6, "Gastropoda", "Stylommatophora", 7),  # any other animal: invertebrates
     ]
     with db.transaction() as conn:
         for tid, cls, order, _ in rows:

@@ -79,6 +79,7 @@ def _pair(*widgets: QWidget) -> QWidget:
 
 class SettingsPage(QWidget):
     backup_requested = Signal()
+    import_inaturalist = Signal()
     toast = Signal(str, object)
 
     def __init__(self, ctx: AppContext, theme: ThemeManager) -> None:
@@ -180,6 +181,23 @@ class SettingsPage(QWidget):
 
         # backup
         page.add(_section("Backup", self._backup_rows()))
+
+        # import
+        page.add(
+            _section(
+                "Import",
+                [
+                    _row(
+                        "iNaturalist",
+                        "Bring in your observations from an iNaturalist export. Importing again "
+                        "later only adds what's new or changed.",
+                        button(
+                            "Import…", "secondary", "upload", theme, self.import_inaturalist.emit
+                        ),
+                    ),
+                ],
+            )
+        )
 
         # data
         bin_items = ctx.sightings.recycle_bin()

@@ -1,11 +1,11 @@
-"""UK date formatting, and understanding dates typed into search ("May 2025")."""
+"""UK date formatting, UK clock time, and understanding dates typed into search ("May 2025")."""
 
 from __future__ import annotations
 
 import calendar
 import re
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from typing import Literal
 
 DAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -74,6 +74,27 @@ def week_label(d: date) -> str:
     if a.month != b.month:
         return f"{fmt_date(a, 'day')} – {fmt_date(b, 'medium')}"
     return f"{a.day} – {fmt_date(b, 'medium')}"
+
+
+# ---- UK clock time -----------------------------------------------------------
+def _last_sunday(year: int, month: int) -> date:
+    last = date(year, month, calendar.monthrange(year, month)[1])
+    return last - timedelta(days=(last.weekday() - 6) % 7)
+
+
+def uk_local(moment: datetime) -> datetime:
+    """The UK wall-clock time of a moment (an aware datetime, or a naive one in UTC).
+
+    British Summer Time (UTC+1) runs from 01:00 UTC on the last Sunday of March to
+    01:00 UTC on the last Sunday of October; the rest of the year is GMT (UTC+0).
+    That rule has held since 1996 and is used for every year here. Writing it out
+    avoids depending on a time-zone database, which Windows' Python doesn't include.
+    """
+    if moment.tzinfo is not None:
+        moment = moment.astimezone(UTC).replace(tzinfo=None)
+    summer_starts = datetime.combine(_last_sunday(moment.year, 3), time(1))
+    summer_ends = datetime.combine(_last_sunday(moment.year, 10), time(1))
+    return moment + timedelta(hours=1) if summer_starts <= moment < summer_ends else moment
 
 
 # ---- search ------------------------------------------------------------------

@@ -20,7 +20,7 @@ def test_tree_species_links_and_categories(ctx):
     assert rows["Sympetrum striolatum"]["category"] == "Dragonfly & Damselfly"
     assert rows["Aglais io"]["category"] == "Butterfly & Moth"
     assert rows["Vulpes vulpes"]["category"] == "Mammal"
-    assert rows["Beetlus obscurus"]["category"] == "Other insect"
+    assert rows["Beetlus obscurus"]["category"] == "Insect & other invertebrate"
     assert (
         rows["Motacilla alba yarrellii"]["counts_as"] == "Motacilla alba"
     )  # subspecies -> species

@@ -22,7 +22,7 @@ Progress = Callable[[str, float], None]
 def bundled_catalogue() -> tuple[Path, dict]:
     folder = resources.files("wildlife.resources.species")
     info = json.loads(folder.joinpath("catalogue_info.json").read_text(encoding="utf-8"))
-    return Path(str(folder.joinpath("uksi_animals.jsonl.gz"))), info
+    return Path(str(folder.joinpath("uksi_taxa.jsonl.gz"))), info
 
 
 def read_records(path: Path) -> list[dict]:

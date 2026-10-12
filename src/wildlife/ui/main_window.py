@@ -31,6 +31,7 @@ from wildlife.ui.components.common import button
 from wildlife.ui.components.side_panel import SidePanel
 from wildlife.ui.components.toast import ToastHost
 from wildlife.ui.dialogs import SearchPopup
+from wildlife.ui.imports.inaturalist_dialog import InatImportDialog
 from wildlife.ui.pages.calendar_page import CalendarPage
 from wildlife.ui.pages.dashboard_page import DashboardPage
 from wildlife.ui.pages.list_pages import PlacesPage, SpeciesPage
@@ -233,6 +234,7 @@ class MainWindow(QMainWindow):
         self.settings_page = SettingsPage(ctx, t)
         self.settings_page.backup_requested.connect(self.backup_now)
         self.settings_page.toast.connect(self._toast)
+        self.settings_page.import_inaturalist.connect(self.import_inaturalist)
         self.map_page = MapPage(ctx, t)
         self.map_page.open_sighting.connect(lambda sid: self.open_sighting(sid))
         self.map_page.show_ids.connect(self.show_sighting_list)
@@ -291,6 +293,18 @@ class MainWindow(QMainWindow):
     def current_page(self) -> str:
         index = self.pages.currentIndex()
         return next(k for k, i in self._page_index.items() if i == index)
+
+    def import_inaturalist(self) -> InatImportDialog:
+        dialog = InatImportDialog(self.ctx, self.theme, self)
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        dialog.imported.connect(
+            lambda r: self._toast(
+                f"iNaturalist import: {r.describe()}", r.undo.run if r.undo else None
+            )
+        )
+        dialog.show_sightings.connect(self.show_sightings)
+        dialog.open()
+        return dialog
 
     def show_sightings(self, flt: SightingFilter) -> None:
         self.search.clear()

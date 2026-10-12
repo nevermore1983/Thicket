@@ -2,12 +2,12 @@
 
 Input:  the Natural History Museum's "UKSI Simplified Copy" workbook (.xlsx),
         downloaded by hand from https://data.nhm.ac.uk/dataset/uk-species-inventory-simplified-copy
-Output: src/wildlife/resources/species/uksi_animals.jsonl.gz  (+ catalogue_info.json)
+Output: src/wildlife/resources/species/uksi_taxa.jsonl.gz  (+ catalogue_info.json)
 
 Run:    uv run --with openpyxl python scripts/build_species_catalogue.py local_data/uksi/<file>.xlsx
 
-The UKSI is (c) Natural History Museum, licensed CC BY 4.0. Only animals are kept;
-redundant (retired) taxa are dropped. Each output line is one taxon:
+The UKSI is (c) Natural History Museum, licensed CC BY 4.0. Animals, plants and fungi
+(lichens included) are kept; redundant (retired) taxa are dropped. Each output line is one taxon:
   {"k": TVK, "p": parent TVK, "r": rank, "s": scientific name, "a": authority,
    "c": preferred English name, "l": [kingdom, phylum, class, order, family],
    "g": informal group, "nn": non-native?, "pr": picker priority,
@@ -30,6 +30,9 @@ import openpyxl
 ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "src" / "wildlife" / "resources" / "species"
 COMMON_FILE = ROOT / "scripts" / "data" / "common_species.txt"
+KINGDOMS = ("Animalia", "Plantae", "Fungi")
+# Bump when the build rules change, so existing libraries reinstall the catalogue.
+BUILD = 2
 
 RANKS = {  # UKSI rank -> WildLife rank
     "Kingdom": "kingdom",
@@ -65,7 +68,32 @@ POPULAR = {  # informal groups most people record: these rank higher in the spec
     "spider (Araneae)": 1,
     "mollusc": 1,
     "insect - true bug (Hemiptera)": 1,
+    "flowering plant": 3,
+    "conifer": 2,
+    "fern": 2,
+    "lichen": 1,
+    "fungus": 1,
+    "moss": 1,
+    "horsetail": 1,
 }
+
+
+def rank_of(t: dict, lineage: dict[str, str]) -> str:
+    """WildLife rank for a UKSI taxon. Botanists and mycologists record aggregates
+    ("Bramble", "Daffodil") as species, so outside animals they count as one;
+    "A/B" or "A or B" pairs (and animal aggregates such as "Carrion/Hooded Crow")
+    stay groups that don't count."""
+    rank = RANKS.get(t["rank"], "other")
+    name = t["taxon_name"] or ""
+    if (
+        rank == "species_group"
+        and t["rank"] in ("Species aggregate", "Species sensu lato")
+        and lineage.get("Kingdom") != "Animalia"
+        and "/" not in name
+        and " or " not in name
+    ):
+        return "species"
+    return rank
 
 
 def read_sheet(wb, name: str):
@@ -106,20 +134,27 @@ def build(xlsx: Path) -> dict:
         if t["redundant_flag"] == "Y":
             continue
         lin = lineage_of(key)
-        if lin.get("Kingdom") != "Animalia":
+        if lin.get("Kingdom") not in KINGDOMS:
             continue
         tvk = t["taxon_version_key"]
         org_to_tvk[key] = tvk
         keep[tvk] = {
             "k": tvk,
             "_org": key,
-            "r": RANKS.get(t["rank"], "other"),
+            "r": rank_of(t, lin),
             "s": clean(t["taxon_name"]),
             "a": clean(t["taxon_authority"]),
             "l": [lin.get(r) for r in ("Kingdom", "Phylum", "Class", "Order", "Family")],
             "g": clean(t["informal_group"]),
             "nn": t["non_native_flag"] == "Y",
+            "_agg": t["rank"] in ("Species aggregate", "Species sensu lato"),
         }
+    # An aggregate named exactly like a species (Narcissus pseudonarcissus agg. beside
+    # the species itself) stays a group, so the two never count twice.
+    true_species = {r["s"] for r in keep.values() if r["r"] == "species" and not r["_agg"]}
+    for rec in keep.values():
+        if rec.pop("_agg") and rec["r"] == "species" and rec["s"] in true_species:
+            rec["r"] = "species_group"
     # Parent = nearest kept ancestor (skips any dropped/redundant levels)
     for rec in keep.values():
         parent = None
@@ -128,7 +163,7 @@ def build(xlsx: Path) -> dict:
                 parent = org_to_tvk[anc["organism_key"]]
                 break
         rec["p"] = parent
-    print(f"kept {len(keep):,} animal taxa ({time.time() - t0:.0f} s)")
+    print(f"kept {len(keep):,} taxa ({time.time() - t0:.0f} s)")
 
     # Best English name per taxon: recommended first, then well-formed synonyms
     # (e.g. Eristalis tenax has no recommended name, but "Drone Fly" is the usual one).
@@ -158,6 +193,22 @@ def build(xlsx: Path) -> dict:
             synonyms[tvk].add(name)
     preferred = {tvk: name for tvk, (_, name) in best_en.items()}
     preferred_count = sum(1 for score, _ in best_en.values() if score[0] == 0)
+    # A species with no English name of its own takes its nominate variety's or
+    # subspecies' ("Fly Agaric" is filed under Amanita muscaria var. muscaria).
+    inherited: dict[str, str] = {}
+    for tvk, rec in keep.items():
+        parent = keep.get(rec["p"]) if rec["p"] else None
+        if (
+            tvk in preferred
+            and rec["r"] == "subspecies"
+            and parent is not None
+            and parent["r"] == "species"
+            and parent["k"] not in preferred
+            and rec["s"].split()[-1] == parent["s"].split()[-1]
+        ):
+            inherited[parent["k"]] = preferred[tvk]
+    preferred.update(inherited)
+    print(f"English names taken from a nominate variety/subspecies: {len(inherited):,}")
     print(
         f"English names: {preferred_count:,} recommended + {len(preferred) - preferred_count:,} from synonyms"
     )
@@ -175,7 +226,7 @@ def build(xlsx: Path) -> dict:
         score = POPULAR.get(rec["g"] or "", 0)
         if common:
             score += 2
-        if rec["r"] == "species" and common and common.lower() in common_list:
+        if rec["r"] in ("species", "subspecies") and common and common.lower() in common_list:
             score += 4
             boosted.add(common.lower())
         if rec["r"] in ("subspecies", "species_group", "other", "genus"):
@@ -197,7 +248,9 @@ def main() -> int:
     version = re.search(r"(\d{8}[a-z]?)", args.xlsx.name)
     keep = build(args.xlsx)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    out = OUT_DIR / "uksi_animals.jsonl.gz"
+    for old in OUT_DIR.glob("uksi_*.jsonl.gz"):
+        old.unlink()
+    out = OUT_DIR / "uksi_taxa.jsonl.gz"
     with gzip.open(out, "wt", encoding="utf-8", compresslevel=9) as f:
         for rec in sorted(keep.values(), key=lambda r: r["k"]):
             rec.pop("_org")
@@ -215,7 +268,8 @@ def main() -> int:
         "source_url": "https://data.nhm.ac.uk/dataset/uk-species-inventory-simplified-copy",
         "licence": "CC BY 4.0",
         "attribution": "Species names from the UK Species Inventory, (c) Natural History Museum, CC BY 4.0",
-        "version": version[1] if version else args.xlsx.stem,
+        "version": f"{version[1] if version else args.xlsx.stem}-{BUILD}",
+        "kingdoms": list(KINGDOMS),
         "taxa": len(keep),
         "species": ranks["species"],
         "with_english_name": sum(1 for r in keep.values() if r["c"]),

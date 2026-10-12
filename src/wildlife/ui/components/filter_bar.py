@@ -141,6 +141,15 @@ class FilterBar(QWidget):
             )
             chip.setToolTip("Sightings recorded in this hour · click to remove")
             self._layout.addWidget(chip)
+        if f.import_batch_id is not None:
+            chip = self._chip(
+                "From this import  ✕",
+                True,
+                "upload",
+                lambda _: self.set_filter(f.with_(import_batch_id=None)),
+            )
+            chip.setToolTip("Sightings added or updated by the import · click to remove")
+            self._layout.addWidget(chip)
         if f.needs_location:
             chip = self._chip(
                 "No location  ✕",

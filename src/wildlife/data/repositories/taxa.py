@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from collections.abc import Callable, Iterable
 
 from wildlife.domain.models import Category, Taxon, TaxonMatch
 
+# "Deraeocoris (Deraeocoris) flavilinea": the subgenus in brackets, which most people leave out
+SUBGENUS = re.compile(r" \([A-Z][a-z]+\)")
 _TAXON_COLS = "t.id, t.scientific_name, t.common_name, t.rank, t.category_id, t.species_id, t.is_custom, t.uksi_key"
 
 
@@ -200,6 +203,8 @@ def install_catalogue(
             names.append((tid, rec["c"], "common"))
         names.extend((tid, n, "common") for n in rec.get("en", ()))
         names.extend((tid, n, "synonym") for n in rec.get("sy", ()))
+        if (bare := SUBGENUS.sub("", rec["s"])) != rec["s"]:
+            names.append((tid, bare, "synonym"))
     batch = 20_000
     for start in range(0, len(names), batch):
         conn.executemany(

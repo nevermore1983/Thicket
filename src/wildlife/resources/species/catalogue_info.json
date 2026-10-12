@@ -3,20 +3,25 @@
   "source_url": "https://data.nhm.ac.uk/dataset/uk-species-inventory-simplified-copy",
   "licence": "CC BY 4.0",
   "attribution": "Species names from the UK Species Inventory, (c) Natural History Museum, CC BY 4.0",
-  "version": "20260811a",
-  "taxa": 65499,
-  "species": 43450,
-  "with_english_name": 8030,
+  "version": "20260811a-2",
+  "kingdoms": [
+    "Animalia",
+    "Plantae",
+    "Fungi"
+  ],
+  "taxa": 105791,
+  "species": 71310,
+  "with_english_name": 17303,
   "ranks": {
-    "species": 43450,
-    "genus": 14072,
-    "family": 2965,
-    "other": 2673,
-    "subspecies": 1441,
-    "order": 414,
-    "species_group": 367,
-    "class": 82,
-    "phylum": 34,
-    "kingdom": 1
+    "species": 71310,
+    "genus": 20561,
+    "other": 4368,
+    "family": 4151,
+    "subspecies": 3878,
+    "order": 774,
+    "species_group": 519,
+    "class": 169,
+    "phylum": 58,
+    "kingdom": 3
   }
 }

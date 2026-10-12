@@ -21,6 +21,7 @@ from wildlife.context import AppContext
 from wildlife.domain import geo
 from wildlife.domain.codes import Identification
 from wildlife.domain.counting import format_count
+from wildlife.domain.inaturalist import OBSERVATION_URL, SOURCE
 from wildlife.domain.models import Sighting
 from wildlife.ui.components.side_panel import PanelView
 from wildlife.ui.components.species_picker import species_html
@@ -163,10 +164,17 @@ class SightingDetail(PanelView):
             facts.addWidget(val, i, 1)
         facts.setColumnStretch(1, 1)
         b.addLayout(facts)
-        added = QLabel(
-            f"Added {s.created_at[:10]}"
-            + (f" · edited {s.updated_at[:10]}" if s.updated_at[:16] != s.created_at[:16] else "")
-        )
+        edited = f" · edited {s.updated_at[:10]}" if s.updated_at[:16] != s.created_at[:16] else ""
+        added = QLabel(f"Added {s.created_at[:10]}{edited}")
+        if s.source == SOURCE and s.source_id:
+            link = OBSERVATION_URL.format(s.source_id)
+            added.setText(
+                f"Imported from iNaturalist {s.created_at[:10]}{edited} · "
+                f'<a href="{link}" style="color:{t.accent}">Open on iNaturalist</a>'
+            )
+            added.setTextFormat(Qt.TextFormat.RichText)
+            added.setOpenExternalLinks(True)
+            added.setToolTip(link)
         added.setProperty("role", "caption")
         b.addWidget(added)
         b.addStretch(1)

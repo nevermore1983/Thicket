@@ -79,6 +79,8 @@ def _sighting(r: sqlite3.Row) -> Sighting:
         updated_at=r["updated_at"],
         photo_count=r["photo_count"],
         cover_photo=r["cover_photo"],
+        source=r["source"],
+        source_id=r["source_id"],
     )
 
 

@@ -145,6 +145,8 @@ def main() -> int:
             page._choose(ctx.statistics.today().year)
             page.table.sortItems(2, Qt.SortOrder.DescendingOrder)
             page.table.selectRow(0)
+        elif target.startswith("inat"):  # inat-start / inat-check / inat-done (invented rows)
+            return import_dialog(target)
         elif target == "outings":
             window.go("sightings")
             window.sightings_page.show_tab("outings")
@@ -152,6 +154,24 @@ def main() -> int:
             window.go(target)
             if target == "sightings":
                 window.sightings_page.show_tab("sightings")
+
+    def import_dialog(target: str):
+        if ctx.catalogue.needs_install():
+            ctx.catalogue.install()
+        window.go("settings")
+        dialog = window.import_inaturalist()
+        dialog.resize(640, 560)
+        if target != "inat-start":
+            export = Path(tempfile.mkdtemp(prefix="wildlife-inat-")) / "observations-12345.csv"
+            write_invented_export(export)
+            dialog.open_file(export)
+            wait(lambda: dialog.pages.currentIndex() == 1, 10)
+        if target == "inat-done":
+            dialog.photos_box.setChecked(False)  # never download in a screenshot
+            dialog._import()
+            wait(lambda: dialog.result is not None, 10)
+        wait(lambda: False, 0.3)
+        return dialog
 
     def wait(done, seconds: float) -> None:
         """Keep the app running (so the map can load) until done() or the time is up."""
@@ -171,6 +191,8 @@ def main() -> int:
                 (extra or window).grab().save(str(path))
                 print(path)
                 if extra is not None:
+                    if getattr(extra, "result", None) is not None:
+                        extra.result.undo.run()  # leave the demo library as it was
                     extra.close()
                 if window.panel.current() is not None:
                     window.panel.current()._dirty = False
@@ -181,6 +203,66 @@ def main() -> int:
     app.exec()
     ctx.close()
     return 0
+
+
+def write_invented_export(path: Path) -> None:
+    """A small iNaturalist-style export with made-up observations (never real records)."""
+    import csv
+
+    rows = [
+        ("Erithacus rubecula", "European Robin", "Aves", "research", "2026-05-03 07:40:12"),
+        ("Rubus fruticosus", "", "Plantae", "needs_id", "2026-05-03 08:02:40"),
+        ("Amanita muscaria", "Fly Agaric", "Fungi", "research", "2025-10-19 14:11:05"),
+        ("Zootoca vivipara", "Common Lizard", "Reptilia", "research", "2026-06-14 11:30:00"),
+        ("Aglais io", "Peacock", "Insecta", "research", "2026-04-02 12:45:31"),
+        ("Argynnis aglaja", "Dark Green Fritillary", "Insecta", "research", "2025-07-08 13:05:00"),
+        ("Sphecodogastra", "", "Insecta", "needs_id", "2026-07-21 10:15:00"),
+        ("Apioideae", "", "Plantae", "needs_id", "2026-07-21 10:20:00"),
+        ("Bombus terrestris", "Buff-tailed Bumblebee", "Insecta", "research", ""),
+    ]
+    cols = [
+        "id",
+        "observed_on_string",
+        "observed_on",
+        "time_observed_at",
+        "time_zone",
+        "updated_at",
+        "quality_grade",
+        "url",
+        "image_url",
+        "place_guess",
+        "latitude",
+        "longitude",
+        "positional_accuracy",
+        "scientific_name",
+        "common_name",
+        "iconic_taxon_name",
+        "captive_cultivated",
+        "coordinates_obscured",
+    ]
+    with path.open("w", encoding="utf-8", newline="") as f:
+        out = csv.DictWriter(f, cols)
+        out.writeheader()
+        for i, (sci, common, iconic, grade, when) in enumerate(rows):
+            out.writerow(
+                {
+                    "id": 90000 + i,
+                    "observed_on_string": when,
+                    "observed_on": when[:10],
+                    "time_zone": "London",
+                    "updated_at": "2026-08-01 10:00:00 UTC",
+                    "quality_grade": grade,
+                    "place_guess": "Example Common, Exampleshire, UK",
+                    "latitude": 51.48 + i / 1000,
+                    "longitude": -0.61,
+                    "positional_accuracy": 15,
+                    "scientific_name": sci,
+                    "common_name": common,
+                    "iconic_taxon_name": iconic,
+                    "captive_cultivated": "false",
+                    "coordinates_obscured": "false",
+                }
+            )
 
 
 if __name__ == "__main__":

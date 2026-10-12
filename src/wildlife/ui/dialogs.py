@@ -72,7 +72,8 @@ class FirstRunDialog(QDialog):
             self.pages.addWidget(name_page)
         install = self._page(
             "Installing the UK species list",
-            "About 65,000 animal names from the UK Species Inventory (Natural History Museum). "
+            "About 106,000 names of UK animals, plants and fungi from the UK Species Inventory "
+            "(Natural History Museum). "
             "This takes a few seconds and only happens once.",
         )
         self.progress = QProgressBar()

@@ -1,7 +1,7 @@
 """Line icons (24 px grid, stroke-based) drawn from SVG in any theme colour.
 
 Most come from Lucide (ISC licence, https://lucide.dev); the butterfly,
-dragonfly, frog and snail are WildLife's own and still need a designer's polish.
+dragonfly, frog, snail and mushroom are WildLife's own and still need a designer's polish.
 """
 
 from __future__ import annotations
@@ -52,6 +52,8 @@ PATHS: dict[str, str] = {
     "frog": '<path d="M4.5 15c0-4 3.4-6.5 7.5-6.5s7.5 2.5 7.5 6.5c0 2.6-3.4 4-7.5 4s-7.5-1.4-7.5-4z"/><circle cx="8.5" cy="7.5" r="2"/><circle cx="15.5" cy="7.5" r="2"/><path d="M9.5 14.5c1.5 1 3.5 1 5 0"/><path d="M5 17.5 3 20h3M19 17.5l2 2.5h-3"/>',
     "bug": '<path d="m8 2 1.88 1.88"/><path d="M14.12 3.88 16 2"/><path d="M9 7.13v-1a3 3 0 1 1 6 0v1"/><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"/><path d="M12 20v-9"/><path d="M6.53 9C4.6 8.8 3 7.1 3 5"/><path d="M6 13H2"/><path d="M3 21c0-2.1 1.7-3.9 3.8-4"/><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"/><path d="M22 13h-4"/><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"/>',
     "snail": '<circle cx="10.5" cy="11.5" r="5.5"/><path d="M10.5 11.5a2.2 2.2 0 1 1 2.2 2.2"/><path d="M3 19h13.5a4.5 4.5 0 0 0 4.5-4.5V8"/><path d="m21 8 1-3M19 9l-1.5-3"/>',
+    "sprout": '<path d="M7 20h10"/><path d="M10 20c5.5-2.5.8-6.4 3-10"/><path d="M9.5 9.4c1.1.8 1.8 2.2 2.3 3.7-2 .4-3.5.4-4.8-.3-1.2-.6-2.3-1.9-3-4.2 2.8-.5 4.4 0 5.5.8z"/><path d="M14.1 6a7 7 0 0 0-1.1 4c1.9-.1 3.3-.6 4.3-1.4 1-1 1.6-2.3 1.7-4.6-2.7.1-4 1-4.9 2z"/>',
+    "mushroom": '<path d="M3 12.5a9 8 0 0 1 18 0z"/><path d="M9.5 12.5V19a2.5 2.5 0 0 0 5 0v-6.5"/><circle cx="9" cy="8.5" r="1"/><circle cx="14.5" cy="7.5" r="1"/>',
     "paw-print": '<circle cx="7" cy="9" r="1.8"/><circle cx="11" cy="5.8" r="1.8"/><circle cx="15.5" cy="6.5" r="1.8"/><circle cx="18.5" cy="10.5" r="1.8"/><path d="M8 17.5c0-3 2-5.5 4.5-5.5s4.5 2.5 4.5 5c0 2-1.5 3-3 3-1 0-1.5-.5-2-.5s-1.2.5-2.2.5C8.7 20 8 19 8 17.5z"/>',
     "route": '<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
     "rotate": '<path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/>',

@@ -61,6 +61,9 @@ def where(flt: SightingFilter, alias: str = "v") -> tuple[str, dict[str, Any]]:
             f"{a}.observed_time IS NOT NULL AND "
             f"CAST(substr({a}.observed_time, 1, 2) AS INTEGER) IN ({ids('hr', flt.hours)})"
         )
+    if flt.import_batch_id is not None:
+        parts.append(f"{a}.import_batch_id = :batch")
+        params["batch"] = flt.import_batch_id
     if flt.needs_location:
         parts.append(f"{a}.eff_latitude IS NULL")
     text = " ".join(flt.text.split())

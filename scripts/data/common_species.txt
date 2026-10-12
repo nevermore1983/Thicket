@@ -1,4 +1,4 @@
-# Commonly recorded UK animals (UKSI preferred English names).
+# Commonly recorded UK wildlife (UKSI preferred English names).
 # These get a boost in the species picker until your own records take over.
 # One name per line; lines starting with # are ignored. Edit freely.
 
@@ -296,3 +296,109 @@ Brown-lipped Snail
 Common Earthworm
 Common Shiny Woodlouse
 Green Shore Crab
+
+# Wild flowers
+Bluebell
+Primrose
+Cowslip
+Lesser Celandine
+Wood Anemone
+Ramsons
+Snowdrop
+Daffodil
+Common Dog-violet
+Lords-and-Ladies
+Red Campion
+Greater Stitchwort
+Cow Parsley
+Hogweed
+Hedge Bindweed
+Field Bindweed
+Common Nettle
+Foxglove
+Common Poppy
+Oxeye Daisy
+Daisy
+Meadow Buttercup
+Creeping Buttercup
+Red Clover
+White Clover
+Common Bird's-foot-trefoil
+Selfheal
+Ribwort Plantain
+Germander Speedwell
+Herb-Robert
+Cuckooflower
+Common Ragwort
+Common Knapweed
+Greater Knapweed
+Field Scabious
+Yarrow
+Rosebay Willowherb
+Great Willowherb
+Meadowsweet
+Purple-loosestrife
+Yellow Iris
+Water Mint
+Wild Teasel
+Heather
+Bell Heather
+Common Spotted-orchid
+Bee Orchid
+Pyramidal Orchid
+Early-purple Orchid
+Himalayan Balsam
+
+# Shrubs, trees and ferns
+Bramble
+Dog-rose
+Hawthorn
+Blackthorn
+Elder
+Ivy
+Honeysuckle
+Gorse
+Broom
+Butterfly-bush
+Pedunculate Oak
+Sessile Oak
+Silver Birch
+Beech
+Ash
+Sycamore
+Field Maple
+Hazel
+Rowan
+Holly
+Yew
+Scots Pine
+Horse-chestnut
+Sweet Chestnut
+Crab Apple
+Alder
+Goat Willow
+Bracken
+Male-fern
+
+# Fungi and lichens
+Fly Agaric
+Shaggy Inkcap
+Common Inkcap
+Turkeytail
+King Alfred's Cakes
+Candlesnuff Fungus
+Jelly Ear
+Yellow Brain
+Honey Fungus
+Dryad's Saddle
+Beefsteak Fungus
+Penny Bun
+Common Puffball
+Stinkhorn
+Sulphur Tuft
+Parasol
+Field Mushroom
+Amethyst Deceiver
+Scarlet Elfcup
+Hairy Curtain Crust
+Common Orange Lichen
