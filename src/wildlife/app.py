@@ -69,8 +69,15 @@ def main(argv: list[str] | None = None) -> int:
         ctx = AppContext.open(paths)
     except WildlifeError as exc:
         log.exception("Could not open data")
-        _startup_failed(exc.user_message, paths)
-        return 1
+        if not _startup_failed(exc.user_message, paths):
+            return 1
+        restored = apply_pending_restore(paths)  # the latest backup, chosen just now
+        try:
+            ctx = AppContext.open(paths)
+        except WildlifeError as again:
+            log.exception("Could not open the restored data either")
+            _startup_failed(again.user_message, paths, offer_restore=False)
+            return 1
 
     theme = ThemeManager(app, ctx.settings.current.theme)
     theme.apply()
@@ -172,14 +179,33 @@ def _after_start(ctx: AppContext, theme, window, restored=None) -> None:
         window.backup_now("auto")
 
 
-def _startup_failed(message: str, paths: DataPaths) -> None:
+def _startup_failed(message: str, paths: DataPaths, offer_restore: bool = True) -> bool:
+    """Explain why the data can't be opened. Offers the latest good backup if there is
+    one; returns True if it was chosen (it's then noted to be restored)."""
+    from wildlife.data.restore import latest_backup, request_restore
+
+    latest = latest_backup(paths) if offer_restore else None
     box = QMessageBox(QMessageBox.Icon.Critical, "WildLife", message)
-    box.setInformativeText(f"Data folder: {paths.root}")
+    info = f"Data folder: {paths.root}"
+    restore = None
+    if latest is not None:
+        when = latest.created.astimezone()
+        info += (
+            f"\n\nYour latest backup is from {when:%d %b %Y at %H:%M} "
+            f"({latest.sightings:,} sightings). Restoring it keeps a safety copy of the "
+            "current data file."
+        )
+        restore = box.addButton("Restore latest backup", QMessageBox.ButtonRole.AcceptRole)
+    box.setInformativeText(info)
     open_folder = box.addButton("Open data folder", QMessageBox.ButtonRole.ActionRole)
     box.addButton(QMessageBox.StandardButton.Close)
     box.exec()
+    if restore is not None and box.clickedButton() is restore:
+        request_restore(paths, latest.path)
+        return True
     if box.clickedButton() is open_folder:
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(paths.root)))
+    return False
 
 
 if __name__ == "__main__":

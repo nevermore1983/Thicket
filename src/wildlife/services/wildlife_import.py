@@ -77,6 +77,7 @@ class WildlifeImportResult:
     outings: list[int] = field(default_factory=list)
     species: list[int] = field(default_factory=list)
     photos: list[int] = field(default_factory=list)  # newly brought into the library
+    noted: list[int] = field(default_factory=list)  # species given notes by this import
     skipped: list[str] = field(default_factory=list)  # what couldn't be imported, and why
     undo: Undo | None = None
 
@@ -84,6 +85,8 @@ class WildlifeImportResult:
         parts = [f"{len(self.added):,} added"]
         if self.photos:
             parts.append(f"{len(self.photos):,} photos")
+        if self.noted:
+            parts.append(f"{len(self.noted):,} species notes")
         if self.skipped:
             parts.append(f"{len(self.skipped):,} skipped")
         return " · ".join(parts)
@@ -201,6 +204,15 @@ class WildlifeImporter:
                 result.added.append(sid)
                 if s.get("photos"):
                     links.append((sid, list(s["photos"])))
+            for note in data.get("species_notes", []):
+                try:
+                    noted = taxa(note.get("taxon") or {})
+                    if note.get("notes") and repo.add_species_note(
+                        conn, noted, str(note["notes"])[:10_000]
+                    ):
+                        result.noted.append(noted)
+                except (sqlite3.IntegrityError, KeyError, TypeError):
+                    continue
             imports_repo.finish_batch(conn, batch, len(result.added), 0, len(result.skipped))
         self._bring_photos(plan, links, result, progress)
         log.info("WildLife import %s: %s", plan.file_name, result.describe())
@@ -333,6 +345,9 @@ class WildlifeImporter:
         with self._db.transaction() as conn:
             photo_ids = sightings_repo.photo_ids(conn, result.added)
             sightings_repo.hard_delete(conn, result.added)
+            conn.executemany(
+                "DELETE FROM species_note WHERE taxon_id = ?", [(t,) for t in result.noted]
+            )
             repo.delete_unused(conn, result.outings, result.places, result.species)
             orphans = [p.id for p in photos_repo.unlinked(conn, photo_ids)]
             photos_repo.soft_delete(conn, orphans)

@@ -40,7 +40,7 @@ from wildlife.ui.components.charts import (
     Series,
     StepLineChart,
 )
-from wildlife.ui.components.common import EmptyState, Segmented, clear_layout
+from wildlife.ui.components.common import EmptyState, Segmented, button, clear_layout
 from wildlife.ui.components.filter_bar import FilterBar
 from wildlife.ui.components.rows import StatTile
 from wildlife.ui.components.visuals import plural, swatch
@@ -53,9 +53,12 @@ HOURS = [f"{h:02d}" for h in range(24)]
 HOURS_LONG = [f"{h:02d}:00–{(h + 1) % 24:02d}:00" for h in range(24)]
 
 
-def table_widget(headers: list[str], rows: list[list[str]], numeric_from: int = 1) -> QTableWidget:
+def table_widget(
+    headers: list[str], rows: list[list[str]], numeric_from: int = 1, name: str = ""
+) -> QTableWidget:
     """A read-only table (the 'table version' of a chart, or a ranked list)."""
     table = QTableWidget(len(rows), len(headers))
+    table.setAccessibleName(name or headers[0])  # what a screen reader calls the table
     table.setHorizontalHeaderLabels(headers)
     table.verticalHeader().hide()
     table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -84,7 +87,7 @@ class StatsCard(QFrame):
     def __init__(self, title: str, caption: str, body: QWidget, chart=None) -> None:
         super().__init__()
         self.setObjectName("Card")
-        self.chart = chart
+        self.chart, self.title = chart, title
         v = QVBoxLayout(self)
         v.setContentsMargins(18, 14, 18, 16)
         v.setSpacing(4)
@@ -120,7 +123,7 @@ class StatsCard(QFrame):
                 old = self.stack.widget(1)
                 self.stack.removeWidget(old)
                 old.deleteLater()
-            self.stack.addWidget(table_widget(*self.chart.table()))
+            self.stack.addWidget(table_widget(*self.chart.table(), name=self.title))
             self.stack.setCurrentIndex(1)
             self.toggle.setText("Show chart")
         else:
@@ -137,6 +140,8 @@ class StatsCard(QFrame):
 class StatisticsPage(QWidget):
     show_sightings = Signal(object)  # SightingFilter
     open_sighting = Signal(int)
+    add_requested = Signal()
+    import_requested = Signal(str)
 
     def __init__(self, ctx: AppContext, theme: ThemeManager) -> None:
         super().__init__()
@@ -205,6 +210,16 @@ class StatisticsPage(QWidget):
             "chart",
             "Statistics appear once you have sightings",
             "Your species list, busiest months and best places will show here.",
+            [
+                button("Add sighting", "primary", "plus", theme, lambda: self.add_requested.emit()),
+                button(
+                    "Import…",
+                    "secondary",
+                    "upload",
+                    theme,
+                    lambda: self.import_requested.emit("inaturalist"),
+                ),
+            ],
         )
         self.empty.hide()
         self.body.insertWidget(2, self.empty)
@@ -229,7 +244,7 @@ class StatisticsPage(QWidget):
         self.top.clicked.connect(lambda taxon: self._open(taxon_ids=frozenset({taxon})))
         self.top_card = StatsCard("What do I see most?", "", self.top, self.top)
         self.top_switch = Segmented(
-            [("sightings", "Sightings"), ("individuals", "Animals counted")], self.top_measure
+            [("sightings", "Sightings"), ("individuals", "Individuals counted")], self.top_measure
         )
         self.top_switch.changed.connect(self._top_measure_changed)
         self.top_card.controls.addWidget(self.top_switch)
@@ -433,10 +448,10 @@ class StatisticsPage(QWidget):
         rows = st.top_by_individuals if by_animals else st.top_by_sightings
         self.top.set_bars(
             [Bar(r.name, r.individuals if by_animals else r.sightings, r.taxon_id) for r in rows],
-            "animals counted" if by_animals else "sightings",
+            "individuals counted" if by_animals else "sightings",
         )
         self.top_card.caption.setText(
-            "Top 10 by animals counted (a sighting with no count is 1)"
+            "Top 10 by individuals counted (a sighting with no count is 1)"
             if by_animals
             else "Top 10 species by number of sightings"
         )
@@ -504,7 +519,11 @@ class StatisticsPage(QWidget):
             ]
             for p in st.places[:12]
         ]
-        table = table_widget(["Place", "Species", "Visits", "Sightings", "Species per visit"], rows)
+        table = table_widget(
+            ["Place", "Species", "Visits", "Sightings", "Species per visit"],
+            rows,
+            name="Best places",
+        )
         table.setToolTip("Double-click a place to see its sightings")
         ids = [p.place_id for p in st.places[:12]]
         table.cellDoubleClicked.connect(lambda r, _c: self._open(place_ids=frozenset({ids[r]})))
@@ -534,7 +553,7 @@ class StatisticsPage(QWidget):
             return
         shown = chosen[:200]
         rows = [[r.name, fmt_date(r.day, "medium"), r.place or "–"] for r in shown]
-        table = table_widget(["Species", "Date", "Place"], rows, numeric_from=9)
+        table = table_widget(["Species", "Date", "Place"], rows, numeric_from=9, name="New species")
         table.cellDoubleClicked.connect(lambda r, _c: self.open_sighting.emit(shown[r].sighting_id))
         self._firsts_layout.addWidget(table)
 

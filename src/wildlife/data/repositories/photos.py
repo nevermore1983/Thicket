@@ -174,6 +174,14 @@ def make_cover(conn: sqlite3.Connection, sighting_id: int, photo_id: int) -> Non
     )
 
 
+def reorder(conn: sqlite3.Connection, sighting_id: int, photo_ids: list[int]) -> None:
+    """Put a sighting's photos in this order (the first is the cover)."""
+    conn.executemany(
+        "UPDATE sighting_photo SET sort_order = ? WHERE sighting_id = ? AND photo_id = ?",
+        [(i, sighting_id, pid) for i, pid in enumerate(photo_ids)],
+    )
+
+
 # Not linked to any sighting at all (a deleted sighting keeps its photos in the bin with it)
 _IN_INBOX = (
     "p.deleted_at IS NULL AND NOT EXISTS (SELECT 1 FROM sighting_photo sp WHERE sp.photo_id = p.id)"
@@ -266,6 +274,17 @@ def unlinked(conn: sqlite3.Connection, ids: list[int]) -> list[Photo]:
     """Of these photos, the ones no sighting uses any more."""
     found = [get(conn, i) for i in ids]
     return [p for p in found if p is not None and not p.sighting_ids]
+
+
+def library_files(conn: sqlite3.Connection) -> list[tuple[str, str, int]]:
+    """(sha256, relative path, size) of every file of every photo not in the recycle bin,
+    RAW originals included: what the library folder should contain."""
+    return conn.execute(
+        """SELECT sha256, rel_path, file_size FROM photo WHERE deleted_at IS NULL
+           UNION ALL
+           SELECT raw_sha256, raw_rel_path, raw_size FROM photo
+           WHERE deleted_at IS NULL AND raw_rel_path IS NOT NULL AND raw_sha256 IS NOT NULL"""
+    ).fetchall()
 
 
 def live(conn: sqlite3.Connection) -> list[Photo]:

@@ -200,3 +200,28 @@ def test_settings_lists_imports_with_show_and_remove(window, qtbot, tmp_path):
     window.settings_page.refresh()
     texts = [label.text() for label in window.settings_page.findChildren(type(dialog.summary))]
     assert any(t.startswith("Imported ") and t.endswith("· iNaturalist") for t in texts)
+
+
+def test_bulk_change_menu(window, qtbot, monkeypatch):
+    from datetime import date
+
+    from wildlife.domain.models import PlaceDraft, SightingDraft
+
+    garden = window.ctx.places.save(PlaceDraft("Garden", 51.4, 0.1))
+    for name in ("Vulpes vulpes", "Erithacus rubecula"):
+        window.ctx.sightings.save(SightingDraft(taxon_id(window.ctx, name), date(2026, 5, 3)))
+    window.show_sightings(SightingFilter())
+    page = window.sightings_page
+    page.table.selectAll()
+    change = next(b for b in page.bulk.findChildren(type(page.add_btn)) if b.menu())
+    actions = [a.text() for a in change.menu().actions()]
+    assert actions == ["Species…", "Place…", "Date…", "Outing…"]
+
+    def choose_garden(title, *widgets):
+        widgets[1].setCurrentIndex(widgets[1].findData(garden.id))
+        return True
+
+    monkeypatch.setattr(page, "_ask", choose_garden)
+    page._change_place()
+    assert {s.place_id for s in window.ctx.sightings.page(SightingFilter())} == {garden.id}
+    assert any("moved to Garden" in m for m in window.toasts.messages())

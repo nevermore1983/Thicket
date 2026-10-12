@@ -70,3 +70,17 @@ def test_thumbnails_can_be_cleared(ctx, tmp_path):
     ctx.photos.thumbnail(photo)
     assert ctx.health.clear_thumbnails() >= 1
     assert titles(ctx.health.check())  # still runs with an empty cache
+
+
+def test_moved_photos_are_found_in_a_folder(ctx, tmp_path):
+    import shutil
+
+    photo = library_with_a_photo(ctx, tmp_path)
+    moved = tmp_path / "elsewhere" / "deep"
+    moved.mkdir(parents=True)
+    shutil.move(ctx.paths.root / photo.rel_path, moved / "renamed.jpg")
+    (moved / "other.jpg").write_bytes(b"not it")
+    found = titles(ctx.health.check())["1 photo file is missing"]
+    assert found.action == "find_photos"  # no backup to bring it back from
+    assert ctx.photos.find_in_folder(tmp_path / "elsewhere") == 1
+    assert (ctx.paths.root / photo.rel_path).exists()

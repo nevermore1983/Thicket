@@ -27,7 +27,13 @@ from wildlife.domain.errors import ValidationError
 from wildlife.domain.models import Outing, OutingDraft
 from wildlife.domain.validation import validate_outing
 from wildlife.ui.components.side_panel import PanelView
-from wildlife.ui.panels.sighting_editor import _combo, _Field, _maybe, normalise_time
+from wildlife.ui.panels.sighting_editor import (
+    _combo,
+    _Field,
+    _maybe,
+    check_time_field,
+    normalise_time,
+)
 from wildlife.ui.theme.manager import ThemeManager
 
 
@@ -121,6 +127,9 @@ class OutingEditor(PanelView):
         )
         self.f_weather = _Field("Weather", self.weather)
         self.f_temperature = _Field("Temperature (°C)", self.temperature)
+        for edit, field in ((self.start, self.f_start), (self.end, self.f_end)):
+            edit.editingFinished.connect(lambda e=edit, f=field: check_time_field(e, f))
+        self.temperature.editingFinished.connect(self._check_temperature)
         grid.addWidget(self.f_weather, 0, 0, Qt.AlignmentFlag.AlignTop)
         grid.addWidget(self.f_temperature, 0, 1, Qt.AlignmentFlag.AlignTop)
         grid.addWidget(_Field("Wind", self.wind), 1, 0, Qt.AlignmentFlag.AlignTop)
@@ -182,6 +191,20 @@ class OutingEditor(PanelView):
 
     def _mark_dirty(self, *_) -> None:
         self._dirty = True
+
+    def _check_temperature(self) -> None:
+        """Say straight away if the temperature can't be read or looks wrong."""
+        try:
+            value = parse_temperature(self.temperature.text())
+        except ValueError:
+            self.f_temperature.set_note(
+                "Enter a number, like 12 or -2.5, or leave it empty.", "error"
+            )
+            return
+        if value is not None and not -50 <= value <= 60:
+            self.f_temperature.set_note("That temperature looks wrong (−50 to 60 °C).", "error")
+        else:
+            self.f_temperature.reset_note()
 
     # ---- saving --------------------------------------------------------------------------
     def build_draft(self) -> tuple[OutingDraft, dict[str, str]]:

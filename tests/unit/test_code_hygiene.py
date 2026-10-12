@@ -29,3 +29,17 @@ def test_no_sql_alias_string_hacks():
 
 def test_no_dataclass_on_qt_classes():
     assert offending(r"^@dataclass[^\n]*\nclass \w+\(Q\w+") == []
+
+
+def test_no_dead_conditions():
+    """`x if False else y` or `assert ... or True` never test anything."""
+    everything = FILES + sorted((SRC.parents[1] / "tests").rglob("*.py"))
+    rx = re.compile(r"\bif False\b|\bor True\b")
+    found = [
+        f"{f.name}:{n}"
+        for f in everything
+        if f.name != "test_code_hygiene.py"
+        for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1)
+        if rx.search(line)
+    ]
+    assert found == []

@@ -115,6 +115,7 @@ class SightingDetail(PanelView):
                 btn.setFixedSize(98, 98)
                 btn.setProperty("variant", "ghost")
                 btn.setToolTip(f"{photo.original_name}: click to view")
+                btn.setAccessibleName(f"Photo {index + 1}: {photo.original_name}")
                 if thumb:
                     btn.setIcon(QIcon(rounded(QPixmap(str(thumb)), 94, 10)))
                     btn.setIconSize(QSize(94, 94))

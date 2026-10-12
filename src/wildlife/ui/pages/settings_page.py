@@ -51,6 +51,11 @@ def _row(title: str, explanation: str, control: QWidget) -> QFrame:
     text.addWidget(sub)
     layout.addLayout(text, 1)
     layout.addWidget(control, 0, Qt.AlignmentFlag.AlignVCenter)
+    # A text box or menu is named after its row ("Your name"), with the explanation read too
+    for field in [control, *control.findChildren(QWidget)]:
+        if isinstance(field, (QLineEdit, QComboBox)) and not field.accessibleName():
+            field.setAccessibleName(title)
+            field.setAccessibleDescription(explanation)
     return row
 
 
@@ -87,6 +92,7 @@ class SettingsPage(QWidget):
     health_requested = Signal()
     restore_requested = Signal()
     show_sightings = Signal(object)  # SightingFilter
+    shortcuts_requested = Signal()
     toast = Signal(str, object)
 
     def __init__(self, ctx: AppContext, theme: ThemeManager) -> None:
@@ -257,13 +263,22 @@ class SettingsPage(QWidget):
                         f"WildLife {__version__}",
                         f"Data format version {ctx.schema_version}. Species names: UK Species Inventory, Natural History "
                         "Museum (CC BY 4.0). Map data © OpenStreetMap contributors.",
-                        button(
-                            "Open log folder",
-                            "secondary",
-                            None,
-                            None,
-                            lambda: QDesktopServices.openUrl(
-                                QUrl.fromLocalFile(str(ctx.paths.logs))
+                        _pair(
+                            button(
+                                "Keyboard shortcuts",
+                                "secondary",
+                                None,
+                                None,
+                                self.shortcuts_requested.emit,
+                            ),
+                            button(
+                                "Open log folder",
+                                "secondary",
+                                None,
+                                None,
+                                lambda: QDesktopServices.openUrl(
+                                    QUrl.fromLocalFile(str(ctx.paths.logs))
+                                ),
                             ),
                         ),
                     ),
@@ -375,7 +390,7 @@ class SettingsPage(QWidget):
             ),
             _row(
                 "From a WildLife export",
-                "Records (and photos) exported from WildLife on this or another PC.",
+                "Sightings (and photos) exported from WildLife on this or another PC.",
                 importer("wildlife"),
             ),
             _row(

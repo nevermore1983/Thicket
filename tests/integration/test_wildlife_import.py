@@ -164,3 +164,17 @@ def test_archive_paths_cant_escape_the_library(ctx, other, tmp_path):
     assert (
         not (tmp_path / "evil.jpg").exists() and not (other.paths.root.parent / "evil.jpg").exists()
     )
+
+
+def test_species_notes_travel_with_the_export(ctx, other, tmp_path):
+    seed(ctx, tmp_path)
+    robin = taxon_id(ctx, "Erithacus rubecula")
+    ctx.species_notes.set(robin, "Nests in the ivy")
+    path = ctx.export.export(ExportOptions("json"), tmp_path / "records").path
+    other.species_notes.set(taxon_id(other, "Vulpes vulpes"), "Mine")
+    result = other.wildlife_import.run(other.wildlife_import.preview(path))
+    assert len(result.noted) == 1
+    assert other.species_notes.get(taxon_id(other, "Erithacus rubecula")) == "Nests in the ivy"
+    result.undo.run()
+    assert other.species_notes.get(taxon_id(other, "Erithacus rubecula")) == ""
+    assert other.species_notes.get(taxon_id(other, "Vulpes vulpes")) == "Mine"

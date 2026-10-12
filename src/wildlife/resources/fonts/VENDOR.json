@@ -1,0 +1,18 @@
+{
+  "note": "Fonts bundled with WildLife. Checked by tests/unit/test_fonts.py.",
+  "files": {
+    "SourceSerif4Variable-Italic.ttf": {
+      "what": "Source Serif 4 (variable, italic): scientific names",
+      "version": "4.005R",
+      "source": "https://github.com/adobe-fonts/source-serif/blob/4.005R/VAR/SourceSerif4Variable-Italic.ttf",
+      "licence": "SIL Open Font License 1.1 (SourceSerif4-LICENSE.md)",
+      "git_blob_sha1": "c27d20422faf6fa432396d4ae73af574914bf575",
+      "sha256": "6a059a64838978d54e8fab71ed86b0d82e948c0e12b2664d0c15166326dcff82"
+    },
+    "SourceSerif4-LICENSE.md": {
+      "source": "https://github.com/adobe-fonts/source-serif/blob/4.005R/LICENSE.md",
+      "git_blob_sha1": "ebe298c6b488d68a43ec9b60155fb6b862a46bc1",
+      "sha256": "75784a295293a8992f5a8d99210566e0064a012e6dab6731305e3787f15896c7"
+    }
+  }
+}

@@ -62,6 +62,7 @@ class RestoreDialog(QDialog):
         note.setProperty("role", "muted")
         v.addWidget(note)
         self.list = QListWidget()
+        self.list.setAccessibleName("Backups")
         for info in ctx.backup.backups():
             item = QListWidgetItem(backup_text(info))
             item.setData(Qt.ItemDataRole.UserRole, info)

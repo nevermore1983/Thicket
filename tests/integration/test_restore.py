@@ -75,3 +75,16 @@ def test_backups_are_single_files(ctx):
     ctx.backup.backup_now("manual")
     folder = ctx.backup.folder() / "snapshots"
     assert sorted(p.suffix for p in folder.iterdir()) == [".db", ".json"]
+
+
+def test_latest_backup_is_found_even_if_the_data_file_is_damaged(ctx, paths, tmp_path):
+    from wildlife.data.restore import latest_backup
+
+    elsewhere = tmp_path / "Backup drive"
+    ctx.settings.update(backup_folder=str(elsewhere))
+    add(ctx)
+    ctx.backup.backup_now("manual")
+    ctx.close()
+    paths.database.write_bytes(b"damaged" * 1000)  # the setting inside can't be read now
+    found = latest_backup(paths)
+    assert found is not None and found.path.is_relative_to(elsewhere) and found.sightings == 1

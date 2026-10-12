@@ -9,6 +9,8 @@ from pathlib import Path
 from PySide6.QtCore import QDate, QEvent, QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QDragEnterEvent, QDropEvent, QPixmap
 from PySide6.QtWidgets import (
+    QAbstractButton,
+    QAbstractSpinBox,
     QButtonGroup,
     QCheckBox,
     QComboBox,
@@ -66,6 +68,38 @@ def normalise_time(text: str) -> str | None:
     return text
 
 
+TIME_PROBLEM = "Use 24-hour time like 09:30, or leave it empty if you don't know."
+
+
+def check_time_field(edit: QLineEdit, field: _Field) -> None:
+    """When you leave a time box: tidy what you typed ('930' becomes '09:30'), or say
+    straight away if it can't be read, rather than waiting for Save."""
+    fixed = normalise_time(edit.text())
+    if fixed is None:
+        field.reset_note()
+        return
+    hour, _, minute = fixed.partition(":")
+    if not (minute and hour.isdigit() and minute.isdigit() and int(hour) < 24 and int(minute) < 60):
+        field.set_note(TIME_PROBLEM, "error")
+        return
+    if fixed != edit.text():
+        edit.setText(fixed)
+    field.reset_note()
+
+
+_INPUTS = (QLineEdit, QComboBox, QAbstractSpinBox, QPlainTextEdit, QAbstractButton)
+
+
+def _input_of(control: QWidget) -> QWidget:
+    """The part of a control that takes keyboard input (the text box of the species
+    picker, the first input inside a row of controls), or the control itself."""
+    if isinstance(control, _INPUTS):
+        return control
+    if isinstance(getattr(control, "edit", None), QWidget):
+        return control.edit
+    return next((w for w in control.findChildren(QWidget) if isinstance(w, _INPUTS)), control)
+
+
 class _Field(QWidget):
     """Label above a control, with a help/error line below it."""
 
@@ -79,6 +113,13 @@ class _Field(QWidget):
         self.label.setProperty("role", "fieldLabel")
         v.addWidget(self.label)
         v.addWidget(control)
+        # Link the label to the field, so screen readers say "Date, edit" rather than "edit"
+        target = _input_of(control)
+        self.label.setBuddy(target)
+        if not target.accessibleName() and not isinstance(target, QAbstractButton):
+            target.setAccessibleName(label)  # a button keeps its own words ("Garden")
+        if help_text:
+            target.setAccessibleDescription(help_text)
         self.note = QLabel(help_text)
         self.note.setWordWrap(True)
         self.note.setProperty("role", "help")
@@ -206,6 +247,7 @@ class SightingEditor(PanelView):
         form.addWidget(self.f_outing)
         self._fill_outings(draft.outing_id)
         self.time.editingFinished.connect(lambda: self._fill_outings())
+        self.time.editingFinished.connect(lambda: check_time_field(self.time, self.f_time))
 
         # place
         self._place_id = draft.place_id if (existing or prefill) else ctx.sightings.default_place()
@@ -409,6 +451,7 @@ class SightingEditor(PanelView):
             layout.addWidget(chip)
         other = QComboBox()
         other.setProperty("chip", True)
+        other.setAccessibleName("Other place")
         other.addItem("Other place…", None)
         for place in self.ctx.places.all():
             other.addItem(place.name, place.id)
@@ -635,12 +678,34 @@ class SightingEditor(PanelView):
             hv.setContentsMargins(0, 0, 0, 0)
             hv.setSpacing(2)
             hv.addWidget(tile)
+            controls = QHBoxLayout()
+            controls.setSpacing(2)
+            at = self._photos.index(photo)
+            for text, name, step in (("‹", "Move earlier", -1), ("›", "Move later", 1)):
+                move = QPushButton(text)
+                move.setProperty("variant", "ghost")
+                move.setFixedWidth(24)
+                move.setToolTip(f"{name} (the first photo is the cover)")
+                move.setAccessibleName(f"{name}: {photo.original_name}")
+                move.setEnabled(0 <= at + step < len(self._photos))
+                move.clicked.connect(lambda _=False, p=photo, d=step: self._move_photo(p, d))
+                controls.addWidget(move)
             remove = QPushButton("Remove")
             remove.setProperty("variant", "link")
+            remove.setAccessibleName(f"Remove {photo.original_name}")
             remove.clicked.connect(lambda _=False, p=photo: self._remove_photo(p))
-            hv.addWidget(remove)
+            controls.addWidget(remove)
+            hv.addLayout(controls)
             self._photo_strip.addWidget(holder)
         self._photo_zone.set_count(len(self._photos))
+
+    def _move_photo(self, photo: Photo, step: int) -> None:
+        i = self._photos.index(photo)
+        j = i + step
+        if 0 <= j < len(self._photos):
+            self._photos[i], self._photos[j] = self._photos[j], self._photos[i]
+            self._mark_dirty()
+            self._refresh_photo_strip()
 
     def _remove_photo(self, photo: Photo) -> None:
         self._photos = [p for p in self._photos if p.id != photo.id]
@@ -715,6 +780,7 @@ class SightingEditor(PanelView):
             else:
                 ids = [p.id for p in self._photos]
                 self.ctx.photos.attach(result.sighting.id, ids)
+                self.ctx.photos.reorder(result.sighting.id, ids)  # the order shown here
                 if self._removed_photos:
                     self.ctx.photos.detach(result.sighting.id, self._removed_photos)
                 self._dirty = False

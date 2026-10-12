@@ -79,17 +79,27 @@ class Segmented(QFrame):
         for key, label in options:
             btn = QPushButton(label)
             btn.setCheckable(True)
-            btn.setChecked(key == current)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             # never squeeze a label: the layout must find room elsewhere
             btn.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
             self._group.addButton(btn)
+            btn.setChecked(key == current)
             self._buttons[key] = btn
             layout.addWidget(btn)
             btn.clicked.connect(lambda _=False, k=key: self.changed.emit(k))
+            btn.toggled.connect(lambda on: on and self._tab_to_checked())
+        self._tab_to_checked()
 
     def set_current(self, key: str) -> None:
         self._buttons[key].setChecked(True)
+
+    def _tab_to_checked(self) -> None:
+        """Tab reaches the row through its selected option; the arrow keys move between
+        options (like radio buttons)."""
+        for b in self._buttons.values():
+            b.setFocusPolicy(
+                Qt.FocusPolicy.StrongFocus if b.isChecked() else Qt.FocusPolicy.ClickFocus
+            )
 
     def button_for(self, key: str) -> QPushButton:
         return self._buttons[key]

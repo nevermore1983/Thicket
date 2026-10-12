@@ -25,6 +25,7 @@ from wildlife.services.map import MapService
 from wildlife.services.outings import OutingService
 from wildlife.services.photos import PhotoService
 from wildlife.services.places import PlaceService
+from wildlife.services.saved_filters import SavedFilters, SpeciesNotes
 from wildlife.services.settings import SettingsService
 from wildlife.services.sightings import SightingService
 from wildlife.services.species_catalogue import SpeciesCatalogue
@@ -59,6 +60,8 @@ class AppContext:
     wildlife_import: WildlifeImporter = field(init=False)
     health: HealthService = field(init=False)
     import_history: ImportHistory = field(init=False)
+    saved_filters: SavedFilters = field(init=False)
+    species_notes: SpeciesNotes = field(init=False)
 
     def __post_init__(self) -> None:
         self.catalogue = SpeciesCatalogue(self.db, self.events)
@@ -78,6 +81,8 @@ class AppContext:
         self.wildlife_import = WildlifeImporter(self.paths, self.db, self.events, self.photos)
         self.health = HealthService(self.paths, self.db, self.backup, self.catalogue)
         self.import_history = ImportHistory(self.db, self.sightings)
+        self.saved_filters = SavedFilters(self.db, self.events)
+        self.species_notes = SpeciesNotes(self.db, self.events)
         self.spreadsheet = SpreadsheetImporter(
             self.paths, self.db, self.events, self.settings, self.photos
         )

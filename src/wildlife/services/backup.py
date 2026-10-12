@@ -168,6 +168,10 @@ class BackupService:
             )
             raise BackupError(result.message, detail=str(exc)) from exc
         self._changed_since_backup = False
+        try:
+            restore.remember_backup_folder(self._paths, root)
+        except OSError:
+            log.warning("Couldn't note where backups are kept")
         result = BackupResult(
             when.isoformat(),
             kind,

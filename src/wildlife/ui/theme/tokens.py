@@ -140,5 +140,6 @@ RADIUS_SM, RADIUS_MD, RADIUS_LG = 6, 10, 14
 FONT_UI = "Segoe UI Variable Text"
 FONT_DISPLAY = "Segoe UI Variable Display"
 FONT_FALLBACK = "Segoe UI"
-FONT_SCI = "Source Serif 4"  # bundled in Phase 6; falls back to Georgia
+# Scientific names. Bundled (resources/fonts, loaded by the ThemeManager); Georgia if missing
+FONT_SCI = "Source Serif 4 Variable"
 SIZE_BODY, SIZE_SMALL, SIZE_CAPTION, SIZE_TITLE, SIZE_TILE = 14, 13, 12, 24, 30

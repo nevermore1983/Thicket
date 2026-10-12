@@ -225,6 +225,40 @@ def set_taxon(conn: sqlite3.Connection, mapping: dict[int, int]) -> None:
     )
 
 
+BULK_COLUMNS = (
+    "taxon_id",
+    "place_id",
+    "observed_date",
+    "outing_id",
+    "latitude",
+    "longitude",
+    "uncertainty_m",
+    "location_method",
+)
+
+
+def values_of(
+    conn: sqlite3.Connection, ids: list[int], columns: tuple[str, ...]
+) -> dict[int, dict]:
+    """{sighting id: {column: value}} for a bulk change and its Undo."""
+    if not set(columns) <= set(BULK_COLUMNS):
+        raise ValueError(columns)
+    marks = ",".join("?" * len(ids))
+    rows = conn.execute(f"SELECT id, {', '.join(columns)} FROM sighting WHERE id IN ({marks})", ids)
+    return {r[0]: dict(zip(columns, r[1:], strict=True)) for r in rows}
+
+
+def set_values(conn: sqlite3.Connection, changes: dict[int, dict]) -> None:
+    """Apply {sighting id: {column: value}} (columns from BULK_COLUMNS only)."""
+    for sid, values in changes.items():
+        if not set(values) <= set(BULK_COLUMNS):
+            raise ValueError(values)
+        sets = ", ".join(f"{c} = ?" for c in values)
+        conn.execute(
+            f"UPDATE sighting SET {sets}, updated_at = {NOW} WHERE id = ?", (*values.values(), sid)
+        )
+
+
 def last_place_since(conn: sqlite3.Connection, since_utc_iso: str) -> int | None:
     """The place of the most recently *added* sighting created after `since`."""
     row = conn.execute(

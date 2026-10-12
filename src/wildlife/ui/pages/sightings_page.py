@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QAbstractTableModel, QModelIndex, QRect, QSize, Qt, Signal
+from PySide6.QtCore import QAbstractTableModel, QDate, QModelIndex, QRect, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QKeySequence, QPainter, QShortcut
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QCheckBox,
+    QComboBox,
+    QDateEdit,
     QDialog,
     QDialogButtonBox,
     QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QMenu,
     QPushButton,
     QStackedWidget,
     QStyle,
@@ -111,10 +115,12 @@ class SightingTableModel(QAbstractTableModel):
                 format_count(s.count, s.count_qualifier),
                 s.evidence.label
                 + ("" if s.identification.value == "certain" else f" · {s.identification.label}"),
-                plural(s.photo_count, "photo") if s.photo_count else "",
+                f"{s.photo_count}" if s.photo_count else "",  # the heading says "Photos"
             ][col]
-        if role == Qt.ItemDataRole.TextAlignmentRole and col == 4:
+        if role == Qt.ItemDataRole.TextAlignmentRole and col in (4, 6):
             return int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        if role in (Qt.ItemDataRole.ToolTipRole, Qt.ItemDataRole.AccessibleTextRole) and col == 6:
+            return plural(s.photo_count, "photo") if s.photo_count else "No photos"
         if role == Qt.ItemDataRole.ToolTipRole and col == 3 and not s.has_location:
             return "Add a place or position when you can"
         return None
@@ -200,16 +206,18 @@ class SightingsPage(QWidget):
         self.tabs.changed.connect(self.show_tab)
         head.addWidget(self.tabs)
         head.addStretch(1)
-        head.addWidget(
-            button(
-                "Export…",
-                "secondary",
-                "download",
-                theme,
-                lambda: self.export_requested.emit(self.model.filter),
-            )
+        self.export_btn = button(
+            "Export…",
+            "secondary",
+            "download",
+            theme,
+            lambda: self.export_requested.emit(self.model.filter),
         )
-        head.addWidget(button("Add sighting", "primary", "plus", theme, self.add_requested.emit))
+        self.export_btn.setAccessibleName("Export")
+        self.export_btn.setToolTip("Export the sightings shown")
+        self.add_btn = button("Add sighting", "primary", "plus", theme, self.add_requested.emit)
+        head.addWidget(self.export_btn)
+        head.addWidget(self.add_btn)
         v.addLayout(head)
 
         # "All sightings" tab
@@ -228,8 +236,14 @@ class SightingsPage(QWidget):
         self.bulk_label = QLabel()
         self.bulk_label.setObjectName("BulkLabel")
         bh.addWidget(self.bulk_label, 1)
-        change = QPushButton("Change species…")
-        change.clicked.connect(self._change_species)
+        change = QPushButton("Change…")
+        change.setToolTip("Change the species, place, date or outing of the selected sightings")
+        menu = QMenu(change)
+        menu.addAction("Species…", self._change_species)
+        menu.addAction("Place…", self._change_place)
+        menu.addAction("Date…", self._change_date)
+        menu.addAction("Outing…", self._change_outing)
+        change.setMenu(menu)
         delete = QPushButton("Delete")
         delete.clicked.connect(self.delete_selected)
         clear = QPushButton("Clear selection")
@@ -243,6 +257,7 @@ class SightingsPage(QWidget):
         self.model = SightingTableModel(ctx)
         self.table = QTableView()
         self.table.setObjectName("SightingTable")
+        self.table.setAccessibleName("Sightings")
         self.table.setModel(self.model)
         self.table.setItemDelegateForColumn(0, SpeciesDelegate(ctx, theme))
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
@@ -304,6 +319,14 @@ class SightingsPage(QWidget):
         self.tab_stack.addWidget(self.outings)
         v.addWidget(self.tab_stack, 1)
         self.refresh()
+
+    def resizeEvent(self, event) -> None:
+        """When narrow (e.g. with the side panel open), Export shrinks to its icon and the
+        page's own Add button steps aside (the top bar has one), so nothing is squeezed."""
+        super().resizeEvent(event)
+        compact = self.width() < 820
+        self.export_btn.setText("" if compact else "Export…")
+        self.add_btn.setVisible(not compact)
 
     def show_tab(self, key: str) -> None:
         self.tabs.set_current(key)
@@ -374,6 +397,76 @@ class SightingsPage(QWidget):
         undo = self.ctx.sightings.delete([s.id for s in chosen])
         name = chosen[0].display_name if len(chosen) == 1 else plural(len(chosen), "sighting")
         self.toast.emit(f"{name} moved to the recycle bin", undo.run)
+
+    def _ask(self, title: str, *widgets: QWidget) -> bool:
+        """A small dialog with these controls and OK / Cancel; True if OK was pressed."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle(title)
+        dialog.setMinimumWidth(420)
+        dv = QVBoxLayout(dialog)
+        for w in widgets:
+            dv.addWidget(w)
+        note = QLabel("You can undo this straight afterwards.")
+        note.setProperty("role", "help")
+        dv.addWidget(note)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        dv.addWidget(buttons)
+        return bool(dialog.exec())
+
+    def _done(self, undo, message: str) -> None:
+        self.toast.emit(message, undo.run)
+
+    def _change_place(self) -> None:
+        chosen = self.selected()
+        places = QComboBox()
+        places.setAccessibleName("New place")
+        places.addItem("No place", None)
+        for place in self.ctx.places.all():
+            places.addItem(place.name, place.id)
+        clear = QCheckBox("Also remove their own exact positions (use the place's centre)")
+        label = QLabel("New place")
+        label.setBuddy(places)
+        if self._ask(f"Change place for {plural(len(chosen), 'sighting')}", label, places, clear):
+            undo = self.ctx.sightings.change_place(
+                [s.id for s in chosen], places.currentData(), clear.isChecked()
+            )
+            self._done(undo, f"{plural(len(chosen), 'sighting')} moved to {places.currentText()}")
+
+    def _change_date(self) -> None:
+        chosen = self.selected()
+        today = self.ctx.sightings._today()
+        first = chosen[0].observed_date
+        when = QDateEdit(QDate(first.year, first.month, first.day))
+        when.setCalendarPopup(True)
+        when.setDisplayFormat("ddd d MMM yyyy")
+        when.setMaximumDate(QDate(today.year, today.month, today.day))
+        when.setAccessibleName("New date")
+        label = QLabel("New date (times stay as they are)")
+        label.setBuddy(when)
+        if self._ask(f"Change date for {plural(len(chosen), 'sighting')}", label, when):
+            day = when.date().toPython()
+            undo = self.ctx.sightings.change_date([s.id for s in chosen], day)
+            self._done(
+                undo, f"{plural(len(chosen), 'sighting')} moved to {fmt_date(day, 'medium')}"
+            )
+
+    def _change_outing(self) -> None:
+        chosen = self.selected()
+        outings = QComboBox()
+        outings.setAccessibleName("Outing")
+        outings.addItem("No outing", None)
+        for outing in self.ctx.outings.page(0, 300):
+            outings.addItem(outing.display_title, outing.id)
+        label = QLabel("Outing (newest first)")
+        label.setBuddy(outings)
+        if self._ask(f"Outing for {plural(len(chosen), 'sighting')}", label, outings):
+            undo = self.ctx.sightings.set_outing([s.id for s in chosen], outings.currentData())
+            target = outings.currentText() if outings.currentData() else "no outing"
+            self._done(undo, f"{plural(len(chosen), 'sighting')} now on {target}")
 
     def _change_species(self) -> None:
         chosen = self.selected()

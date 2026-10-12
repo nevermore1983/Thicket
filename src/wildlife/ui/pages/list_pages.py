@@ -72,6 +72,7 @@ class _ListPage(QWidget):
     ) -> None:
         super().__init__()
         self.setObjectName("Page")
+        table.setAccessibleName(title)
         v = QVBoxLayout(self)
         v.setContentsMargins(28, 24, 28, 16)
         v.setSpacing(14)
@@ -117,7 +118,7 @@ class PlacesPage(_ListPage):
         )
         super().__init__(
             "Places",
-            "Saved locations you visit. Sightings inside a place's radius suggest it.",
+            "Spots you visit often. A sighting inside a place's circle is given that place.",
             [button("New place", "primary", "plus", theme, lambda: self.new_place.emit())],
             table,
             empty,
@@ -168,6 +169,7 @@ class PlacesPage(_ListPage):
 class SpeciesPage(_ListPage):
     show_sightings = Signal(object)
     open_profile = Signal(int)  # taxon id
+    add_requested = Signal()
 
     def __init__(self, ctx: AppContext, theme: ThemeManager) -> None:
         table = _table(["Species", "Category", "Sightings", "First seen", "Last seen"])
@@ -176,6 +178,7 @@ class SpeciesPage(_ListPage):
             "leaf",
             "Your species list is empty",
             "Each species you record is added here, with when you first and last saw it.",
+            [button("Add sighting", "primary", "plus", theme, lambda: self.add_requested.emit())],
         )
         self.which = QComboBox()
         self.which.setToolTip("Your life list, or the list for one year")
@@ -183,7 +186,7 @@ class SpeciesPage(_ListPage):
         self.which.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         super().__init__(
             "My species",
-            "Your life list: certain identifications of wild animals, at species level.",
+            "Your life list: every wild species you've identified with certainty.",
             [self.which],
             table,
             empty,
@@ -214,7 +217,7 @@ class SpeciesPage(_ListPage):
         rows = self.ctx.stats.life_list(self.year)
         t = self.theme.tokens
         self.subtitle.setText(
-            "Your life list: certain identifications of wild animals, at species level."
+            "Your life list: every wild species you've identified with certainty."
             if self.year is None
             else f"Species you recorded in {self.year}, with the first and last time that year. "
             "★ marks lifers (new to your life list that year)."

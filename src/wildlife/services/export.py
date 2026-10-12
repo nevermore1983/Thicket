@@ -100,7 +100,7 @@ FORMATS = {
             "Everything, with photos (.zip)",
             ".zip",
             False,
-            "Your complete records and every photo file, plus spreadsheet and Darwin "
+            "All your sightings, places and outings and every photo file, plus spreadsheet and Darwin "
             "Core copies and a README. WildLife can import it again.",
         ),
     )
@@ -493,6 +493,13 @@ class ExportService:
             "photos": [_photo_json(p, files.get(p["id"], {})) for p in photos.values()],
             "sightings": [
                 _sighting_json(r, [p["uuid"] for p in photo_rows.get(r["id"], [])]) for r in rows
+            ],
+            "species_notes": [
+                {
+                    "taxon": {"uksi_key": n["uksi_key"], "scientific_name": n["scientific_name"]},
+                    "notes": n["notes"],
+                }
+                for n in repo.species_notes(conn, None if everything else taxon_ids)
             ],
         }
         return json.dumps(data, ensure_ascii=False, indent=1).encode("utf-8")

@@ -12,6 +12,7 @@ A database can't be swapped while it's open, so restoring has two halves:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import shutil
@@ -27,6 +28,9 @@ from wildlife.domain.errors import BackupError
 
 log = logging.getLogger(__name__)
 NOTE = "restore-pending.json"
+# Where backups go, written beside the data on every backup: the setting itself is in the
+# database, which can't be read if the database is what's damaged.
+POINTER = "backup-location.txt"
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,6 +103,30 @@ def check(path: Path) -> snapshot.Verification:
     if version > available_migrations()[-1].version:
         raise BackupError("That backup was made by a newer version of WildLife. Update first.")
     return result
+
+
+def remember_backup_folder(paths: DataPaths, folder: Path) -> None:
+    (paths.root / POINTER).write_text(str(folder), encoding="utf-8")
+
+
+def latest_backup(paths: DataPaths) -> BackupInfo | None:
+    """The newest backup that passes its check, from the remembered backup folder and
+    the default one. Used when the data file can't be opened at start-up."""
+    folders = [paths.root / "backups"]
+    with contextlib.suppress(OSError):  # no backup has been made since this was added
+        folders.insert(0, Path((paths.root / POINTER).read_text(encoding="utf-8").strip()))
+    snaps = []
+    for folder in dict.fromkeys(folders):
+        snapshots = folder / "snapshots"
+        if snapshots.is_dir():
+            snaps += [describe(p) for p in snapshots.glob("*.db")]
+    for info in sorted(snaps, key=lambda i: i.created, reverse=True):
+        try:
+            check(info.path)
+        except BackupError:
+            continue
+        return info
+    return None
 
 
 def request_restore(paths: DataPaths, backup: Path) -> BackupInfo:

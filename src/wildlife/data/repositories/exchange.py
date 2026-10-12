@@ -71,6 +71,22 @@ def taxa(conn: sqlite3.Connection, ids: set[int], all_custom: bool) -> list[sqli
     return [r for r in rows if r["id"] in ids or (all_custom and r["is_custom"])]
 
 
+def species_notes(conn: sqlite3.Connection, taxon_ids: set[int] | None) -> list[sqlite3.Row]:
+    rows = conn.execute(
+        "SELECT n.taxon_id, n.notes, t.uksi_key, t.scientific_name FROM species_note n "
+        "JOIN taxon t ON t.id = n.taxon_id"
+    ).fetchall()
+    return [r for r in rows if taxon_ids is None or r["taxon_id"] in taxon_ids]
+
+
+def add_species_note(conn: sqlite3.Connection, taxon_id: int, notes: str) -> bool:
+    """Add notes to a species that has none yet (never overwrites yours). True if added."""
+    cur = conn.execute(
+        "INSERT OR IGNORE INTO species_note (taxon_id, notes) VALUES (?, ?)", (taxon_id, notes)
+    )
+    return cur.rowcount == 1
+
+
 # --- importing WildLife's own export ----------------------------------------------------
 def ids_by_uuid(conn: sqlite3.Connection, table: str) -> dict[str, int]:
     """uuid -> id for places, outings, sightings or photos (deleted ones included)."""

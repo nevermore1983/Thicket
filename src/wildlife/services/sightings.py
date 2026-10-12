@@ -151,6 +151,52 @@ class SightingService:
 
         return Undo(f"Change species of {len(ids)} sightings", undo)
 
+    # ---- bulk changes (each one step to undo) ------------------------------------
+    def _bulk(self, ids: list[int], values: dict, what: str) -> Undo:
+        with self._db.transaction() as conn:
+            before = repo.values_of(conn, ids, tuple(values))
+            repo.set_values(conn, dict.fromkeys(before, values))
+        self._events.publish(TOPIC, tuple(ids))
+
+        def undo() -> None:
+            with self._db.transaction() as c:
+                repo.set_values(c, before)
+            self._events.publish(TOPIC, tuple(ids))
+
+        return Undo(f"{what} of {len(ids)} sightings", undo)
+
+    def change_place(
+        self, ids: list[int], place_id: int | None, clear_positions: bool = False
+    ) -> Undo:
+        """Give sightings a place (or none). With clear_positions, their own exact
+        positions go too, so the place's centre is used."""
+        with self._db.connection() as conn:
+            if place_id is not None and places_repo.get(conn, place_id) is None:
+                raise ValidationError(
+                    {"place": "That place no longer exists. Please choose another."}
+                )
+        values: dict = {"place_id": place_id}
+        if clear_positions:
+            values |= {
+                "latitude": None,
+                "longitude": None,
+                "uncertainty_m": None,
+                "location_method": "place" if place_id else None,
+            }
+        return self._bulk(ids, values, "Change place")
+
+    def change_date(self, ids: list[int], day: date) -> Undo:
+        if day > self._today():
+            raise ValidationError({"date": "The date can't be in the future."})
+        return self._bulk(ids, {"observed_date": day.isoformat()}, "Change date")
+
+    def set_outing(self, ids: list[int], outing_id: int | None) -> Undo:
+        """Put sightings on an outing, or take them off one (outing_id None)."""
+        with self._db.connection() as conn:
+            if outing_id is not None and outings_repo.get(conn, outing_id) is None:
+                raise ValidationError({"outing": "That outing no longer exists."})
+        return self._bulk(ids, {"outing_id": outing_id}, "Change outing")
+
     def purge_recycle_bin(self, older_than_days: int | None = None) -> int:
         """Permanently remove sightings deleted more than N days ago (all if N == 0)."""
         days = (

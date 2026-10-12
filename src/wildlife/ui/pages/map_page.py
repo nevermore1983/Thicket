@@ -145,10 +145,12 @@ class MapPage(QWidget):
         top.addWidget(self.modes)
         self.weight_box = QComboBox()
         self.weight_box.addItem("Weight: sightings", "sightings")
-        self.weight_box.addItem("Weight: animals counted", "animals")
+        self.weight_box.addItem("Weight: individuals counted", "animals")
         self.weight_box.setCurrentIndex(max(0, self.weight_box.findData(self.weight)))
         self.weight_box.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
-        self.weight_box.setToolTip("Heat by number of sightings, or by number of animals counted")
+        self.weight_box.setToolTip(
+            "Heat by number of sightings, or by number of individuals counted"
+        )
         self.weight_box.currentIndexChanged.connect(self._weight_changed)
         top.addWidget(self.weight_box)
         top.addStretch(1)
@@ -162,6 +164,7 @@ class MapPage(QWidget):
             self.basemap_box.addItem(label, key)
         self.basemap_box.setCurrentIndex(max(0, self.basemap_box.findData(self.basemap)))
         self.basemap_box.setToolTip("Background map")
+        self.basemap_box.setAccessibleName("Background map")
         self.basemap_box.currentIndexChanged.connect(self._basemap_changed)
         top.addWidget(self.basemap_box)
         self.fit_button = button("Fit all", "secondary", None, theme, self.fit)
@@ -179,11 +182,13 @@ class MapPage(QWidget):
         self.missing = QPushButton()
         self.missing.setProperty("variant", "link")
         self.missing.setToolTip("List the sightings that have no place or position yet")
+        self.missing.setAccessibleName("Sightings without a location")
         self.missing.clicked.connect(
             lambda: self.show_sightings.emit(self.filter.with_(needs_location=True))
         )
         row.addWidget(self.missing)
         v.addLayout(row)
+        self._nothing = False  # no sightings to show (explained in the banner)
         self.banner = Callout(theme, "info", "")
         self.banner.hide()
         v.addWidget(self.banner)
@@ -316,6 +321,8 @@ class MapPage(QWidget):
         self.status.setText(
             f"{plural(layer.shown, 'sighting')} on the map" if layer.shown else "Nothing to show"
         )
+        self._nothing = not layer.shown
+        self._update_banner()
         self.missing.setText(f"{layer.without_location:,} without a location")
         self.missing.setVisible(layer.without_location > 0)
         if self._fit_after_load and layer.bounds:
@@ -449,6 +456,13 @@ class MapPage(QWidget):
             text = (
                 "No internet, so the detailed background map is unavailable. Your sightings "
                 "still show on a plain outline. Areas you've viewed before may still appear."
+            )
+        elif self._nothing:
+            text = (
+                "No sightings match the filters here."
+                if not self.filter.is_empty
+                else "Sightings with a place or position appear here as pins. Right-click the "
+                "map to add a sighting or a place at that spot."
             )
         else:
             self.banner.hide()

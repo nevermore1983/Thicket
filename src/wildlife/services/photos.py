@@ -403,6 +403,12 @@ class PhotoService:
         self._events.publish("sightings", (sighting_id,))
         self._events.publish(TOPIC, (photo_id,))
 
+    def reorder(self, sighting_id: int, photo_ids: list[int]) -> None:
+        """Set the order of a sighting's photos (the first is the cover)."""
+        with self._db.transaction() as conn:
+            repo.reorder(conn, sighting_id, photo_ids)
+        self._events.publish("sightings", (sighting_id,))
+
     # ---- changing ------------------------------------------------------------------
     def rotate(self, photo_id: int, degrees: int = 90) -> Photo:
         """Turn the photo clockwise for display. The original file is never changed."""
@@ -411,6 +417,26 @@ class PhotoService:
             repo.set_rotation(conn, photo_id, photo.rotation + degrees)
         self._events.publish(TOPIC, (photo_id,))
         return self.get(photo_id)
+
+    def shift_times(self, ids: list[int], minutes: int) -> Undo:
+        """Move the time the photos were taken by `minutes` (a camera clock that was set
+        wrong, or not changed for summer time). Photos with no time are left alone."""
+        with self._db.transaction() as conn:
+            found = [p for i in ids if (p := repo.get(conn, i)) is not None and p.taken_at]
+            before = {p.id: (p.taken_at, p.taken_source or "exif") for p in found}
+            for p in found:
+                moved = datetime.fromisoformat(p.taken_at) + timedelta(minutes=minutes)
+                repo.set_taken(conn, p.id, moved.strftime("%Y-%m-%d %H:%M:%S"), "manual")
+        self._events.publish(TOPIC, tuple(before))
+
+        def undo() -> None:
+            with self._db.transaction() as c:
+                for pid, (taken, source) in before.items():
+                    repo.set_taken(c, pid, taken, source)
+            self._events.publish(TOPIC, tuple(before))
+
+        noun = "photo" if len(before) == 1 else f"{len(before)} photos"
+        return Undo(f"Change the time of {noun}", undo)
 
     def set_caption(self, photo_id: int, caption: str | None) -> None:
         with self._db.transaction() as conn:
@@ -500,6 +526,38 @@ class PhotoService:
         tmp.replace(dest)
         self._events.publish(TOPIC, (photo_id,))
         return photo
+
+    def find_in_folder(
+        self, folder: Path, progress: Callable[[int, int], None] = lambda d, t: None
+    ) -> int:
+        """Look through `folder` (and its sub-folders) for missing photo files, and put
+        back every one whose contents match. Returns how many came back. Only files of
+        exactly the right size are read, so a big folder is still quick."""
+        with self._db.connection() as conn:
+            files = repo.library_files(conn)
+        wanted: dict[str, tuple[Path, int]] = {  # sha256 -> (where it belongs, size)
+            sha: (self._paths.root / rel, size)
+            for sha, rel, size in files
+            if not (self._paths.root / rel).exists()
+        }
+        sizes = {size for _, size in wanted.values()}
+        candidates = [f for f in folder.rglob("*") if f.is_file() and f.stat().st_size in sizes]
+        found = 0
+        for i, candidate in enumerate(candidates):
+            progress(i, len(candidates))
+            target = wanted.get(file_sha256(candidate))
+            if target is None or target[0].exists():
+                continue
+            target[0].parent.mkdir(parents=True, exist_ok=True)
+            tmp = target[0].with_suffix(target[0].suffix + ".part")
+            shutil.copy2(candidate, tmp)
+            tmp.replace(target[0])
+            found += 1
+        progress(len(candidates), len(candidates))
+        if found:
+            log.info("Found %d missing photo files in %s", found, folder)
+            self._events.publish(TOPIC, ())
+        return found
 
     # ---- files ---------------------------------------------------------------------
     def path_of(self, photo: Photo) -> Path:

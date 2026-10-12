@@ -141,8 +141,8 @@ class CalendarPage(QWidget):
         }
         v.addWidget(self.stack, 1)
         hint = QLabel(
-            "Keyboard: ← → previous / next · T today · Y M W D change view · "
-            "N add a sighting on the selected day"
+            "Keyboard: arrows choose a day · Enter opens it · Page Up / Page Down previous / "
+            "next · T today · Y M W D change view · N add a sighting on the chosen day"
         )
         hint.setProperty("role", "caption")
         hint.setWordWrap(True)
@@ -189,8 +189,14 @@ class CalendarPage(QWidget):
 
     def _install_shortcuts(self) -> None:
         keys = {
-            Qt.Key.Key_Left: lambda: self.move(-1),
-            Qt.Key.Key_Right: lambda: self.move(1),
+            Qt.Key.Key_Left: lambda: self.step_day(-1),
+            Qt.Key.Key_Right: lambda: self.step_day(1),
+            Qt.Key.Key_Up: lambda: self.step_day(-7),
+            Qt.Key.Key_Down: lambda: self.step_day(7),
+            Qt.Key.Key_PageUp: lambda: self.move(-1),
+            Qt.Key.Key_PageDown: lambda: self.move(1),
+            Qt.Key.Key_Return: lambda: self.select(self.selected or self._default_day()),
+            Qt.Key.Key_Enter: lambda: self.select(self.selected or self._default_day()),
             Qt.Key.Key_T: self.go_today,
             Qt.Key.Key_Y: lambda: self.set_view("year"),
             Qt.Key.Key_M: lambda: self.set_view("month"),
@@ -238,6 +244,23 @@ class CalendarPage(QWidget):
         if self.view == "day":
             self.selected = self.anchor
         self.refresh()
+
+    def step_day(self, days: int) -> None:
+        """Move the chosen day (keyboard arrows). The view follows if the day leaves it."""
+        day = (self.selected or self._default_day()) + timedelta(days=days)
+        self.selected = day
+        if not self._shows(day):
+            self.anchor = day
+        self.refresh()
+
+    def _shows(self, day: date) -> bool:
+        a = self.anchor
+        return {
+            "year": day.year == a.year,
+            "month": (day.year, day.month) == (a.year, a.month),
+            "week": week_start(day) == week_start(a),
+            "day": day == a,
+        }[self.view]
 
     def jump(self, q: DateQuery) -> None:
         """Open a date typed into search in the matching view: a day, a month or a year."""

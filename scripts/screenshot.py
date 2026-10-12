@@ -177,6 +177,11 @@ def main() -> int:
             dialog.blur.changed.emit("1000")
             wait(lambda: False, 0.3)
             return dialog
+        elif target == "shortcuts":
+            dialog = window.show_shortcuts()
+            dialog.resize(620, 720)
+            wait(lambda: False, 0.3)
+            return dialog
         elif target == "health":
             window.go("settings")
             dialog = window.health_check()

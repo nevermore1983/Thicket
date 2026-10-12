@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QFormLayout,
     QHBoxLayout,
+    QInputDialog,
     QMenu,
     QPushButton,
     QWidget,
@@ -164,12 +165,55 @@ class FilterBar(QWidget):
             )
             chip.setToolTip("Remove this search")
             self._layout.addWidget(chip)
+        saved = self.ctx.saved_filters.all()
+        if saved or not f.is_empty:
+            current = next((s.name for s in saved if s.filter == f), None)
+            chip = self._chip(current or "Saved", current is not None, "star", self._saved_menu)
+            chip.setToolTip("Filters you've saved by name, or save this one")
+            chip.setAccessibleName(f"Saved filters{': ' + current if current else ''}")
+            self._layout.addWidget(chip)
         if not f.is_empty:
             clear = QPushButton("Clear all")
             clear.setProperty("variant", "link")
             clear.clicked.connect(lambda: self.set_filter(SightingFilter()))
             self._layout.addWidget(clear)
         self._layout.addStretch(1)
+
+    def _saved_menu(self, anchor: QPushButton) -> None:
+        menu = QMenu(self)
+        saved = self.ctx.saved_filters.all()
+        for item in saved:
+            action = menu.addAction(item.name)
+            action.setCheckable(True)
+            action.setChecked(item.filter == self.filter)
+            action.triggered.connect(lambda _=False, flt=item.filter: self.set_filter(flt))
+        if saved:
+            menu.addSeparator()
+        save = menu.addAction("Save this filter…", self._save_current)
+        save.setEnabled(not self.filter.is_empty)
+        if saved:
+            remove = menu.addMenu("Delete a saved filter")
+            for item in saved:
+                remove.addAction(
+                    item.name,
+                    lambda fid=item.id: self._delete_saved(fid),
+                )
+        menu.exec(anchor.mapToGlobal(anchor.rect().bottomLeft()))
+
+    def _delete_saved(self, filter_id: int) -> None:
+        self.ctx.saved_filters.delete(filter_id)
+        self._rebuild()
+
+    def showEvent(self, event) -> None:
+        # Another page may have saved or deleted a filter while this one was hidden
+        super().showEvent(event)
+        self._rebuild()
+
+    def _save_current(self) -> None:
+        name, ok = QInputDialog.getText(self, "Save this filter", "Name (e.g. “Moth-trap nights”):")
+        if ok and name.strip():
+            self.ctx.saved_filters.save(name, self.filter)
+            self._rebuild()
 
     def _date_text(self) -> str:
         f = self.filter

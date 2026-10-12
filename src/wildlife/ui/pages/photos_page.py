@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
+import shiboken6
 from PySide6.QtCore import QSettings, Qt, Signal
 from PySide6.QtWidgets import (
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -16,6 +19,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSlider,
+    QSpinBox,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -36,6 +40,7 @@ from wildlife.ui.components.thumbnails import ThumbnailLoader
 from wildlife.ui.components.visuals import plural
 from wildlife.ui.photos.choose_sighting import ChooseSightingDialog
 from wildlife.ui.photos.viewer import PhotoViewer
+from wildlife.ui.theme.icons import pixmap
 from wildlife.ui.theme.manager import ThemeManager
 from wildlife.ui.workers import run_in_background
 
@@ -138,11 +143,28 @@ class PhotosPage(QWidget):
         self.size_slider.setToolTip("Thumbnail size")
         self.size_slider.setAccessibleName("Thumbnail size")
         self.size_slider.valueChanged.connect(self._tile_changed)
+        small, large = QLabel(), QLabel()  # a small and a large picture: what the slider sizes
+
+        def paint_size_icons() -> None:
+            colour = self.theme.tokens.text_3
+            small.setPixmap(pixmap("image", colour, 12))
+            large.setPixmap(pixmap("image", colour, 18))
+
+        paint_size_icons()
+        self.theme.changed.connect(paint_size_icons)
+        row.addWidget(small)
         row.addWidget(self.size_slider)
+        row.addWidget(large)
         v.addLayout(row)
         self.missing_note = Callout(self.theme, "alert", "", "warning")
         self.missing_note.hide()
         v.addWidget(self.missing_note)
+        self.find_missing = button(
+            "Look in a folder…", "secondary", "folder", self.theme, self._find_missing
+        )
+        self.find_missing.setToolTip("WildLife looks through a folder for the missing files")
+        self.find_missing.hide()
+        v.addWidget(self.find_missing, 0, Qt.AlignmentFlag.AlignLeft)
         self.library_grid = PhotoGrid(self.loader, self.theme, tile=self.size_slider.value())
         self.library_grid.activated.connect(self._open_library_photo)
         self.library_stack = QStackedWidget()
@@ -210,9 +232,30 @@ class PhotosPage(QWidget):
             self.missing_note.set_text(
                 f"<b>{plural(len(missing), 'photo file')} {'is' if len(missing) == 1 else 'are'} "
                 "missing</b> from your library folder (moved or deleted outside WildLife). "
-                "Open one to locate the file or remove the photo."
+                "If you moved them, let WildLife look in that folder; or open one to locate "
+                "its file or remove the photo."
             )
         self.missing_note.setVisible(bool(missing))
+        self.find_missing.setVisible(bool(missing))
+
+    def _find_missing(self) -> None:
+        folder = QFileDialog.getExistingDirectory(self, "Where might the photos be?")
+        if not folder:
+            return
+        self.find_missing.setEnabled(False)
+
+        def done(found: int) -> None:
+            if shiboken6.isValid(self):
+                self.find_missing.setEnabled(True)
+                self.toast.emit(
+                    f"{plural(found, 'photo file')} found and put back"
+                    if found
+                    else "None of the missing photos are in that folder",
+                    None,
+                )
+                self._refresh_library()
+
+        run_in_background(lambda: self.ctx.photos.find_in_folder(Path(folder)), done)
 
     def _filter_changed(self, flt: SightingFilter) -> None:
         self.filter = flt
@@ -246,7 +289,7 @@ class PhotosPage(QWidget):
         self.inbox_intro = Callout(
             self.theme,
             "info",
-            "These photos aren't on a sighting yet. Select the photos of one animal, then "
+            "These photos aren't on a sighting yet. Select the photos of one sighting, then "
             "choose <b>Create sighting</b>: the date, time and position come from the photos. "
             "Photos taken within 10 minutes and 200 m of each other are grouped to help you.",
         )
@@ -263,6 +306,7 @@ class PhotosPage(QWidget):
             ("Create sighting", self._create_sighting),
             ("Add to existing sighting…", self._add_to_existing),
             ("View", self._view_selected),
+            ("Fix time…", self._fix_time),
             ("Delete", self._delete_selected),
             ("Clear selection", self._clear_inbox_selection),
         ):
@@ -368,6 +412,56 @@ class PhotosPage(QWidget):
             self.ctx.photos.attach(dialog.chosen, [p.id for p in chosen])
             name = self.ctx.sightings.get(dialog.chosen).display_name
             self.toast.emit(f"{plural(len(chosen), 'photo')} added to {name}", None)
+
+    def _fix_time(self) -> None:
+        """Move the selected photos' times, e.g. for a camera clock an hour out."""
+        chosen = [p for p in self.selected_inbox_photos() if p.taken_at]
+        if not chosen:
+            self.toast.emit("These photos have no time to fix", None)
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Fix the time")
+        dialog.setMinimumWidth(420)
+        dv = QVBoxLayout(dialog)
+        intro = QLabel(
+            f"Move the time of {plural(len(chosen), 'photo')} by the same amount, for "
+            "example if the camera's clock was an hour behind."
+        )
+        intro.setWordWrap(True)
+        dv.addWidget(intro)
+        row = QHBoxLayout()
+        hours, minutes = QSpinBox(), QSpinBox()
+        hours.setRange(-48, 48)
+        minutes.setRange(-59, 59)
+        hours.setSuffix(" h")
+        minutes.setSuffix(" min")
+        hours.setAccessibleName("Hours to add (negative to go back)")
+        minutes.setAccessibleName("Minutes to add (negative to go back)")
+        row.addWidget(hours)
+        row.addWidget(minutes)
+        row.addStretch(1)
+        dv.addLayout(row)
+        preview = QLabel()
+        preview.setProperty("role", "help")
+        dv.addWidget(preview)
+        first = datetime.fromisoformat(chosen[0].taken_at)
+
+        def update() -> None:
+            moved = first + timedelta(hours=hours.value(), minutes=minutes.value())
+            preview.setText(f"First photo: {first:%d %b %Y %H:%M} becomes {moved:%d %b %Y %H:%M}")
+
+        hours.valueChanged.connect(update)
+        minutes.valueChanged.connect(update)
+        update()
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        dv.addWidget(buttons)
+        if dialog.exec() and (shift := hours.value() * 60 + minutes.value()):
+            undo = self.ctx.photos.shift_times([p.id for p in chosen], shift)
+            self.toast.emit(f"Time of {plural(len(chosen), 'photo')} changed", undo.run)
 
     def _delete_selected(self) -> None:
         chosen = self.selected_inbox_photos()

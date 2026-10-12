@@ -33,3 +33,40 @@ class SightingFilter:
 
     def with_(self, **changes) -> SightingFilter:
         return replace(self, **changes)
+
+
+_SETS = ("category_ids", "taxon_ids", "place_ids", "months", "hours")
+
+
+def filter_to_dict(flt: SightingFilter) -> dict:
+    """A filter as plain JSON-ready values (only the parts that are set)."""
+    out: dict = {}
+    for name in flt.__dataclass_fields__:
+        value = getattr(flt, name)
+        if value in (None, "", False, frozenset()):
+            continue
+        if name in _SETS:
+            value = sorted(value)
+        elif name == "evidence":
+            value = sorted(e.value for e in value)
+        elif isinstance(value, date):
+            value = value.isoformat()
+        out[name] = value
+    return out
+
+
+def filter_from_dict(data: dict) -> SightingFilter:
+    """The reverse of filter_to_dict. Unknown keys (from a newer WildLife) are ignored."""
+    known = SightingFilter.__dataclass_fields__
+    values: dict = {}
+    for name, value in data.items():
+        if name not in known:
+            continue
+        if name in _SETS:
+            value = frozenset(value)
+        elif name == "evidence":
+            value = frozenset(Evidence(v) for v in value)
+        elif name in ("date_from", "date_to"):
+            value = date.fromisoformat(value)
+        values[name] = value
+    return SightingFilter(**values)

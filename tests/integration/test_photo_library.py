@@ -210,3 +210,16 @@ def test_missing_file_is_found_and_can_be_located(ctx, tmp_path):
         ctx.photos.locate(photo.id, FIXTURES / "sample.heic")  # a different photo
     ctx.photos.locate(photo.id, FIXTURES / "sample.jpg")
     assert ctx.photos.missing() == [] and ctx.photos.thumbnail(photo) is not None
+
+
+def test_camera_clock_correction_with_undo(ctx, tmp_path):
+    from helpers import jpeg_with_gps
+
+    photo = ctx.photos.import_files([jpeg_with_gps(tmp_path / "a.jpg")]).imported[0]
+    with ctx.db.transaction() as conn:
+        conn.execute("UPDATE photo SET taken_at = '2026-03-29 00:30:00' WHERE id = ?", (photo.id,))
+    undo = ctx.photos.shift_times([photo.id], 90)
+    moved = ctx.photos.get(photo.id)
+    assert (moved.taken_at, moved.taken_source) == ("2026-03-29 02:00:00", "manual")
+    undo.run()
+    assert ctx.photos.get(photo.id).taken_at == "2026-03-29 00:30:00"

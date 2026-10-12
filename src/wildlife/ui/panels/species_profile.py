@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QPlainTextEdit,
     QPushButton,
     QScrollArea,
     QVBoxLayout,
@@ -56,6 +57,9 @@ class SpeciesProfile(PanelView):
         self._body = QVBoxLayout(body)
         self._body.setContentsMargins(18, 14, 18, 20)
         self._body.setSpacing(12)
+        self.notes: QPlainTextEdit | None = None
+        self._notes_timer = QTimer(self, singleShot=True, interval=800)  # save after a pause
+        self._notes_timer.timeout.connect(self.save_notes)
         outer.addWidget(scroll, 1)
         foot = QFrame()
         foot.setObjectName("PanelFoot")
@@ -75,7 +79,18 @@ class SpeciesProfile(PanelView):
         self.reload()
         theme.changed.connect(self.reload)
 
+    def save_notes(self) -> None:
+        if self.notes is not None:
+            self._notes_timer.stop()
+            self.ctx.species_notes.set(self.taxon_id, self.notes.toPlainText())
+
+    def hideEvent(self, event) -> None:
+        self.save_notes()  # leaving the profile never loses what was typed
+        super().hideEvent(event)
+
     def reload(self) -> None:
+        if self._notes_timer.isActive():
+            self.save_notes()
         clear_layout(self._body)
         ctx, t = self.ctx, self.theme.tokens
         taxon = ctx.catalogue.get(self.taxon_id)
@@ -96,6 +111,15 @@ class SpeciesProfile(PanelView):
         name.setWordWrap(True)
         self._body.addWidget(name)
 
+        self.notes = QPlainTextEdit(ctx.species_notes.get(self.taxon_id))
+        self.notes.setPlaceholderText(
+            "Your notes on this species: where it nests, how to tell it apart…"
+        )
+        self.notes.setAccessibleName("Your notes on this species")
+        self.notes.setFixedHeight(84)
+        self.notes.textChanged.connect(self._notes_timer.start)
+        self._body.addWidget(self.notes)
+
         if not profile.sightings:
             none = QLabel("You haven't recorded this species yet.")
             none.setProperty("role", "muted")
@@ -111,7 +135,7 @@ class SpeciesProfile(PanelView):
                 (
                     "Sightings",
                     f"{profile.sightings:,}",
-                    plural(profile.individuals, "animal") + " counted",
+                    plural(profile.individuals, "individual") + " counted",
                 ),
                 (
                     "Best count",
@@ -179,6 +203,7 @@ class SpeciesProfile(PanelView):
                 tile.setFixedSize(QSize(124, 124))
                 tile.setProperty("variant", "ghost")
                 tile.setToolTip(f"{photo.original_name}: click to view")
+                tile.setAccessibleName(f"Photo {i + 1}: {photo.original_name}")
                 if thumb:
                     tile.setIcon(QIcon(rounded(QPixmap(str(thumb)), 120, 10)))
                     tile.setIconSize(QSize(120, 120))

@@ -114,6 +114,7 @@ QFrame#EmptyState {{ background: {t.surface}; border: 1px solid {t.border}; bord
 QLabel#EmptyStateIcon {{ background: {t.accent_subtle}; border-radius: 14px; }}
 QLabel#EmptyStateTitle {{ font-family: "{FONT_DISPLAY}", {fonts}; font-size: 16px; font-weight: 600; color: {t.text}; }}
 QLabel#EmptyStateText {{ color: {t.text_2}; }}
+QLabel#KeyCap {{ background: {t.surface_2}; border: 1px solid {t.border}; border-radius: 6px; padding: 2px 8px; font-weight: 600; color: {t.text}; }}
 QFrame#Callout {{ background: {t.surface_2}; border-radius: {RADIUS_MD}px; }}
 QFrame#Callout[tone="warning"] {{ background: {t.warning_subtle}; }}
 QFrame#Callout[tone="warning"] QLabel {{ color: {t.warning}; }}

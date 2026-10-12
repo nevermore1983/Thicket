@@ -9,7 +9,6 @@ from datetime import date
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QButtonGroup,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -54,6 +53,7 @@ from wildlife.ui.panels.sighting_list import SightingListPanel
 from wildlife.ui.panels.species_profile import SpeciesProfile
 from wildlife.ui.photos.viewer import PhotoViewer
 from wildlife.ui.qt_events import QtEvents
+from wildlife.ui.shortcuts import ShortcutsDialog
 from wildlife.ui.single_instance import restart_wildlife
 from wildlife.ui.theme.icons import icon, pixmap
 from wildlife.ui.theme.manager import ThemeManager
@@ -159,7 +159,8 @@ class MainWindow(QMainWindow):
         names.addWidget(self._brand_sub)
         brand.addLayout(names, 1)
         v.addLayout(brand)
-        self._nav_group = QButtonGroup(self)
+        # No QButtonGroup: Qt would let Tab reach only the current page's link. go() keeps
+        # exactly one link checked instead.
         self._nav_buttons: dict[str, QPushButton] = {}
         for i, entry in enumerate((*NAV, SETTINGS)):
             if entry is SETTINGS:
@@ -173,7 +174,6 @@ class MainWindow(QMainWindow):
             )
             btn.setAccessibleName(entry.label)
             btn.clicked.connect(lambda _=False, k=entry.key: self.go(k))
-            self._nav_group.addButton(btn)
             self._nav_buttons[entry.key] = btn
             v.addWidget(btn)
         self._sidebar = side
@@ -215,6 +215,7 @@ class MainWindow(QMainWindow):
         self.dashboard = DashboardPage(ctx, t)
         self.dashboard.open_sighting.connect(self.open_sighting)
         self.dashboard.add_requested.connect(self.add_sighting)
+        self.dashboard.import_requested.connect(self.import_data)
         self.dashboard.show_sightings.connect(self.show_sightings)
         self.dashboard.backup_requested.connect(self.backup_now)
         self.sightings_page = SightingsPage(ctx, t)
@@ -234,6 +235,7 @@ class MainWindow(QMainWindow):
         self.species_page = SpeciesPage(ctx, t)
         self.species_page.show_sightings.connect(self.show_sightings)
         self.species_page.open_profile.connect(self.open_species)
+        self.species_page.add_requested.connect(self.add_sighting)
         self.places_page = PlacesPage(ctx, t)
         self.places_page.new_place.connect(lambda: self.edit_place(None))
         self.places_page.edit_place.connect(self.edit_place)
@@ -245,6 +247,7 @@ class MainWindow(QMainWindow):
         self.settings_page.health_requested.connect(self.health_check)
         self.settings_page.restore_requested.connect(self.restore_backup)
         self.settings_page.show_sightings.connect(self.show_sightings)
+        self.settings_page.shortcuts_requested.connect(self.show_shortcuts)
         self.map_page = MapPage(ctx, t)
         self.map_page.open_sighting.connect(lambda sid: self.open_sighting(sid))
         self.map_page.show_ids.connect(self.show_sighting_list)
@@ -264,6 +267,8 @@ class MainWindow(QMainWindow):
         )
         self.statistics_page = StatisticsPage(ctx, t)
         self.statistics_page.show_sightings.connect(self.show_sightings)
+        self.statistics_page.add_requested.connect(self.add_sighting)
+        self.statistics_page.import_requested.connect(self.import_data)
         self.statistics_page.open_sighting.connect(lambda sid: self.open_sighting(sid))
         pages = {
             "dashboard": self.dashboard,
@@ -285,6 +290,7 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+N"), self, activated=self.add_sighting)
         QShortcut(QKeySequence("Ctrl+K"), self, activated=self.focus_search)
         QShortcut(QKeySequence("Ctrl+Z"), self, activated=self._undo)
+        QShortcut(QKeySequence("F1"), self, activated=self.show_shortcuts)
         QShortcut(
             QKeySequence(Qt.Key.Key_Escape),
             self.panel,
@@ -295,7 +301,8 @@ class MainWindow(QMainWindow):
     # ---- navigation ---------------------------------------------------------
     def go(self, key: str) -> None:
         self.pages.setCurrentIndex(self._page_index[key])
-        self._nav_buttons[key].setChecked(True)
+        for k, b in self._nav_buttons.items():
+            b.setChecked(k == key)
         if key in self._stale:
             self._stale.discard(key)
             getattr(self.pages.currentWidget(), "refresh", lambda: None)()
@@ -699,6 +706,20 @@ class MainWindow(QMainWindow):
             self.restoreGeometry(geometry)
         else:
             self.resize(1360, 860)
+
+    def show_shortcuts(self) -> ShortcutsDialog:
+        dialog = ShortcutsDialog(self)
+        dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        dialog.open()
+        return dialog
+
+    def keyPressEvent(self, event) -> None:
+        # "?" opens the shortcuts list. Text boxes take the key first, so typing "?" in
+        # a note still types it.
+        if event.text() == "?":
+            self.show_shortcuts()
+            return
+        super().keyPressEvent(event)
 
     def closeEvent(self, event: QCloseEvent) -> None:
         if self.panel.isVisible() and not self.panel.close_panel():

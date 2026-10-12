@@ -280,3 +280,23 @@ def test_grid_activates_on_double_click(grid, qtbot):
     qtbot.mouseDClick(grid, Qt.MouseButton.LeftButton, pos=grid.tile_rect(2).center().toPoint())
     assert opened == [2] and 2 not in grid.selected
     grid.loader.wait_idle()
+
+
+def test_photos_can_be_put_in_order_in_the_editor(window, tmp_path):
+    from datetime import date
+
+    from helpers import jpeg_with_gps, taxon_id
+    from wildlife.domain.models import SightingDraft
+
+    ctx = window.ctx
+    robin = ctx.sightings.save(
+        SightingDraft(taxon_id(ctx, "Erithacus rubecula"), date(2026, 5, 3))
+    ).sighting
+    a = ctx.photos.import_files([jpeg_with_gps(tmp_path / "a.jpg", (200, 0, 0))]).imported[0]
+    b = ctx.photos.import_files([jpeg_with_gps(tmp_path / "b.jpg", (0, 0, 200))]).imported[0]
+    ctx.photos.attach(robin.id, [a.id, b.id])
+    window.edit_sighting(robin.id)
+    editor = window.panel.current()
+    editor._move_photo(editor._photos[1], -1)  # b becomes the cover
+    editor.save()
+    assert [p.id for p in ctx.photos.for_sighting(robin.id)] == [b.id, a.id]

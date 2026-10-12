@@ -176,3 +176,33 @@ def test_events_announce_changes(ctx):
 
 def _fields(draft):
     return {f: getattr(draft, f) for f in draft.__dataclass_fields__}
+
+
+def test_bulk_place_date_and_outing_with_undo(ctx):
+    from wildlife.domain.models import OutingDraft
+
+    garden = ctx.places.save(PlaceDraft("Garden", 51.4, 0.1))
+    a = add(ctx, latitude=51.5, longitude=-0.1, uncertainty_m=10)
+    b = add(ctx, "Vulpes vulpes")
+    ids = [a.id, b.id]
+    undo = ctx.sightings.change_place(ids, garden.id)
+    assert {ctx.sightings.get(i).place_id for i in ids} == {garden.id}
+    assert ctx.sightings.get(a.id).latitude == 51.5  # its own spot is kept unless asked
+    undo.run()
+    assert ctx.sightings.get(a.id).place_id is None
+    ctx.sightings.change_place(ids, garden.id, clear_positions=True)
+    assert ctx.sightings.get(a.id).latitude is None
+    assert ctx.sightings.get(a.id).eff_latitude == 51.4  # now the place's centre
+
+    undo = ctx.sightings.change_date(ids, date(2026, 5, 1))
+    assert {ctx.sightings.get(i).observed_date for i in ids} == {date(2026, 5, 1)}
+    undo.run()
+    assert ctx.sightings.get(b.id).observed_date == TODAY
+    with pytest.raises(ValidationError):
+        ctx.sightings.change_date(ids, date(2030, 1, 1))
+
+    outing, _ = ctx.outings.save(OutingDraft(TODAY))
+    undo = ctx.sightings.set_outing(ids, outing.id)
+    assert ctx.sightings.get(a.id).outing_id == outing.id
+    undo.run()
+    assert ctx.sightings.get(a.id).outing_id is None

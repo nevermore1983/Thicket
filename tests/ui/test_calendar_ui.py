@@ -93,13 +93,13 @@ def test_add_on_a_day_prefills_the_date(window):
 
 def test_keyboard_moves_and_switches_views(window):
     page = calendar(window)
-    press(page, Qt.Key.Key_Right)
+    press(page, Qt.Key.Key_PageDown)
     assert page.title.text() == "November 2026"
     press(page, Qt.Key.Key_T)
     assert page.title.text() == "October 2026"
     press(page, Qt.Key.Key_Y)
     assert page.view == "year" and page.title.text() == "2026"
-    press(page, Qt.Key.Key_Left)
+    press(page, Qt.Key.Key_PageUp)
     assert page.title.text() == "2025"
     press(page, Qt.Key.Key_W)
     assert page.view == "week"
@@ -290,3 +290,15 @@ def test_outings_tab_shows_more_on_request(window):
     assert tab.footer.text() == "105 outings · showing the latest 100"
     tab._more.click()
     assert tab._shown == 105 and not tab._more.isVisibleTo(tab)
+
+
+def test_arrow_keys_choose_a_day_and_enter_opens_it(window):
+    page = calendar(window)  # October 2026, today the 11th
+    press(page, Qt.Key.Key_Right)
+    assert page.selected == date(2026, 10, 12)
+    press(page, Qt.Key.Key_Down)
+    press(page, Qt.Key.Key_Down)
+    press(page, Qt.Key.Key_Down)
+    assert page.selected == date(2026, 11, 2) and page.title.text() == "November 2026"
+    press(page, Qt.Key.Key_Return)
+    assert window.panel.current() is not None  # the day's list opened

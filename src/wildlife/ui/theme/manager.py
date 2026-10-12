@@ -2,13 +2,26 @@
 
 from __future__ import annotations
 
+from importlib import resources
+
 from PySide6.QtCore import QObject, Qt, Signal
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QFontDatabase
 from PySide6.QtWidgets import QApplication
 
 from wildlife.config.settings import Theme
 from wildlife.ui.theme.stylesheet import build_palette, build_qss
 from wildlife.ui.theme.tokens import DARK, FONT_FALLBACK, FONT_UI, LIGHT, SIZE_BODY, Tokens
+
+
+def load_bundled_fonts() -> list[str]:
+    """Make the fonts shipped with WildLife available to Qt (once). Returns their families."""
+    families: list[str] = []
+    for font in resources.files("wildlife.resources.fonts").iterdir():
+        if font.name.endswith((".ttf", ".otf")):
+            with resources.as_file(font) as path:
+                font_id = QFontDatabase.addApplicationFont(str(path))
+            families += QFontDatabase.applicationFontFamilies(font_id) if font_id >= 0 else []
+    return families
 
 
 class ThemeManager(QObject):
@@ -19,6 +32,7 @@ class ThemeManager(QObject):
         self._app, self._theme = app, theme
         self.tokens: Tokens = LIGHT
         app.setStyle("Fusion")  # a neutral base we fully control with the stylesheet
+        load_bundled_fonts()
         font = QFont(FONT_UI)
         font.setFamilies([FONT_UI, FONT_FALLBACK])
         font.setPixelSize(SIZE_BODY)

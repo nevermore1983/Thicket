@@ -182,3 +182,15 @@ def test_lists_are_a_to_z(window, qtbot):
     page.refresh()
     names = [page.table.item(r, 0).text() for r in range(page.table.rowCount())]
     assert names == sorted(names, key=str.lower)
+
+
+def test_species_notes_in_the_profile(window, qtbot):
+    seed(window.ctx)
+    robin = taxon_id(window.ctx, ROBIN)
+    window.open_species(robin)
+    profile = window.panel.current()
+    profile.notes.setPlainText("Nests in the ivy")
+    qtbot.waitUntil(lambda: window.ctx.species_notes.get(robin) == "Nests in the ivy", timeout=3000)
+    profile.notes.setPlainText("Nests in the ivy by the shed")
+    window.panel.close_panel()  # closing saves straight away
+    assert window.ctx.species_notes.get(robin) == "Nests in the ivy by the shed"

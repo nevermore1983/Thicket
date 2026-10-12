@@ -33,6 +33,7 @@ def _card(title: str) -> tuple[QFrame, QVBoxLayout]:
 class DashboardPage(QWidget):
     open_sighting = Signal(int)
     add_requested = Signal()
+    import_requested = Signal(str)  # 'inaturalist' or 'csv'
     show_sightings = Signal(object)  # SightingFilter
     backup_requested = Signal()
     open_inbox = Signal()
@@ -63,9 +64,28 @@ class DashboardPage(QWidget):
                 t,
                 "leaf",
                 "Start your wildlife journal",
-                "Record what you see in a few seconds, then explore it on the calendar, map and charts. "
-                "Everything stays on this PC.",
-                [button("Add your first sighting", "primary", "plus", t, self.add_requested.emit)],
+                "Record what you see in a few seconds, or bring in what you've already "
+                "recorded, then explore it on the calendar, map and charts. Everything stays "
+                "on this PC.",
+                [
+                    button(
+                        "Add your first sighting", "primary", "plus", t, self.add_requested.emit
+                    ),
+                    button(
+                        "Import from iNaturalist…",
+                        "secondary",
+                        "upload",
+                        t,
+                        lambda: self.import_requested.emit("inaturalist"),
+                    ),
+                    button(
+                        "Import a spreadsheet…",
+                        "secondary",
+                        "upload",
+                        t,
+                        lambda: self.import_requested.emit("csv"),
+                    ),
+                ],
             )
         )
         page.finish()

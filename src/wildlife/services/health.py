@@ -135,8 +135,8 @@ class HealthService:
                         else "They aren't in your backup either. If you moved them, put them "
                         "back in WildLife's photo folder."
                     ),
-                    "restore_photos" if recoverable else None,
-                    "Bring back from backup" if recoverable else "",
+                    "restore_photos" if recoverable else "find_photos",
+                    "Bring back from backup" if recoverable else "Look in a folder…",
                     tuple(missing[:20]),
                 )
             )

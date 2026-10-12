@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import html
 
-from PySide6.QtCore import QEvent, QObject, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QObject, QSize, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -82,6 +83,7 @@ class SpeciesPicker(QWidget):
         self.list.setObjectName("Suggestions")
         self.list.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.list.itemClicked.connect(lambda item: self._pick(item.data(Qt.ItemDataRole.UserRole)))
         self.list.hide()
         layout.addWidget(self.list)
@@ -144,6 +146,8 @@ class SpeciesPicker(QWidget):
             sw.setPixmap(swatch(self._catalogue.category(match.taxon.category_id), t, 16))
             label = QLabel(species_html(match.taxon, t.text_2))
             label.setTextFormat(Qt.TextFormat.RichText)
+            # A long name gives way (cut at the edge) so "seen 12×" stays in view
+            label.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
             h.addWidget(sw)
             h.addWidget(label, 1)
             if match.uses:
@@ -154,7 +158,7 @@ class SpeciesPicker(QWidget):
                 also = QLabel(f"also “{match.matched_name}”")
                 also.setProperty("role", "caption")
                 h.addWidget(also)
-            item.setSizeHint(row.sizeHint())
+            item.setSizeHint(QSize(0, row.sizeHint().height()))  # never wider than the list
             self.list.addItem(item)
             self.list.setItemWidget(item, row)
         if not matches:

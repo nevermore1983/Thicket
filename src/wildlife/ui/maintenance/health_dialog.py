@@ -3,11 +3,14 @@ with a button for each fix WildLife can make."""
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import shiboken6
 from PySide6.QtCore import Qt, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QDialog,
+    QFileDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -155,6 +158,12 @@ class HealthDialog(QDialog):
         health = self.ctx.health
         if action == "restore_photos":
             self._run_fix(health.bring_back_photos, "photo files brought back")
+        elif action == "find_photos":
+            folder = QFileDialog.getExistingDirectory(self, "Where might the photos be?")
+            if folder:
+                self._run_fix(
+                    lambda: self.ctx.photos.find_in_folder(Path(folder)), "photo files found"
+                )
         elif action == "remove_partial":
             self._run_fix(health.remove_partial, "unfinished copies removed")
         elif action == "clear_thumbnails":
