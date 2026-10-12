@@ -31,7 +31,6 @@ from wildlife.ui.components.common import button
 from wildlife.ui.components.side_panel import SidePanel
 from wildlife.ui.components.toast import ToastHost
 from wildlife.ui.dialogs import SearchPopup
-from wildlife.ui.pages import simple
 from wildlife.ui.pages.calendar_page import CalendarPage
 from wildlife.ui.pages.dashboard_page import DashboardPage
 from wildlife.ui.pages.list_pages import PlacesPage, SpeciesPage
@@ -39,6 +38,7 @@ from wildlife.ui.pages.map_page import MapPage
 from wildlife.ui.pages.photos_page import PhotosPage
 from wildlife.ui.pages.settings_page import SettingsPage
 from wildlife.ui.pages.sightings_page import SightingsPage
+from wildlife.ui.pages.statistics_page import StatisticsPage
 from wildlife.ui.panels.day_panel import DayPanel
 from wildlife.ui.panels.outing_detail import OutingDetail
 from wildlife.ui.panels.outing_editor import OutingEditor
@@ -46,6 +46,7 @@ from wildlife.ui.panels.place_editor import PlaceEditor
 from wildlife.ui.panels.sighting_detail import SightingDetail
 from wildlife.ui.panels.sighting_editor import SightingEditor
 from wildlife.ui.panels.sighting_list import SightingListPanel
+from wildlife.ui.panels.species_profile import SpeciesProfile
 from wildlife.ui.photos.viewer import PhotoViewer
 from wildlife.ui.qt_events import QtEvents
 from wildlife.ui.theme.icons import icon, pixmap
@@ -80,6 +81,7 @@ REFRESH_ON = {  # which data changes each page cares about
     "calendar": {"sightings", "outings", "taxa", "settings"},
     "map": {"sightings", "taxa", "settings"},
     "photos": {"photos", "sightings", "taxa", "places"},
+    "statistics": {"sightings", "outings", "places", "taxa", "settings"},
     "species": {"sightings", "taxa", "settings"},
     "places": {"places", "sightings"},
     "settings": {"backup", "settings", "sightings", "taxa"},
@@ -224,6 +226,7 @@ class MainWindow(QMainWindow):
         self.calendar_page.new_outing.connect(self.new_outing)
         self.species_page = SpeciesPage(ctx, t)
         self.species_page.show_sightings.connect(self.show_sightings)
+        self.species_page.open_profile.connect(self.open_species)
         self.places_page = PlacesPage(ctx, t)
         self.places_page.new_place.connect(lambda: self.edit_place(None))
         self.places_page.edit_place.connect(self.edit_place)
@@ -244,27 +247,23 @@ class MainWindow(QMainWindow):
         self.dashboard.open_inbox.connect(
             lambda: (self.go("photos"), self.photos_page.show_tab("inbox"))
         )
-        later = {
-            "statistics": (
-                "chart",
-                "Statistics arrive in Phase 10",
-                "Your species growth, busiest months and best places will show here.",
-            ),
-        }
+        self.dashboard.open_day.connect(
+            lambda d: (self.go("calendar"), self.calendar_page.go_to(d, "day"))
+        )
+        self.statistics_page = StatisticsPage(ctx, t)
+        self.statistics_page.show_sightings.connect(self.show_sightings)
+        self.statistics_page.open_sighting.connect(lambda sid: self.open_sighting(sid))
         pages = {
             "dashboard": self.dashboard,
             "sightings": self.sightings_page,
             "calendar": self.calendar_page,
             "map": self.map_page,
             "photos": self.photos_page,
+            "statistics": self.statistics_page,
             "species": self.species_page,
             "places": self.places_page,
             "settings": self.settings_page,
         }
-        for key, (ic, heading, text) in later.items():
-            pages[key] = simple.coming_soon(
-                t, next(e.label for e in NAV if e.key == key), ic, heading, text, self.add_sighting
-            )
         for key in [e.key for e in NAV] + ["settings"]:
             self._page_index[key] = self.pages.addWidget(pages[key])
 
@@ -481,6 +480,20 @@ class MainWindow(QMainWindow):
             self.outing_chip.setText(
                 f"●  {where} · since {live.start_time} · {live.sightings:,} seen"
             )
+
+    # ---- species -----------------------------------------------------------------
+    def open_species(self, taxon_id: int) -> None:
+        profile = SpeciesProfile(self.ctx, self.theme, taxon_id)
+        profile.show_sightings.connect(
+            lambda flt: (self.panel.close_panel(), self.show_sightings(flt))
+        )
+        profile.show_map.connect(lambda flt: (self.panel.close_panel(), self.show_map(flt)))
+        profile.view_photos.connect(self._view_photos)
+        self.panel.show_view(profile)
+
+    def _view_photos(self, photo_ids: list[int], index: int) -> None:
+        photos = [self.ctx.photos.get(i) for i in photo_ids]
+        PhotoViewer(self.ctx, self.theme, photos, index, parent=self).open_full()
 
     # ---- photos ------------------------------------------------------------------
     def add_from_photos(self, photo_ids: list[int]) -> None:

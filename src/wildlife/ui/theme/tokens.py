@@ -130,7 +130,8 @@ DARK = Tokens(
         "#120d33",
         "#ffffff",
     ),
-    ramp=("#1f2420", "#183256", "#184f95", "#1c5cab", "#2a78d6", "#5598e7", "#9ec5f4"),
+    # validated sequential steps (dark: near-zero recedes into the surface, high values lighten)
+    ramp=("#1f2420", "#0d366b", "#184f95", "#256abf", "#3987e5", "#6da7ec", "#b7d3f6"),
 )
 
 # Spacing scale (px), radii (px) and type sizes (px)

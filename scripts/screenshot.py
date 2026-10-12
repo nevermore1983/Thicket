@@ -14,7 +14,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from PySide6.QtCore import QCoreApplication, QTimer
+from PySide6.QtCore import QCoreApplication, Qt, QTimer
 from PySide6.QtWidgets import QApplication
 
 
@@ -124,6 +124,27 @@ def main() -> int:
                 viewer.toggle_info()
             wait(lambda: False, 2)
             return viewer
+        elif target.startswith("statistics"):  # statistics / statistics-all / statistics-last
+            from wildlife.services.statistics import Period
+
+            page = window.statistics_page
+            window.go("statistics")
+            today = ctx.statistics.today()
+            period = {
+                "statistics": Period.this_year(today),
+                "statistics-all": Period.all_time(),
+                "statistics-last": Period.last_year(today),
+            }[target]
+            page.data = None
+            page.set_period(period)
+            wait(lambda: page.data is not None and page.data.period == period, 10)
+            wait(lambda: False, 0.5)
+        elif target == "species-profile":  # this year's list, with the top species' profile
+            page = window.species_page
+            window.go("species")
+            page._choose(ctx.statistics.today().year)
+            page.table.sortItems(2, Qt.SortOrder.DescendingOrder)
+            page.table.selectRow(0)
         elif target == "outings":
             window.go("sightings")
             window.sightings_page.show_tab("outings")

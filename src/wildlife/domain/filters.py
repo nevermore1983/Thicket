@@ -20,6 +20,8 @@ class SightingFilter:
     evidence: frozenset[Evidence] = field(default_factory=frozenset)
     has_photos: bool | None = None
     needs_location: bool = False
+    months: frozenset[int] = field(default_factory=frozenset)  # 1-12, any year (e.g. "in May")
+    hours: frozenset[int] = field(default_factory=frozenset)  # 0-23, of the recorded time
 
     @property
     def is_empty(self) -> bool:

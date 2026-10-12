@@ -1,17 +1,19 @@
-"""Dashboard: what's been happening, and what needs doing. (Phase 10 adds charts.)"""
+"""Dashboard: what's been happening, and what needs doing."""
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from wildlife.context import AppContext
 from wildlife.domain.filters import SightingFilter
+from wildlife.ui.components.activity import ActivityStrip
+from wildlife.ui.components.charts import Bar, BarChart
 from wildlife.ui.components.common import EmptyState, Page, button
-from wildlife.ui.components.rows import StatTile, attention_row, sighting_row
-from wildlife.ui.components.visuals import MONTHS_LONG, fmt_date, plural
+from wildlife.ui.components.rows import RowButton, StatTile, attention_row, sighting_row
+from wildlife.ui.components.visuals import MONTHS_LONG, fmt_date, plural, swatch
 from wildlife.ui.theme.manager import ThemeManager
 
 
@@ -34,6 +36,7 @@ class DashboardPage(QWidget):
     show_sightings = Signal(object)  # SightingFilter
     backup_requested = Signal()
     open_inbox = Signal()
+    open_day = Signal(object)  # date: open it in the calendar
     toast = Signal(str, object)
 
     def __init__(self, ctx: AppContext, theme: ThemeManager) -> None:
@@ -123,6 +126,18 @@ class DashboardPage(QWidget):
         holder.setLayout(tiles)
         page.add(holder)
 
+        # this year's activity: a square per day, darker = more sightings
+        activity, act = _card(f"Your {today.year} so far")
+        strip = ActivityStrip(self.theme)
+        strip.set_counts(
+            today.year,
+            self.ctx.statistics.day_counts(date(today.year, 1, 1), date(today.year, 12, 31)),
+            today,
+        )
+        strip.day_clicked.connect(self.open_day.emit)
+        act.addWidget(strip)
+        page.add(activity)
+
         grid = QGridLayout()
         grid.setSpacing(12)
         recent_card, rv = _card("Recent sightings")
@@ -135,8 +150,9 @@ class DashboardPage(QWidget):
             None,
             lambda: self.show_sightings.emit(SightingFilter()),
         )
-        rv.addWidget(view_all)
-        grid.addWidget(recent_card, 0, 0, 2, 2)
+        rv.addWidget(view_all, 0, Qt.AlignmentFlag.AlignLeft)
+        rv.addStretch(1)  # rows stay together at the top when the card is tall
+        grid.addWidget(recent_card, 0, 0, 3, 2)
 
         attention, av = _card("Needs attention")
         any_item = False
@@ -172,6 +188,42 @@ class DashboardPage(QWidget):
             av.addWidget(ok)
         av.addStretch(1)
         grid.addWidget(attention, 0, 2)
+
+        new, nv = _card(f"New in {today.year}")
+        firsts = self.ctx.statistics.recent_firsts(5)
+        for f in firsts:
+            badge = "★ Lifer" if f.kind == "lifer" else "First of the year"
+            nv.addWidget(
+                RowButton(
+                    swatch(self.ctx.catalogue.category(f.category_id), self.theme.tokens, 28),
+                    f.name,
+                    f"{fmt_date(f.day, 'day')} · {badge}",
+                    "›",
+                    lambda sid=f.sighting_id: self.open_sighting.emit(sid),
+                )
+            )
+        if not firsts:
+            none = QLabel("Nothing new yet this year.")
+            none.setProperty("role", "muted")
+            nv.addWidget(none)
+        nv.addStretch(1)
+        grid.addWidget(new, 1, 2)
+
+        top, tv = _card(f"Most seen in {today.year}")
+        this_year = SightingFilter(date_from=date(today.year, 1, 1), date_to=today)
+        chart = BarChart(self.theme, f"Most seen in {today.year}")
+        chart.set_bars(
+            [
+                Bar(r.name, r.sightings, r.taxon_id)
+                for r in self.ctx.statistics.top_species(this_year)
+            ]
+        )
+        chart.clicked.connect(
+            lambda taxon: self.show_sightings.emit(this_year.with_(taxon_ids=frozenset({taxon})))
+        )
+        tv.addWidget(chart)
+        tv.addStretch(1)
+        grid.addWidget(top, 2, 2)
         grid.setColumnStretch(0, 1)
         grid.setColumnStretch(1, 1)
         grid.setColumnStretch(2, 1)

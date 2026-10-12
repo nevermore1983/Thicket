@@ -52,6 +52,15 @@ def where(flt: SightingFilter, alias: str = "v") -> tuple[str, dict[str, Any]]:
     if flt.has_photos is not None:
         exists = f"EXISTS (SELECT 1 FROM sighting_photo sp WHERE sp.sighting_id = {a}.id)"
         parts.append(exists if flt.has_photos else f"NOT {exists}")
+    if flt.months:
+        parts.append(
+            f"CAST(strftime('%m', {a}.observed_date) AS INTEGER) IN ({ids('mon', flt.months)})"
+        )
+    if flt.hours:
+        parts.append(
+            f"{a}.observed_time IS NOT NULL AND "
+            f"CAST(substr({a}.observed_time, 1, 2) AS INTEGER) IN ({ids('hr', flt.hours)})"
+        )
     if flt.needs_location:
         parts.append(f"{a}.eff_latitude IS NULL")
     text = " ".join(flt.text.split())

@@ -8,6 +8,7 @@ from datetime import date
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QComboBox,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -41,6 +42,8 @@ def _table(headers: list[str]) -> QTableWidget:
         Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
     )
     table.setSortingEnabled(True)
+    # Qt's default is descending: without this, lists showed Z to A (fixed in Phase 10)
+    table.sortByColumn(0, Qt.SortOrder.AscendingOrder)
     return table
 
 
@@ -76,10 +79,11 @@ class _ListPage(QWidget):
         titles = QVBoxLayout()
         t = QLabel(title)
         t.setObjectName("PageTitle")
-        s = QLabel(subtitle)
-        s.setObjectName("PageSubtitle")
+        self.subtitle = QLabel(subtitle)
+        self.subtitle.setObjectName("PageSubtitle")
+        self.subtitle.setWordWrap(True)
         titles.addWidget(t)
-        titles.addWidget(s)
+        titles.addWidget(self.subtitle)
         head.addLayout(titles, 1)
         for a in actions:
             head.addWidget(a)
@@ -163,6 +167,7 @@ class PlacesPage(_ListPage):
 
 class SpeciesPage(_ListPage):
     show_sightings = Signal(object)
+    open_profile = Signal(int)  # taxon id
 
     def __init__(self, ctx: AppContext, theme: ThemeManager) -> None:
         table = _table(["Species", "Category", "Sightings", "First seen", "Last seen"])
@@ -172,51 +177,95 @@ class SpeciesPage(_ListPage):
             "Your species list is empty",
             "Each species you record is added here, with when you first and last saw it.",
         )
+        self.which = QComboBox()
+        self.which.setToolTip("Your life list, or the list for one year")
+        self.which.setAccessibleName("Which list")
+        self.which.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         super().__init__(
             "My species",
             "Your life list: certain identifications of wild animals, at species level.",
-            [],
+            [self.which],
             table,
             empty,
         )
         self.ctx, self.theme, self.table = ctx, theme, table
+        self.year: int | None = None
+        self.which.activated.connect(lambda i: self._choose(self.which.itemData(i)))
+        table.itemSelectionChanged.connect(self._selected)
         table.doubleClicked.connect(self._open)
         theme.changed.connect(self.refresh)
         self.refresh()
 
+    def _fill_years(self) -> None:
+        self.which.blockSignals(True)
+        self.which.clear()
+        self.which.addItem("Life list", None)
+        for year in self.ctx.stats.years_recorded():
+            self.which.addItem(f"{year} list", year)
+        self.which.setCurrentIndex(max(0, self.which.findData(self.year)))
+        self.which.blockSignals(False)
+
+    def _choose(self, year: int | None) -> None:
+        self.year = year
+        self.refresh()
+
     def refresh(self) -> None:
-        rows = self.ctx.stats.life_list()
+        self._fill_years()
+        rows = self.ctx.stats.life_list(self.year)
         t = self.theme.tokens
+        self.subtitle.setText(
+            "Your life list: certain identifications of wild animals, at species level."
+            if self.year is None
+            else f"Species you recorded in {self.year}, with the first and last time that year. "
+            "★ marks lifers (new to your life list that year)."
+        )
         self.table.setSortingEnabled(False)
         self.table.setRowCount(len(rows))
         for i, r in enumerate(rows):
             category = self.ctx.catalogue.category(r.category_id)
-            label = r.common_name or r.scientific_name
+            label = (r.common_name or r.scientific_name) + ("  ★" if r.is_lifer else "")
             name = QTableWidgetItem(swatch(category, t, 18), label)
             name.setData(Qt.ItemDataRole.UserRole, r.taxon_id)
-            name.setToolTip(html.escape(r.scientific_name))
+            name.setToolTip(html.escape(r.scientific_name) + ("  (lifer)" if r.is_lifer else ""))
             self.table.setItem(i, 0, name)
             self.table.setItem(i, 1, QTableWidgetItem(category.name))
             self.table.setItem(i, 2, _NumberItem(r.sightings))
             first = _NumberItem(r.first_seen.toordinal(), fmt_date(r.first_seen, "medium"))
             last = _NumberItem(r.last_seen.toordinal(), fmt_date(r.last_seen, "medium"))
             for item in (first, last):
-                item.setTextAlignment(
-                    int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-                )
+                item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             self.table.setItem(i, 3, first)
             self.table.setItem(i, 4, last)
         self.table.setSortingEnabled(True)
-        for col, width in ((1, 190), (2, 90), (3, 130), (4, 130)):
-            self.table.horizontalHeader().resizeSection(col, width)
+        header = self.table.horizontalHeader()
+        for col in (1, 2, 3, 4):  # only as wide as needed, so names keep the room
+            header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
         self.stack.setCurrentIndex(0 if rows else 1)
+        where = "on your life list" if self.year is None else f"in {self.year}"
+        lifers = sum(r.is_lifer for r in rows)
         self.footer.setText(
-            f"{plural(len(rows), 'species', 'species')} on your life list · double-click to see "
-            "the sightings"
+            f"{plural(len(rows), 'species', 'species')} {where}"
+            + (f", {plural(lifers, 'lifer')}" if lifers else "")
+            + " · click for a profile, double-click to see the sightings"
             if rows
             else ""
         )
 
+    def _taxon_at(self, row: int) -> int:
+        return self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+
+    def _selected(self) -> None:
+        rows = self.table.selectionModel().selectedRows()
+        if len(rows) == 1:
+            self.open_profile.emit(self._taxon_at(rows[0].row()))
+
     def _open(self, index) -> None:
-        taxon_id = self.table.item(index.row(), 0).data(Qt.ItemDataRole.UserRole)
-        self.show_sightings.emit(SightingFilter(taxon_ids=frozenset({taxon_id})))
+        flt = SightingFilter(taxon_ids=frozenset({self._taxon_at(index.row())}))
+        if self.year is not None:
+            flt = flt.with_(date_from=date(self.year, 1, 1), date_to=date(self.year, 12, 31))
+        self.show_sightings.emit(flt)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        # When the side panel leaves less room, drop Category: the swatch beside each name shows it
+        self.table.setColumnHidden(1, self.width() < 760)

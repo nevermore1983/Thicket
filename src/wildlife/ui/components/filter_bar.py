@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 from wildlife.context import AppContext
 from wildlife.domain.filters import SightingFilter
 from wildlife.ui.components.common import clear_layout
-from wildlife.ui.components.visuals import fmt_date, swatch
+from wildlife.ui.components.visuals import MONTHS_LONG, fmt_date, swatch
 from wildlife.ui.theme.icons import icon
 from wildlife.ui.theme.manager import ThemeManager
 
@@ -123,6 +123,23 @@ class FilterBar(QWidget):
                 lambda _: self.set_filter(f.with_(taxon_ids=frozenset())),
             )
             chip.setToolTip("Remove this filter")
+            self._layout.addWidget(chip)
+        if f.months:  # e.g. from a Statistics heat cell: "In May"
+            names = ", ".join(MONTHS_LONG[m - 1] for m in sorted(f.months))
+            chip = self._chip(
+                f"In {names}  ✕",
+                True,
+                "calendar",
+                lambda _: self.set_filter(f.with_(months=frozenset())),
+            )
+            chip.setToolTip("Sightings in this month of any year · click to remove")
+            self._layout.addWidget(chip)
+        if f.hours:  # e.g. from the time-of-day chart
+            names = ", ".join(f"{h:02d}:00–{(h + 1) % 24:02d}:00" for h in sorted(f.hours))
+            chip = self._chip(
+                f"{names}  ✕", True, "clock", lambda _: self.set_filter(f.with_(hours=frozenset()))
+            )
+            chip.setToolTip("Sightings recorded in this hour · click to remove")
             self._layout.addWidget(chip)
         if f.needs_location:
             chip = self._chip(
