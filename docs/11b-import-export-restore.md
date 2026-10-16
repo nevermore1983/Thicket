@@ -88,7 +88,7 @@ Your records can now leave WildLife in every useful form and come back again. A 
 
 | Item | Where |
 |---|---|
-| A real download of your iNaturalist photos (waiting for your OK) | When you say |
+| ~~A real download of your iNaturalist photos~~ | **Done 16 Oct 2026:** you downloaded all your photos in the app; it worked |
 | KML export for Google Earth (a "Could") | Phase 12 if wanted |
 | Offering "Restore latest backup" when the data file can't be opened at start-up | Phase 12 |
 | Locating missing photos one by one (the service exists; the health check brings them back from backup) | Phase 12 |

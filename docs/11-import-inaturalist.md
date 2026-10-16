@@ -70,7 +70,7 @@ Most of your records will come from iNaturalist, and over a third of them are pl
 
 | Item | Where |
 |---|---|
-| A test download of **your** photos from iNaturalist (needs your OK first) | Now, if you'd like |
+| ~~A test download of **your** photos from iNaturalist~~ | **Done 16 Oct 2026:** you downloaded all your photos in the app; it worked |
 | General CSV import with column matching; export (CSV, JSON, Darwin Core, full archive); restore a backup inside the app; health check; blurring locations on export | Phase 11 part 2 |
 | Import history (list of past imports) | Phase 11 part 2 |
 | Iconic-group icons drawn by a designer | Phase 12 |
