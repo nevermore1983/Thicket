@@ -141,6 +141,16 @@ def years_recorded(conn: sqlite3.Connection) -> list[int]:
     ]
 
 
+def seen_range(conn: sqlite3.Connection, taxon_id: int) -> tuple[str, str] | None:
+    """(first, last) date a taxon was seen, its subspecies included, or None."""
+    row = conn.execute(
+        "SELECT MIN(observed_date), MAX(observed_date) FROM sighting_v "
+        "WHERE taxon_id = :t OR species_id = :t",
+        {"t": taxon_id},
+    ).fetchone()
+    return (row[0], row[1]) if row and row[0] else None
+
+
 def species_profile(conn: sqlite3.Connection, taxon_id: int) -> SpeciesProfile:
     """Everything about one species (its subspecies included), from all your sightings."""
     match = "(v.taxon_id = :t OR v.species_id = :t)"

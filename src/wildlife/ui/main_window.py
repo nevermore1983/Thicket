@@ -6,7 +6,7 @@ import logging
 from dataclasses import dataclass
 from datetime import date
 
-from PySide6.QtCore import QSettings, Qt
+from PySide6.QtCore import QSettings, Qt, QTimer
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QHBoxLayout,
@@ -119,6 +119,8 @@ class MainWindow(QMainWindow):
 
         self._page_index: dict[str, int] = {}
         self._stale: set[str] = set()
+        self._refresh_timer = QTimer(self, singleShot=True, interval=0)
+        self._refresh_timer.timeout.connect(self._refresh_visible)
         self._build_pages()
         self._install_shortcuts()
         self._paint_icons()
@@ -387,14 +389,15 @@ class MainWindow(QMainWindow):
         self.search.selectAll()
 
     def _on_data_changed(self, topic: str, _ids: tuple) -> None:
-        """Refresh the visible page now; mark the others to refresh when next shown."""
-        current = self.current_page()
+        """Refresh the visible page straight after the change; mark the others to refresh
+        when next shown. The refresh waits for the next turn of the event loop, so the
+        save itself (and its panel and message) finishes first, and several changes in a
+        row (an import, a bulk edit) give one refresh, not one each."""
         for key, topics in REFRESH_ON.items():
             if topic in topics:
-                if key == current:
-                    getattr(self.pages.widget(self._page_index[key]), "refresh", lambda: None)()
-                else:
-                    self._stale.add(key)
+                self._stale.add(key)
+        if any(topic in topics for topics in REFRESH_ON.values()):
+            self._refresh_timer.start()
         if topic in ("outings", "sightings"):
             self._update_outing_chip()
         if topic == "places":
@@ -412,6 +415,12 @@ class MainWindow(QMainWindow):
                 view.reload()
             except NotFoundError:
                 self.panel.close_panel()
+
+    def _refresh_visible(self) -> None:
+        current = self.current_page()
+        if current in self._stale:
+            self._stale.discard(current)
+            getattr(self.pages.currentWidget(), "refresh", lambda: None)()
 
     def show_date(self, q: DateQuery) -> None:
         """A date chosen in search ("May 2025"): open it in the calendar."""

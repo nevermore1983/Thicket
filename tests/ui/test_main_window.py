@@ -77,7 +77,7 @@ def test_keyboard_only_add(window, qtbot):
     qtbot.keyClicks(ed.count, "c. 12")  # replaces the selected default "1"
     qtbot.keyClick(ed.count, Qt.Key.Key_Return)  # save
     assert not window.panel.isVisible()
-    saved = window.ctx.sightings.page(SightingFilter())[0]
+    (saved,) = window.ctx.sightings.page(SightingFilter())  # one Enter, one sighting
     assert (saved.display_name, saved.count, saved.count_qualifier.value) == ("Robin", 12, "approx")
     assert saved.observed_date == TODAY
     assert any("Robin saved" in m and "new species" in m for m in window.toasts.messages())
@@ -214,7 +214,7 @@ def test_create_place(window, qtbot):
     qtbot.keyClicks(ed.position, "TL 155 076")
     ed.save()
     assert [p.name for p in window.ctx.places.all()] == ["Garden"]
-    assert window.places_page.table.rowCount() == 1
+    qtbot.waitUntil(lambda: window.places_page.table.rowCount() == 1, timeout=2000)
 
 
 def test_backup_now_from_settings(window, qtbot):

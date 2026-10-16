@@ -239,6 +239,8 @@ class BackupService:
         for snap in snaps:
             if snap not in keep:
                 snapshot.remove(snap)
+        for leftover in folder.glob("*.part"):  # copies interrupted before they finished
+            leftover.unlink(missing_ok=True)
 
     def snapshots(self) -> list[Path]:
         folder = self.folder() / "snapshots"

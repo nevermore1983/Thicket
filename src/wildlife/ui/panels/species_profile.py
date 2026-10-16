@@ -208,7 +208,7 @@ class SpeciesProfile(PanelView):
                     tile.setIcon(QIcon(rounded(QPixmap(str(thumb)), 120, 10)))
                     tile.setIconSize(QSize(120, 120))
                 else:
-                    tile.setText("File missing")
+                    tile.setText(self.ctx.photos.why_no_picture(photo))
                 tile.clicked.connect(
                     lambda _=False, index=i: self.view_photos.emit(profile.photo_ids, index)
                 )

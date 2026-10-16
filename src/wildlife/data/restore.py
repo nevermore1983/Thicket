@@ -171,7 +171,7 @@ def apply_pending_restore(paths: DataPaths) -> RestoreOutcome | None:
         for leftover in ("-wal", "-shm"):  # belong to the old database: must not be replayed
             Path(str(paths.database) + leftover).unlink(missing_ok=True)
         staged.replace(paths.database)
-    except (BackupError, OSError) as exc:
+    except (BackupError, OSError, sqlite3.Error) as exc:
         message = (
             exc.user_message
             if isinstance(exc, BackupError)
@@ -196,11 +196,25 @@ def _safety_copy(paths: DataPaths) -> Path | None:
     if not paths.database.exists():
         return None
     dest = paths.internal_backups / snapshot.timestamped_name("before-restore")
-    conn = sqlite3.connect(paths.database)
     try:
-        snapshot.take_snapshot(conn, dest)
-    finally:
-        conn.close()
+        conn = sqlite3.connect(paths.database)
+        try:
+            # Move recent changes from the -wal side file into the main file first: the
+            # side file is deleted before the backup goes in, and must hold nothing by then.
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            snapshot.take_snapshot(conn, dest)
+        finally:
+            conn.close()
+    except sqlite3.DatabaseError:
+        # Damaged too badly to read (often the very reason for restoring): keep the
+        # files exactly as they are instead, in case anything can be recovered later.
+        damaged = dest.with_name(dest.stem + "-damaged")
+        damaged.mkdir(parents=True, exist_ok=True)
+        for f in (paths.database, *(Path(str(paths.database) + s) for s in ("-wal", "-shm"))):
+            if f.exists():
+                shutil.copy2(f, damaged / f.name)
+        log.warning("Current data couldn't be read; kept a plain copy in %s", damaged)
+        return damaged
     if not snapshot.verify(dest).ok:
         raise BackupError(
             "Couldn't make a safety copy of your current data, so nothing was changed."

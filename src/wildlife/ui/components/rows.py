@@ -5,6 +5,7 @@ from __future__ import annotations
 import html
 from collections.abc import Callable
 
+import shiboken6
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QVBoxLayout
@@ -15,6 +16,7 @@ from wildlife.domain.models import Sighting
 from wildlife.ui.components.visuals import relative_day, rounded, swatch
 from wildlife.ui.theme.icons import pixmap
 from wildlife.ui.theme.manager import ThemeManager
+from wildlife.ui.workers import run_in_background
 
 
 class StatTile(QFrame):
@@ -61,11 +63,12 @@ class RowButton(QFrame):
         h = QHBoxLayout(self)
         h.setContentsMargins(6, 6, 6, 6)
         h.setSpacing(12)
+        self.picture: QLabel | None = None
         if icon_pixmap is not None:
-            pic = QLabel()
-            pic.setPixmap(icon_pixmap)
-            pic.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-            h.addWidget(pic)
+            self.picture = QLabel()
+            self.picture.setPixmap(icon_pixmap)
+            self.picture.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            h.addWidget(self.picture)
         texts = QVBoxLayout()
         texts.setSpacing(1)
         t = QLabel(title)
@@ -107,14 +110,30 @@ class RowButton(QFrame):
 
 
 def _picture(ctx: AppContext, theme: ThemeManager, s: Sighting, size: int = 44) -> QPixmap:
-    """The sighting's first photo as a rounded thumbnail, else its category swatch."""
-    category = ctx.catalogue.category(s.category_id)
+    """The sighting's first photo as a rounded thumbnail if it's been made already, else
+    its category swatch (see _fetch_picture for the rest)."""
     if s.cover_photo:
         photos = ctx.photos.for_sighting(s.id)
-        thumb = ctx.photos.thumbnail(photos[0], 256) if photos else None
+        thumb = ctx.photos.cached_thumbnail(photos[0], 256) if photos else None
         if thumb:
             return rounded(QPixmap(str(thumb)), size, 9)
-    return swatch(category, theme.tokens, size)
+    return swatch(ctx.catalogue.category(s.category_id), theme.tokens, size)
+
+
+def _fetch_picture(ctx: AppContext, row: RowButton, s: Sighting, size: int) -> None:
+    """A thumbnail not made yet is made in the background and swapped in when ready,
+    so a list of many photographed sightings appears straight away."""
+    if not s.cover_photo:
+        return
+    photos = ctx.photos.for_sighting(s.id)
+    if not photos or ctx.photos.cached_thumbnail(photos[0], 256):
+        return
+
+    def ready(path) -> None:
+        if path and shiboken6.isValid(row) and row.picture is not None:
+            row.picture.setPixmap(rounded(QPixmap(str(path)), size, 9))
+
+    run_in_background(lambda: ctx.photos.thumbnail(photos[0], 256), ready, lambda _e: None)
 
 
 def _count_suffix(s: Sighting) -> str:
@@ -132,13 +151,15 @@ def sighting_row(ctx: AppContext, theme: ThemeManager, s: Sighting, on_click) ->
     side = relative_day(s.observed_date, ctx.sightings._today()) + (
         f"\n{s.observed_time}" if s.observed_time else ""
     )
-    return RowButton(
+    row = RowButton(
         _picture(ctx, theme, s),
         f"{s.display_name}{_count_suffix(s)}",
         f"{_where(s)} · {category.name}",
         side,
         lambda: on_click(s.id),
     )
+    _fetch_picture(ctx, row, s, 44)
+    return row
 
 
 FIRST_BADGES = {"lifer": "★ Lifer", "year": "★ First of the year"}
@@ -154,7 +175,7 @@ def day_row(
             f'&nbsp;&nbsp;<span style="color:{theme.tokens.accent}; font-weight:600;">'
             f"{FIRST_BADGES[mark]}</span>"
         )
-    return RowButton(
+    row = RowButton(
         _picture(ctx, theme, s, 40),
         title,
         f"{s.evidence.label} · {_where(s)}",
@@ -162,6 +183,8 @@ def day_row(
         lambda: on_click(s.id),
         rich=True,
     )
+    _fetch_picture(ctx, row, s, 40)
+    return row
 
 
 def attention_row(

@@ -75,7 +75,9 @@ def test_raw_on_its_own_is_a_photo(ctx):
     photo = summary.imported[0]
     assert photo.is_raw and photo.has_raw and photo.camera == "Google Pixel 10 Pro"
     thumb = ctx.photos.thumbnail(photo)
-    assert thumb is not None and Image.open(thumb).size == (64, 48)
+    assert thumb is not None
+    with Image.open(thumb) as im:
+        assert im.size == (64, 48)
 
 
 def test_raw_arriving_later_joins_its_photo(ctx, tmp_path):
@@ -163,7 +165,8 @@ def test_rotated_thumbnails_are_cached_separately(ctx):
     upright = ctx.photos.thumbnail(photo)
     turned = ctx.photos.thumbnail(ctx.photos.rotate(photo.id))
     assert upright != turned
-    assert Image.open(upright).size[::-1] == Image.open(turned).size
+    with Image.open(upright) as up, Image.open(turned) as down:
+        assert up.size[::-1] == down.size
     assert ctx.photos.screen_image(photo) is not None
 
 

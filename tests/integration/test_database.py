@@ -62,6 +62,23 @@ def test_each_thread_gets_its_own_connection(db):
     assert len(set(seen)) == 2
 
 
+def test_close_closes_every_threads_connection(paths):
+    """Shutting down must close background threads' connections too (they once leaked)."""
+    database = Database(paths.database)
+    opened = []
+
+    def worker():
+        with database.connection() as conn:
+            opened.append(conn)
+
+    t = threading.Thread(target=worker)
+    t.start()
+    t.join()
+    database.close()
+    with pytest.raises(sqlite3.ProgrammingError):  # closed
+        opened[0].execute("SELECT 1")
+
+
 def test_failed_migration_changes_nothing(db):
     good = available_migrations()
     broken = Migration(
@@ -161,3 +178,24 @@ def test_database_file_can_be_reopened(paths):
     with second.connection() as conn:
         assert current_version(conn) == available_migrations()[-1].version
     second.close()
+
+
+def test_close_never_pulls_a_connection_from_under_a_running_job(paths):
+    """Closing the database while a background job is mid-query once crashed the app."""
+    database = Database(paths.database)
+    inside, release, result = threading.Event(), threading.Event(), []
+
+    def job():
+        with database.connection() as conn:
+            inside.set()
+            release.wait(5)
+            result.append(conn.execute("SELECT 1").fetchone()[0])  # still works
+
+    t = threading.Thread(target=job)
+    t.start()
+    inside.wait(5)
+    database.close()  # the job's connection is busy: left alone
+    release.set()
+    t.join(5)
+    assert result == [1]
+    database.close()  # now idle: closed

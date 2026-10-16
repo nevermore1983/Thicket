@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+from contextlib import contextmanager
 from datetime import date
 
 from PySide6.QtCore import Qt, Signal
@@ -45,6 +46,28 @@ def _table(headers: list[str]) -> QTableWidget:
     # Qt's default is descending: without this, lists showed Z to A (fixed in Phase 10)
     table.sortByColumn(0, Qt.SortOrder.AscendingOrder)
     return table
+
+
+@contextmanager
+def _filling(table: QTableWidget):
+    """Fill a table quickly. Sorting, and columns that size to their contents, would
+    otherwise redo their work after every single cell: with 1,500 species that took
+    over 100 seconds. Both are switched off while filling and run once at the end."""
+    header = table.horizontalHeader()
+    sized = [
+        c
+        for c in range(table.columnCount())
+        if header.sectionResizeMode(c) == QHeaderView.ResizeMode.ResizeToContents
+    ]
+    table.setSortingEnabled(False)
+    for c in sized:
+        header.setSectionResizeMode(c, QHeaderView.ResizeMode.Interactive)
+    try:
+        yield
+    finally:
+        for c in sized:
+            header.setSectionResizeMode(c, QHeaderView.ResizeMode.ResizeToContents)
+        table.setSortingEnabled(True)
 
 
 class _NumberItem(QTableWidgetItem):
@@ -134,7 +157,16 @@ class PlacesPage(_ListPage):
     def refresh(self) -> None:
         places = self.ctx.places.all()
         usage = self.ctx.places.usage()
-        self.table.setSortingEnabled(False)
+        with _filling(self.table):
+            self._fill_places(places, usage)
+        for col, width in ((1, 100), (2, 90), (3, 120), (4, 140)):
+            self.table.horizontalHeader().resizeSection(col, width)
+        self.stack.setCurrentIndex(0 if places else 1)
+        self.footer.setText(
+            f"{plural(len(places), 'place')} · double-click to edit" if places else ""
+        )
+
+    def _fill_places(self, places, usage) -> None:
         self.table.setRowCount(len(places))
         for row, p in enumerate(places):
             sightings, species, last = usage.get(p.id, (0, 0, None))
@@ -157,13 +189,6 @@ class PlacesPage(_ListPage):
                     or f"{p.latitude:.3f}, {p.longitude:.3f}"
                 ),
             )
-        self.table.setSortingEnabled(True)
-        for col, width in ((1, 100), (2, 90), (3, 120), (4, 140)):
-            self.table.horizontalHeader().resizeSection(col, width)
-        self.stack.setCurrentIndex(0 if places else 1)
-        self.footer.setText(
-            f"{plural(len(places), 'place')} · double-click to edit" if places else ""
-        )
 
 
 class SpeciesPage(_ListPage):
@@ -222,27 +247,30 @@ class SpeciesPage(_ListPage):
             else f"Species you recorded in {self.year}, with the first and last time that year. "
             "★ marks lifers (new to your life list that year)."
         )
-        self.table.setSortingEnabled(False)
-        self.table.setRowCount(len(rows))
-        for i, r in enumerate(rows):
-            category = self.ctx.catalogue.category(r.category_id)
-            label = (r.common_name or r.scientific_name) + ("  ★" if r.is_lifer else "")
-            name = QTableWidgetItem(swatch(category, t, 18), label)
-            name.setData(Qt.ItemDataRole.UserRole, r.taxon_id)
-            name.setToolTip(html.escape(r.scientific_name) + ("  (lifer)" if r.is_lifer else ""))
-            self.table.setItem(i, 0, name)
-            self.table.setItem(i, 1, QTableWidgetItem(category.name))
-            self.table.setItem(i, 2, _NumberItem(r.sightings))
-            first = _NumberItem(r.first_seen.toordinal(), fmt_date(r.first_seen, "medium"))
-            last = _NumberItem(r.last_seen.toordinal(), fmt_date(r.last_seen, "medium"))
-            for item in (first, last):
-                item.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-            self.table.setItem(i, 3, first)
-            self.table.setItem(i, 4, last)
-        self.table.setSortingEnabled(True)
         header = self.table.horizontalHeader()
         for col in (1, 2, 3, 4):  # only as wide as needed, so names keep the room
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+        with _filling(self.table):
+            self.table.setRowCount(len(rows))
+            for i, r in enumerate(rows):
+                category = self.ctx.catalogue.category(r.category_id)
+                label = (r.common_name or r.scientific_name) + ("  ★" if r.is_lifer else "")
+                name = QTableWidgetItem(swatch(category, t, 18), label)
+                name.setData(Qt.ItemDataRole.UserRole, r.taxon_id)
+                name.setToolTip(
+                    html.escape(r.scientific_name) + ("  (lifer)" if r.is_lifer else "")
+                )
+                self.table.setItem(i, 0, name)
+                self.table.setItem(i, 1, QTableWidgetItem(category.name))
+                self.table.setItem(i, 2, _NumberItem(r.sightings))
+                first = _NumberItem(r.first_seen.toordinal(), fmt_date(r.first_seen, "medium"))
+                last = _NumberItem(r.last_seen.toordinal(), fmt_date(r.last_seen, "medium"))
+                for item in (first, last):
+                    item.setTextAlignment(
+                        Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+                    )
+                self.table.setItem(i, 3, first)
+                self.table.setItem(i, 4, last)
         self.stack.setCurrentIndex(0 if rows else 1)
         where = "on your life list" if self.year is None else f"in {self.year}"
         lifers = sum(r.is_lifer for r in rows)

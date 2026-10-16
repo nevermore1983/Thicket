@@ -128,17 +128,19 @@ function rampColour(max) {
 function addOurLayers() {
   const t = state.theme;
   const data = state.sightings || empty;
-  map.addSource('places', { type: 'geojson', data: state.places || empty });
-  map.addSource('sightings', { type: 'geojson', data, cluster: true, clusterRadius: 44, clusterMaxZoom: 14 });
-  map.addSource('sightings-all', { type: 'geojson', data });
-  map.addSource('heat', { type: 'geojson', data: state.heat || empty });
-  map.addSource('highlight', { type: 'geojson', data: highlightData() });
-  for (const [size, sq] of Object.entries(state.squares)) map.addSource(`sq-${size}`, { type: 'geojson', data: sq.url });
-
   const vis = (on) => (on ? 'visible' : 'none');
   const pins = state.mode === 'pins';
   const heat = state.mode === 'heat';
   const squares = state.mode === 'squares';
+
+  // Only the mode on show gets its sightings: MapLibre keeps several copies of each
+  // source's points (one per zoom level), so 20,000 pins loaded twice cost ~100 MB more.
+  map.addSource('places', { type: 'geojson', data: state.places || empty });
+  if (pins) map.addSource('sightings', { type: 'geojson', data, cluster: true, clusterRadius: 44, clusterMaxZoom: 14 });
+  if (heat) map.addSource('sightings-all', { type: 'geojson', data });
+  if (heat) map.addSource('heat', { type: 'geojson', data: state.heat || empty });
+  map.addSource('highlight', { type: 'geojson', data: highlightData() });
+  for (const [size, sq] of Object.entries(state.squares)) map.addSource(`sq-${size}`, { type: 'geojson', data: sq.url });
 
   map.addLayer({ id: 'places-fill', type: 'fill', source: 'places', layout: { visibility: vis(state.showPlaces) },
     paint: { 'fill-color': t.accent, 'fill-opacity': 0.08 } });
@@ -155,7 +157,7 @@ function addOurLayers() {
 
   // Each cell's weight is its share of the busiest area (worked out in Python)
   const weight = ['get', state.weight === 'animals' ? 'a' : 's'];
-  map.addLayer({ id: 'heat', type: 'heatmap', source: 'heat', layout: { visibility: vis(heat) },
+  if (heat) map.addLayer({ id: 'heat', type: 'heatmap', source: 'heat', layout: { visibility: vis(heat) },
     paint: {
       'heatmap-weight': weight,
       // A point adds weight x intensity x 0.4 at its centre, so with the busiest area's
@@ -167,12 +169,13 @@ function addOurLayers() {
       'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'],
         0, 'rgba(0,0,0,0)', 0.1, t.ramp[1], 0.3, t.ramp[2], 0.5, t.ramp[3], 0.7, t.ramp[4], 0.85, t.ramp[5], 1, t.ramp[6]],
     } });
-  map.addLayer({ id: 'heat-pins', type: 'symbol', source: 'sightings-all', minzoom: HEAT_FADE[0],
+  if (heat) map.addLayer({ id: 'heat-pins', type: 'symbol', source: 'sightings-all', minzoom: HEAT_FADE[0],
     layout: { visibility: vis(heat), 'icon-image': ['concat', 'cat-', ['to-string', ['get', 'c']]],
       'icon-allow-overlap': true, 'icon-ignore-placement': true } });
 
   map.addLayer({ id: 'highlight', type: 'circle', source: 'highlight',
     paint: { 'circle-radius': 17, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': t.accent, 'circle-stroke-width': 3 } });
+  if (!pins) return;
   map.addLayer({ id: 'clusters', type: 'symbol', source: 'sightings', filter: ['has', 'point_count'],
     layout: { visibility: vis(pins), 'icon-image': ['concat', 'n-', ['get', 'point_count_abbreviated']],
       'icon-allow-overlap': true, 'icon-ignore-placement': true } });
@@ -330,8 +333,8 @@ const commands = {
     state.sightings = a.url;
     state.heat = a.heat;
     if (!styleReady) return;
-    for (const id of ['sightings', 'sightings-all']) map.getSource(id).setData(a.url);
-    map.getSource('heat').setData(a.heat);
+    for (const id of ['sightings', 'sightings-all']) map.getSource(id)?.setData(a.url);
+    map.getSource('heat')?.setData(a.heat); // only the sources the current mode has
   },
 
   setSquares(a) {

@@ -7,6 +7,7 @@ module can stay small and receive exactly what it needs.
 from __future__ import annotations
 
 import logging
+import sqlite3
 from dataclasses import dataclass, field
 
 from wildlife.config.paths import DataPaths
@@ -35,6 +36,7 @@ from wildlife.services.stats import StatsService
 from wildlife.services.wildlife_import import WildlifeImporter
 
 log = logging.getLogger(__name__)
+DAMAGED = "Your WildLife data file looks damaged. You can restore it from a backup."
 
 
 @dataclass
@@ -99,15 +101,18 @@ class AppContext:
     @classmethod
     def open(cls, paths: DataPaths) -> AppContext:
         paths.ensure()
-        db = Database(paths.database)
+        try:
+            db = Database(paths.database)
+        except sqlite3.DatabaseError as exc:  # so damaged SQLite can't even open it
+            raise DatabaseError(DAMAGED, detail=str(exc)) from exc
         try:
             with db.connection() as conn:
-                check = conn.execute("PRAGMA quick_check").fetchone()[0]
+                try:
+                    check = conn.execute("PRAGMA quick_check").fetchone()[0]
+                except sqlite3.DatabaseError as exc:
+                    raise DatabaseError(DAMAGED, detail=str(exc)) from exc
                 if check != "ok":
-                    raise DatabaseError(
-                        "Your WildLife data file looks damaged. You can restore it from a backup.",
-                        detail=f"quick_check: {check}",
-                    )
+                    raise DatabaseError(DAMAGED, detail=f"quick_check: {check}")
 
                 def safety_copy(old: int, new: int) -> None:
                     dest = paths.internal_backups / snapshot.timestamped_name(

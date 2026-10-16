@@ -29,6 +29,12 @@ class StatsService:
         with self._db.connection() as conn:
             return repo.years_recorded(conn)
 
+    def seen_range(self, taxon_id: int) -> tuple[date, date] | None:
+        """When a species was first and last seen."""
+        with self._db.connection() as conn:
+            found = repo.seen_range(conn, taxon_id)
+        return (date.fromisoformat(found[0]), date.fromisoformat(found[1])) if found else None
+
     def species_profile(self, taxon_id: int) -> repo.SpeciesProfile:
         with self._db.connection() as conn:
             return repo.species_profile(conn, taxon_id)

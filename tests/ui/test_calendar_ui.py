@@ -151,10 +151,10 @@ def test_week_and_day_views_list_sightings(window):
     assert page.summary.text() == "2 sightings · 2 species"
 
 
-def test_new_sightings_appear_without_reopening(window):
+def test_new_sightings_appear_without_reopening(window, qtbot):
     page = calendar(window)
     add(window.ctx, ROBIN, TODAY)
-    assert TODAY in page.month_view.days
+    qtbot.waitUntil(lambda: TODAY in page.month_view.days, timeout=2000)  # straight after
 
 
 def test_typing_a_month_in_search_opens_the_calendar(window, qtbot):

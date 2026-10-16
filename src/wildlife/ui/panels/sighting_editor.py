@@ -176,6 +176,7 @@ class SightingEditor(PanelView):
             else (prefill or SightingDraft(taxon_id=None, observed_date=None))
         )
         self._dirty = False
+        self._done = False  # saved: a second save (e.g. one Enter seen twice) does nothing
         self._location_edited = False
         self._date_touched = existing is not None or (
             prefill is not None and prefill.observed_date is not None
@@ -247,7 +248,7 @@ class SightingEditor(PanelView):
         form.addWidget(self.f_outing)
         self._fill_outings(draft.outing_id)
         self.time.editingFinished.connect(lambda: self._fill_outings())
-        self.time.editingFinished.connect(lambda: check_time_field(self.time, self.f_time))
+        self.time.editingFinished.connect(self._check_time)
 
         # place
         self._place_id = draft.place_id if (existing or prefill) else ctx.sightings.default_place()
@@ -489,6 +490,22 @@ class SightingEditor(PanelView):
         self.f_species.reset_note()
         if taxon is not None:
             QTimer.singleShot(0, self.count.setFocus)
+
+    def _check_time(self) -> None:
+        """Say if the time can't be read; gently point out a time later than now today
+        (allowed: you may be adding it in advance, or the clock may be out)."""
+        check_time_field(self.time, self.f_time)
+        if self.f_time.note.property("role") == "error":
+            return
+        qd = self.date.date()
+        text = normalise_time(self.time.text())
+        today = self.ctx.sightings._today()
+        if (
+            text
+            and date(qd.year(), qd.month(), qd.day()) == today
+            and text > f"{datetime.now():%H:%M}"
+        ):
+            self.f_time.set_note("That's later than now. Is the time right?", "help")
 
     def _on_date_changed(self, _qdate) -> None:
         self._date_touched = True
@@ -767,6 +784,8 @@ class SightingEditor(PanelView):
         return (None if errors else draft), errors
 
     def save(self, another: bool = False) -> SaveResult | None:
+        if self._done:
+            return None
         for field in (self.f_species, self.f_date, self.f_time, self.f_place, self.f_notes):
             field.reset_note()
         self._update_location_note()
@@ -784,6 +803,7 @@ class SightingEditor(PanelView):
                 if self._removed_photos:
                     self.ctx.photos.detach(result.sighting.id, self._removed_photos)
                 self._dirty = False
+                self._done = True  # this form has done its job (another save gets a new form)
                 self.saved.emit(result, another and self.existing is None)
                 return result
         targets = {
@@ -814,9 +834,9 @@ class SightingEditor(PanelView):
         if event.key() == Qt.Key.Key_S and ctrl:
             self.save()
             return
-        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and isinstance(
-            self.focusWidget(), QDateEdit
-        ):
+        # Enter in the date box saves. Only when it truly has focus: Enter pressed in a
+        # text box saves there and then reaches this form too, and must not save twice.
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and self.date.hasFocus():
             self.save()
             return
         super().keyPressEvent(event)

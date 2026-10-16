@@ -161,7 +161,10 @@ def test_maplibre_draws_the_pins_and_squares(window, map_page, qtbot):
     map_page.set_mode("squares")
     squares = ["sq-10000-fill", "sq-2000-fill", "sq-1000-fill"]  # which one shows depends on zoom
     qtbot.waitUntil(lambda: drawn(map_page, qtbot, squares) == 2, timeout=10_000)
-    assert drawn(map_page, qtbot, ["pins", "clusters"]) == 0  # pins are hidden in this mode
+    # In this mode the pins aren't loaded at all (-1: no such layer), saving memory
+    assert drawn(map_page, qtbot, ["pins", "clusters"]) == -1
+    map_page.set_mode("pins")
+    qtbot.waitUntil(lambda: drawn(map_page, qtbot, ["pins", "clusters"]) >= 2, timeout=10_000)
 
 
 def test_late_results_after_the_map_closed_are_ignored(window, map_page, qtbot):

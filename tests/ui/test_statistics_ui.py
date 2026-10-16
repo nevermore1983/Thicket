@@ -194,3 +194,29 @@ def test_species_notes_in_the_profile(window, qtbot):
     profile.notes.setPlainText("Nests in the ivy by the shed")
     window.panel.close_panel()  # closing saves straight away
     assert window.ctx.species_notes.get(robin) == "Nests in the ivy by the shed"
+
+
+def test_big_lists_fill_quickly(qtbot):
+    """Refilling a visible 1,500-row table once took over 100 seconds: sorting and
+    size-to-contents columns redid their work after every cell."""
+    import time as _time
+
+    from PySide6.QtWidgets import QHeaderView, QTableWidgetItem
+
+    from wildlife.ui.pages.list_pages import _filling, _table
+
+    table = _table(["Species", "Category", "Sightings", "First seen", "Last seen"])
+    for col in (1, 2, 3, 4):
+        table.horizontalHeader().setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+    qtbot.addWidget(table)
+    table.resize(900, 600)
+    table.show()
+    started = _time.perf_counter()
+    with _filling(table):
+        table.setRowCount(1500)
+        for r in range(1500):
+            for c in range(5):
+                table.setItem(r, c, QTableWidgetItem(f"species {1500 - r:04d} / {c}"))
+    assert _time.perf_counter() - started < 5
+    assert table.item(0, 0).text().startswith("species 0001")  # still sorted A to Z
+    assert table.horizontalHeader().sectionResizeMode(1) == QHeaderView.ResizeMode.ResizeToContents

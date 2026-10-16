@@ -490,9 +490,31 @@ class ImportDialog(QDialog):
             for r in left_out:
                 listing.addItem(f"Line {r.record.line} · {r.record.name}: {r.reason}")
             listing.hide()
-            toggle.clicked.connect(lambda: listing.setVisible(not listing.isVisible()))
+            save = button(
+                "Save this list…", "link", None, None, lambda: self._save_report(left_out)
+            )
+            save.hide()
+
+            def show_or_hide() -> None:
+                listing.setVisible(not listing.isVisible())
+                save.setVisible(listing.isVisible())
+
+            toggle.clicked.connect(show_or_hide)
             self.check_body.addWidget(toggle, 0, Qt.AlignmentFlag.AlignLeft)
             self.check_body.addWidget(listing)
+            self.check_body.addWidget(save, 0, Qt.AlignmentFlag.AlignLeft)
+
+    def _save_report(self, rows) -> None:
+        start = str(Path.home() / "Documents" / f"{Path(self.plan.file_name).stem} - left out.txt")
+        path, _ = QFileDialog.getSaveFileName(self, "Save the list", start, "Text (*.txt)")
+        if path:
+            self.write_report(Path(path), rows)
+
+    def write_report(self, path: Path, rows) -> None:
+        """The rows left out of an import, and why, as a text file (one per line)."""
+        lines = [f"Rows left out of {self.plan.file_name}", ""]
+        lines += [f"Line {r.record.line}: {r.record.name}: {r.reason}" for r in rows]
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     def _choose(self, name: str, taxon) -> None:
         if taxon is None:

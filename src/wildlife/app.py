@@ -7,7 +7,7 @@ import logging
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QCoreApplication, Qt, QThread, QTimer, QUrl
+from PySide6.QtCore import QCoreApplication, Qt, QThread, QThreadPool, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QApplication, QMessageBox
 
@@ -94,6 +94,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return app.exec()
     finally:
+        # Let background work (e.g. an automatic backup) finish before the data file is
+        # closed: closing it under a running job could crash, or cut a backup short.
+        QThreadPool.globalInstance().waitForDone(60_000)
         ctx.close()
         log.info("Closed")
 

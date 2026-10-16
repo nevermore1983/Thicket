@@ -89,6 +89,12 @@ def main() -> int:
     parser.add_argument("--sightings", type=int, default=1500)
     parser.add_argument("--years", type=int, default=3)
     parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument(
+        "--places", type=int, default=len(PLACES), help="more places are scattered across Britain"
+    )
+    parser.add_argument(
+        "--species", type=int, default=0, help="how many species to draw from (0: the common ones)"
+    )
     args = parser.parse_args()
     rng = random.Random(args.seed)
     started = time.perf_counter()
@@ -100,16 +106,33 @@ def main() -> int:
             return 1
         if ctx.catalogue.needs_install():
             ctx.catalogue.install()
+        extra = [  # for stress tests: many more places, scattered over England and Wales
+            (
+                f"Site {i:03d}",
+                round(rng.uniform(50.6, 54.8), 5),
+                round(rng.uniform(-4.5, 1.6), 5),
+                rng.choice([150, 300, 800]),
+                1,
+            )
+            for i in range(max(0, args.places - len(PLACES)))
+        ]
         places = [
             ctx.places.save(
                 PlaceDraft(n, la, lo, r, is_favourite=n in ("Garden", "Rainham Marshes"))
             )
-            for n, la, lo, r, _ in PLACES
+            for n, la, lo, r, _ in PLACES + extra
         ]
         with ctx.db.connection() as conn:
-            pool = conn.execute(
-                "SELECT id, informal_group, priority FROM taxon WHERE rank = 'species' AND priority >= 7"
-            ).fetchall()
+            if args.species:  # the most commonly recorded N species, as wide as asked
+                pool = conn.execute(
+                    "SELECT id, informal_group, MAX(priority, 1) AS priority FROM taxon "
+                    "WHERE rank = 'species' ORDER BY priority DESC, id LIMIT ?",
+                    (args.species,),
+                ).fetchall()
+            else:
+                pool = conn.execute(
+                    "SELECT id, informal_group, priority FROM taxon WHERE rank = 'species' AND priority >= 7"
+                ).fetchall()
         garden_pool = [r for r in pool if r["informal_group"] in GARDEN_GROUPS]
         spots = {  # each place's favourite spots, within its radius
             p.id: [
@@ -150,7 +173,7 @@ def main() -> int:
                 if rng.random() < 0.7:
                     day += timedelta(days=(5 - day.weekday()) % 7)  # mostly weekends
                     day = min(day, today)
-                place = rng.choices(places[1:], weights=[w for *_, w in PLACES[1:]])[0]
+                place = rng.choices(places[1:], weights=[w for *_, w in (PLACES + extra)[1:]])[0]
                 items = {pick(pool, day.month)["id"]: None for _ in range(rng.randint(5, 18))}
                 items = [r for r in pool if r["id"] in items]
             minute = first_minute = rng.randint(6 * 60, 11 * 60)

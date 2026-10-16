@@ -120,7 +120,7 @@ class SightingDetail(PanelView):
                     btn.setIcon(QIcon(rounded(QPixmap(str(thumb)), 94, 10)))
                     btn.setIconSize(QSize(94, 94))
                 else:
-                    btn.setText("File missing")
+                    btn.setText(self.ctx.photos.why_no_picture(photo))
                 btn.clicked.connect(lambda _=False, i=index: self.view_photo.emit(s.id, i))
                 strip.addWidget(btn)
             strip.addStretch(1)

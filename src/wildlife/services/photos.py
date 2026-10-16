@@ -568,20 +568,25 @@ class PhotoService:
             return self._paths.root / photo.raw_rel_path
         return self.path_of(photo) if photo.is_raw else None
 
-    def thumbnail(self, photo: Photo, size: int = 256) -> Path | None:
-        """Path to a cached picture of at most `size` pixels, made on first use.
-        None if the original is missing or can't be decoded."""
+    def _thumbnail_path(self, photo: Photo, size: int) -> Path:
         # Small thumbnails as WebP (compact); the big viewer copy as JPEG (WebP takes ~0.6 s
         # to save at 2048 px, JPEG 7 ms, for the same file size)
         suffix = "webp" if size <= 1024 else "jpg"
-        target = (
-            self._paths.thumbnails
-            / str(size)
-            / photo.sha256[:2]
-            / f"{photo.sha256}_{photo.rotation}.{suffix}"
-        )
+        name = f"{photo.sha256}_{photo.rotation}.{suffix}"
+        return self._paths.thumbnails / str(size) / photo.sha256[:2] / name
+
+    def cached_thumbnail(self, photo: Photo, size: int = 256) -> Path | None:
+        """The thumbnail if it has been made already (never makes one: that's slow)."""
+        target = self._thumbnail_path(photo, size)
+        return target if target.exists() else None
+
+    def thumbnail(self, photo: Photo, size: int = 256) -> Path | None:
+        """Path to a cached picture of at most `size` pixels, made on first use.
+        None if the original is missing or can't be decoded."""
+        target = self._thumbnail_path(photo, size)
         if target.exists():
             return target
+        suffix = target.suffix[1:]
         original = self.path_of(photo)
         if not original.exists():
             return None
@@ -598,6 +603,11 @@ class PhotoService:
             log.warning("Thumbnail failed for %s: %s", original, exc)
             return None
         return target
+
+    def why_no_picture(self, photo: Photo) -> str:
+        """The placeholder text when thumbnail() gives None: the file has gone, or it's
+        there but can't be read (damaged, or a format we can't open)."""
+        return "File missing" if not self.path_of(photo).exists() else "Can't display"
 
     def screen_image(self, photo: Photo) -> Path | None:
         """The viewer's picture (up to 2048 px), cached like a thumbnail."""

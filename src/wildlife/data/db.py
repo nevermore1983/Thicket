@@ -17,6 +17,8 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
+from wildlife.domain.errors import DatabaseError
+
 log = logging.getLogger(__name__)
 
 PRAGMAS = (
@@ -29,10 +31,17 @@ PRAGMAS = (
 
 def connect(path: Path | str) -> sqlite3.Connection:
     """Open a configured connection. Creates the file if it doesn't exist."""
-    conn = sqlite3.connect(path, autocommit=True, check_same_thread=True)
+    # Each connection is only ever used by the thread that opened it (Database hands out
+    # one per thread). check_same_thread=False only lets close() at shutdown, on the main
+    # thread, close the background threads' connections too; otherwise they'd stay open.
+    conn = sqlite3.connect(path, autocommit=True, check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    for pragma in PRAGMAS:
-        conn.execute(pragma)
+    try:
+        for pragma in PRAGMAS:
+            conn.execute(pragma)
+    except BaseException:
+        conn.close()  # a damaged file fails here: don't leave it open (and locked)
+        raise
     return conn
 
 
@@ -43,12 +52,17 @@ class Database:
         self.path = path
         self._local = threading.local()
         self._all: list[sqlite3.Connection] = []
+        self._busy: dict[int, int] = {}  # id(connection) -> how many blocks are using it now
         self._lock = threading.Lock()
-        with self.connection() as conn:
-            # WAL is stored in the file itself, so setting it once is enough.
-            mode = conn.execute("PRAGMA journal_mode = WAL").fetchone()[0]
-            if mode.lower() != "wal":
-                log.warning("Could not enable WAL mode (got %s)", mode)
+        try:
+            with self.connection() as conn:
+                # WAL is stored in the file itself, so setting it once is enough.
+                mode = conn.execute("PRAGMA journal_mode = WAL").fetchone()[0]
+                if mode.lower() != "wal":
+                    log.warning("Could not enable WAL mode (got %s)", mode)
+        except BaseException:
+            self.close()  # an open connection would keep the file locked (e.g. for a restore)
+            raise
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:
@@ -59,7 +73,13 @@ class Database:
             self._local.conn = conn
             with self._lock:
                 self._all.append(conn)
-        yield conn
+        with self._lock:
+            self._busy[id(conn)] = self._busy.get(id(conn), 0) + 1
+        try:
+            yield conn
+        finally:
+            with self._lock:
+                self._busy[id(conn)] -= 1
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
@@ -70,17 +90,34 @@ class Database:
             conn.execute("BEGIN IMMEDIATE")  # take the write lock now, not halfway through
             try:
                 yield conn
-            except BaseException:
-                # With autocommit=True, conn.rollback() does nothing, so be explicit.
-                conn.execute("ROLLBACK")
-                raise
-            else:
                 conn.execute("COMMIT")
+            except BaseException as exc:
+                # With autocommit=True, conn.rollback() does nothing, so be explicit. A
+                # failed COMMIT (e.g. the disk filled up) also leaves the transaction open.
+                if conn.in_transaction:
+                    conn.execute("ROLLBACK")
+                if isinstance(exc, sqlite3.OperationalError) and "full" in str(exc).lower():
+                    raise DatabaseError(
+                        "Not enough disk space, so nothing was changed. Free some space on "
+                        "the drive and try again.",
+                        detail=str(exc),
+                    ) from exc
+                raise
 
     def close(self) -> None:
+        """Close every thread's connection. One that another thread is using at this very
+        moment is left alone: closing it under that thread would crash the program. (The
+        app waits for background work before closing, so this is a last safeguard.)"""
+        own = getattr(self._local, "conn", None)
         with self._lock:
+            still_in_use = []
             for conn in self._all:
+                if conn is not own and self._busy.get(id(conn), 0):
+                    still_in_use.append(conn)
+                    continue
                 with contextlib.suppress(sqlite3.ProgrammingError):  # already closed
                     conn.close()
-            self._all.clear()
+            if still_in_use:
+                log.warning("%d connection(s) still in use at close; left open", len(still_in_use))
+            self._all = still_in_use
         self._local = threading.local()

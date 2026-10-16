@@ -37,4 +37,15 @@ def ctx(paths: DataPaths):
         taxa_repo.install_catalogue(conn, MINI_CATALOGUE)
     context.set_today(TODAY)
     yield context
+    _wait_for_background_work()
     context.close()
+
+
+def _wait_for_background_work() -> None:
+    """As the app does at exit: background jobs finish before the database closes."""
+    import sys
+
+    if "PySide6.QtCore" in sys.modules:
+        from PySide6.QtCore import QThreadPool
+
+        QThreadPool.globalInstance().waitForDone(30_000)

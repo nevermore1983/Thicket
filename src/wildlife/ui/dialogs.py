@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 from wildlife.context import AppContext
 from wildlife.domain.dates import DateQuery, parse_date_query
 from wildlife.domain.filters import SightingFilter
-from wildlife.ui.components.visuals import plural, swatch
+from wildlife.ui.components.visuals import fmt_date, plural, swatch
 from wildlife.ui.theme.icons import pixmap
 from wildlife.ui.theme.manager import ThemeManager
 from wildlife.ui.workers import run_in_background
@@ -209,11 +209,15 @@ class SearchPopup(QFrame):
                 f"Open {when.label} in the calendar", when, pixmap("calendar", t.text_2, 16), "date"
             )
         for m in [m for m in self.ctx.catalogue.search(text, 6) if m.uses][:4]:
+            hint = plural(m.uses, "sighting")
+            if seen := self.ctx.stats.seen_range(m.taxon.id):
+                first, last = (fmt_date(d, "medium") for d in seen)
+                hint += f" · first {first}" + (f" · last {last}" if last != first else "")
             self._add(
                 m.taxon.display_name,
                 SightingFilter(taxon_ids=frozenset({m.taxon.id})),
                 swatch(self.ctx.catalogue.category(m.taxon.category_id), t, 16),
-                plural(m.uses, "sighting"),
+                hint,
             )
         for place in [p for p in self.ctx.places.all() if text.lower() in p.name.lower()][:3]:
             self._add(

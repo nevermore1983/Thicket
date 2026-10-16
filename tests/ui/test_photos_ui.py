@@ -300,3 +300,35 @@ def test_photos_can_be_put_in_order_in_the_editor(window, tmp_path):
     editor._move_photo(editor._photos[1], -1)  # b becomes the cover
     editor.save()
     assert [p.id for p in ctx.photos.for_sighting(robin.id)] == [b.id, a.id]
+
+
+def test_thumbnails_scrolled_past_are_not_made(qtbot):
+    """Scrolling fast past thousands of photos must not leave a queue of thumbnails to make."""
+    import threading
+    import time as _time
+    from types import SimpleNamespace
+
+    from wildlife.ui.components.thumbnails import ThumbnailLoader
+
+    made, gate = [], threading.Event()
+
+    class SlowPhotos:
+        def thumbnail(self, photo, size):
+            gate.wait(5)
+            made.append(photo.id)
+            return None
+
+    loader = ThumbnailLoader(SlowPhotos())
+    grid, other = object(), object()
+    photos = [SimpleNamespace(id=i, rotation=0) for i in range(40)]
+    for p in photos:
+        loader.get(p, 256, owner=grid)
+    loader.get(SimpleNamespace(id=99, rotation=0), 256, owner=other)
+    keep = {loader.key(photos[-1], 256)}  # the grid now shows only the last photo
+    dropped = loader.cancel_except(grid, keep)
+    assert dropped >= 30  # all but the few already being made
+    gate.set()
+    assert loader.wait_idle(5000)
+    _time.sleep(0.05)
+    assert 39 in made and 99 in made  # what's on screen, and the other grid's photo
+    assert len(made) <= 10

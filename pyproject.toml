@@ -17,6 +17,7 @@ wildlife = "wildlife.app:main"
 [dependency-groups]
 dev = [
     "pytest>=8",
+    "pytest-cov>=6",
     "pytest-qt>=4.4",
     "ruff>=0.13",
 ]

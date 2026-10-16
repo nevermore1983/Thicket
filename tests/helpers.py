@@ -136,6 +136,44 @@ MINI_CATALOGUE = [
         "s": "Prunella",
         "l": ["Animalia", "Chordata", "Aves", "Passeriformes", "Prunellidae"],
     },
+    # The species in the spec's scenarios (S1 Goldfinch, S2 Grey Heron, S4 Kingfisher,
+    # S7 Ruddy Darter mistaken for Common Darter)
+    {
+        "k": "S1",
+        "p": "K1",
+        "r": "species",
+        "s": "Carduelis carduelis",
+        "c": "Goldfinch",
+        "l": [*_L_BIRD, "Fringillidae"],
+        "pr": 10,
+    },
+    {
+        "k": "S2",
+        "p": "K1",
+        "r": "species",
+        "s": "Ardea cinerea",
+        "c": "Grey Heron",
+        "l": ["Animalia", "Chordata", "Aves", "Pelecaniformes", "Ardeidae"],
+        "pr": 10,
+    },
+    {
+        "k": "S4",
+        "p": "K1",
+        "r": "species",
+        "s": "Alcedo atthis",
+        "c": "Kingfisher",
+        "l": ["Animalia", "Chordata", "Aves", "Coraciiformes", "Alcedinidae"],
+        "pr": 10,
+    },
+    {
+        "k": "S7",
+        "p": "K1",
+        "r": "species",
+        "s": "Sympetrum sanguineum",
+        "c": "Ruddy Darter",
+        "l": ["Animalia", "Arthropoda", "Insecta", "Odonata", "Libellulidae"],
+        "pr": 9,
+    },
     # Plants and fungi
     {"k": "K2", "r": "kingdom", "s": "Plantae", "l": ["Plantae"]},
     {"k": "K3", "r": "kingdom", "s": "Fungi", "l": ["Fungi"]},
@@ -284,12 +322,15 @@ def inat_csv(rows: list[dict[str, str]]) -> str:
     return out.getvalue()
 
 
-def jpeg_with_gps(path, colour=(30, 120, 60), lat=(51, 30, 0), lon=(0, 7, 0)):
-    """A small JPEG whose EXIF says where it was taken (north and west)."""
+def jpeg_with_gps(path, colour=(30, 120, 60), lat=(51, 30, 0), lon=(0, 7, 0), taken=None):
+    """A small JPEG whose EXIF says where (north and west) and, optionally, when it was
+    taken ('2026:10:10 09:00:00')."""
     from PIL import Image
 
     exif = Image.Exif()
     exif[0x010F] = "TestCam"
+    if taken:
+        exif.get_ifd(0x8769)[0x9003] = taken  # DateTimeOriginal
     gps = exif.get_ifd(0x8825)
     gps.update({1: "N", 2: tuple(float(x) for x in lat), 3: "W", 4: tuple(float(x) for x in lon)})
     Image.new("RGB", (64, 48), colour).save(path, "JPEG", exif=exif, quality=90)

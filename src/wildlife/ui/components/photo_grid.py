@@ -159,6 +159,20 @@ class PhotoGrid(QWidget):
         for i in range(first, last):
             self._paint_tile(p, i)
         p.end()
+        self._cancel_offscreen()
+
+    def _cancel_offscreen(self) -> None:
+        """Stop making thumbnails for tiles scrolled out of view (one row either side kept)."""
+        seen = self.visibleRegion().boundingRect()
+        if seen.isEmpty():
+            return
+        _, row_h = self._cell()
+        cols = self._columns()
+        first = max(0, (int(seen.top() // row_h) - 1) * cols)
+        last = min(len(self.items), (int(seen.bottom() // row_h) + 2) * cols)
+        size = 256 if self.tile <= 220 else 1024
+        keep = {self.loader.key(self.items[i].photo, size) for i in range(first, last)}
+        self.loader.cancel_except(self, keep)
 
     def _paint_tile(self, p: QPainter, index: int) -> None:
         t = self.theme.tokens
@@ -168,19 +182,19 @@ class PhotoGrid(QWidget):
         clip.addRoundedRect(r, 10, 10)
         p.save()
         p.setClipPath(clip)
-        thumb = self.loader.get(item.photo, 256 if self.tile <= 220 else 1024)
+        thumb = self.loader.get(item.photo, 256 if self.tile <= 220 else 1024, owner=self)
         if isinstance(thumb, QPixmap):
             p.drawPixmap(r.toRect(), self._fill(item.photo, thumb, int(r.width())))
         else:
             p.fillRect(r, QColor(t.surface_3))
-            if thumb == ThumbnailLoader.MISSING:
+            if isinstance(thumb, str):  # "File missing" or "Can't display"
                 icon = icon_pixmap("alert", t.warning, 22)
                 p.drawPixmap(int(r.center().x() - 11), int(r.center().y() - 22), icon)
                 p.setPen(QColor(t.warning))
                 p.drawText(
                     QRectF(r.left(), r.center().y() + 4, r.width(), 20),
                     int(Qt.AlignmentFlag.AlignCenter),
-                    "File missing",
+                    thumb,
                 )
         if item.overlay:
             band = QRectF(r.left(), r.bottom() - 24, r.width(), 24)

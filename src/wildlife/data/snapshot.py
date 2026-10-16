@@ -7,6 +7,7 @@ API produces a consistent snapshot instead.
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -24,11 +25,17 @@ class Verification:
 
 
 def take_snapshot(conn: sqlite3.Connection, dest: Path) -> Path:
-    """Write a consistent copy of `conn`'s database to `dest` (must not exist)."""
+    """Write a consistent copy of `conn`'s database to `dest` (must not exist).
+
+    The copy is written under a temporary name and renamed only once it's complete,
+    so a copy interrupted part way (app killed, drive pulled out) never looks like a
+    backup."""
     dest.parent.mkdir(parents=True, exist_ok=True)
     if dest.exists():
         raise FileExistsError(dest)
-    target = sqlite3.connect(dest)
+    part = dest.with_name(dest.name + ".part")
+    part.unlink(missing_ok=True)  # left by an earlier interrupted copy
+    target = sqlite3.connect(part)
     try:
         conn.backup(target)
         # One self-contained file: a WAL-mode copy would grow -wal/-shm side files
@@ -36,6 +43,7 @@ def take_snapshot(conn: sqlite3.Connection, dest: Path) -> Path:
         target.execute("PRAGMA journal_mode = DELETE")
     finally:
         target.close()
+    os.replace(part, dest)
     return dest
 
 
