@@ -217,4 +217,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    from ci_report import report_failures
+
+    report_failures(main, "Building or checking the installer failed")

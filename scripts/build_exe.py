@@ -174,7 +174,8 @@ def smoke_test() -> None:
     )
     if not ok:
         print(log[-2000:])
-        raise SystemExit(1)
+        tail = "\n".join(log.splitlines()[-10:])
+        raise SystemExit(f"Smoke test FAILED (exit {result.returncode}). End of its log:\n{tail}")
 
 
 def main() -> None:
@@ -186,4 +187,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    from ci_report import report_failures
+
+    report_failures(main, "Building the app failed")
