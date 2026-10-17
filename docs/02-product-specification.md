@@ -603,6 +603,8 @@ Version 1 is done when all of these pass on the stress dataset and on a fresh in
 | Breeding codes, moth-trap session details, transect counts | Specialist recording schemes; can be added as optional fields later |
 | Image editing / cropping | Use a photo editor; we never alter originals |
 | Multiple users | A personal app; the recorder name covers exports |
+| Custom species (add a species that isn't on the UK list, including per name during an import) | Moved to version 2 on 17 Oct 2026 (your choice). Unmatched import names can be matched to an existing species or skipped. |
+| "Move data folder…" and a first-run warning about cloud-synced folders | Moved to version 2 on 17 Oct 2026. The default folder isn't cloud-synced, and Settings already warns if it is. |
 
 ---
 

@@ -4,10 +4,19 @@ A personal wildlife sighting journal for Windows: record what you see in seconds
 your sightings on a calendar, a map and in statistics. Everything stays on your PC and works
 offline.
 
+## Installing
+
+Run `WildLife-Setup-1.0.0.exe`. It installs for your Windows account only, with no
+administrator rights, and adds WildLife to the Start menu. See
+[docs/14-packaging.md](docs/14-packaging.md) for what it does, including the "Windows
+protected your PC" message.
+
+Your data lives in `%LOCALAPPDATA%\WildLife`. Upgrading and uninstalling never touch it.
+
 ## Status
 
-In development. See `docs/` for the research, specification, architecture and UI design, and
-`prototype/index.html` for the clickable design prototype.
+Version 1.0.0. See `docs/` for the research, specification, architecture, UI design and
+each phase's record, and `prototype/index.html` for the clickable design prototype.
 
 ## Developer setup
 
@@ -19,7 +28,14 @@ uv run wildlife              # start the app
 uv run pytest                # run the tests
 uv run ruff check .          # lint
 uv run ruff format .         # format
-uv run python scripts/make_demo_data.py --sightings 20000   # build a demo library
+uv run python scripts/make_demo_data.py --data-dir local_data/demo --sightings 20000
+```
+
+Building a release (needs [Inno Setup 7](https://jrsoftware.org/isinfo.php)):
+
+```bash
+uv run --with "pyinstaller>=6.16" python scripts/build_exe.py   # app folder + smoke test
+uv run python scripts/build_installer.py                        # installer + install check
 ```
 
 ## Project layout
@@ -31,6 +47,7 @@ uv run python scripts/make_demo_data.py --sightings 20000   # build a demo libra
 | `src/wildlife/services` | The app's actions: save a sighting, back up, import… |
 | `src/wildlife/ui` | Windows, pages, components and theme |
 | `tests/` | Automated tests |
-| `scripts/` | Developer tools (demo data, species catalogue builder) |
+| `scripts/` | Developer tools (demo data, species catalogue, benchmark, build) |
+| `packaging/` | Installer script and licence texts |
 | `spikes/` | Throwaway experiments that answered a risky question |
 | `docs/` | Design documents |

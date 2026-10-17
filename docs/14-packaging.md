@@ -1,0 +1,183 @@
+# WildLife — Phase 14: packaging
+
+**Date:** 17 October 2026
+**Status:** Complete, awaiting review (manual tests M11–M13 are yours to run)
+
+WildLife 1.0.0 now has:
+- a proper Windows installer;
+- its own icon;
+- version details in the program file;
+- a credit for every component it includes.
+
+An automated check installs it, upgrades it and uninstalls it, and confirms your data is never touched.
+
+**Exit rule: installs cleanly on a clean Windows account.**
+- ✅ The automated install, upgrade and uninstall check passes.
+- ⏳ The real clean-account test is manual test M11: creating a Windows account is something only you should do.
+
+---
+
+## 1. What you get
+
+**`build\installer\WildLife-Setup-1.0.0.exe`**, about 150 MB.
+
+| | |
+|---|---|
+| Installs to | `%LOCALAPPDATA%\Programs\WildLife`, for your Windows account only. **No administrator rights.** |
+| Your data | `%LOCALAPPDATA%\WildLife`, a separate folder. **Installing, upgrading and uninstalling never touch it.** |
+| Shortcuts | Start menu. A desktop icon if you tick the box (it's off by default). |
+| Windows' "Installed apps" list | WildLife 1.0.0, with its icon and an Uninstall button |
+| Upgrading | Run a newer installer. It finds the existing installation, replaces the program files completely, and keeps your data. |
+| If WildLife is open | The installer and the uninstaller both ask you to close it first, rather than replacing files under a running app |
+| Uninstalling | Removes the program and its shortcuts, then tells you your data was kept and where it is |
+
+The program file itself now has:
+- **an icon**: the leaf from the app's own icon set, in white on WildLife's green. Small sizes use a solid leaf so it still reads at 16 pixels.
+- **version details**: right-click › Properties › Details shows "WildLife 1.0.0, English (United Kingdom)".
+- **a fixed identity on the taskbar**, so the open window and a pinned shortcut share one taskbar button and show WildLife's icon, not Python's.
+
+---
+
+## 2. How it works
+
+There are two steps. Each is one command:
+
+```
+uv run --with "pyinstaller>=6.16" python scripts/build_exe.py
+uv run python scripts/build_installer.py
+```
+
+1. **`build_exe.py`** makes the app folder (`build\dist\WildLife`):
+   - PyInstaller bundles Python, Qt and everything else, as before.
+   - The folder now also gets the icon, the version details, `THIRD-PARTY-NOTICES.txt` and a `licenses` folder.
+   - Finally it runs the smoke test: the built app opens, loads the species list, shows the map, reads RAW files and finds its icon.
+2. **`build_installer.py`** wraps that folder with **Inno Setup 7**, using `packaging\installer.iss`. Then it runs the installer check (section 3).
+
+**Words you'll see in `installer.iss`:**
+- **AppId:** a fixed code that tells Windows "this is WildLife". It must never change, or an upgrade would install a second copy instead of replacing the first.
+- **PrivilegesRequired=lowest:** install for this user only, with no administrator prompt.
+- **AppMutex:** a name WildLife announces while it's running (`WildLife.Running`, set in `app.py`). The installer checks for it, so it can ask you to close WildLife.
+- **[InstallDelete]:** before an upgrade copies the new files, the old program's `_internal` folder is removed. That way files a newer version no longer uses don't pile up. It only ever touches the program folder.
+
+**Inno Setup 7.1.0** is the latest release (12 Aug 2026). The plan said version 6; 7 builds the same kind of installer, with a 64-bit setup program.
+- It was downloaded from the project's official GitHub release.
+- Its SHA-256 checksum matched the published one, and its Windows signature is valid (publisher Pyrsys B.V.).
+- It's installed for your account only. It's a build tool and isn't part of WildLife.
+
+---
+
+## 3. The installer check
+
+`build_installer.py` builds a **test copy** of the installer, with its own name ("WildLife installer test") and its own AppId. Testing therefore never touches a real WildLife installation, and the installed copy only ever runs on a temporary data folder. Last run:
+
+```
+ok   WildLife-InstallerTest-Setup-0.0.1.exe installed (exit 0)
+ok   old version registered
+ok   Start-menu shortcut made
+ok   WildLife-InstallerTest-Setup-1.0.0.exe installed (exit 0)
+ok   upgraded to 1.0.0
+ok   upgrade went into the same folder
+ok   files the new version doesn't need were removed
+ok   installed app works
+ok   a running WildLife is visible to the installer
+ok   the mark goes when WildLife closes (closed normally)
+ok   removed from Windows' installed apps
+ok   Start-menu shortcut removed
+ok   program folder emptied (0 left)
+ok   data folder untouched
+ok   your real data untouched
+Installer check: PASS
+```
+
+"Your real data untouched" means the size, timestamp and checksum of your real `wildlife.db` are the same before and after. The file is only read, never opened by WildLife.
+
+---
+
+## 4. "Windows protected your PC"
+
+Windows shows this blue SmartScreen box for a program that:
+- came from the internet (a download, or an email attachment), **and**
+- isn't signed with a paid code-signing certificate.
+
+An installer you build on your own PC doesn't carry the "from the internet" mark, so you won't normally see it. If you copy the installer to another PC through a download or a cloud link, click **More info › Run anyway** once.
+
+Signing would remove the warning:
+- A certificate costs about £120–250 a year.
+- Microsoft's cheaper signing service still isn't open to individuals in the UK (as found in Phase 1).
+
+For personal use it isn't needed. If you ever share WildLife publicly, revisit this.
+
+---
+
+## 5. Licences
+
+`THIRD-PARTY-NOTICES.txt` and the `licenses` folder ship inside the app. They cover:
+- Python;
+- Qt and PySide6;
+- Pillow;
+- pi-heif (with libheif and libde265);
+- rawpy (with LibRaw);
+- NumPy;
+- MapLibre GL JS;
+- the Source Serif 4 font;
+- the UK Species Inventory, with the Natural History Museum's required attribution;
+- PyInstaller's starter program.
+
+The notices also mention OpenFreeMap and OpenStreetMap, whose maps are loaded online.
+
+**Qt and the HEIC libraries are under the GNU LGPL v3.** For a personal app this means three things:
+- **Ship the licence texts.** Done. `LGPL-3.0.txt` came from gnu.org and matched the SPDX project's copy. `GPL-3.0.txt` is the complete text NumPy already includes.
+- **Keep the libraries replaceable.** Done: they're separate files in `_internal\PySide6`, which is why WildLife is a folder app, not a single .exe.
+- **Say where the source code is.** Done: the notices give Qt's official download addresses.
+
+If you ever distribute WildLife to other people, have these terms looked at again. For your own use you're well covered.
+
+`tests/unit/test_notices.py` fails if a new Python package ends up in the app without a notice entry. It already caught two: Qt 6.12 split itself into new `pyside6-webengine` and `pyside6-pdf` packages.
+
+---
+
+## 6. Spec section 11: the acceptance checklist, final status
+
+| Item | Status |
+|---|---|
+| Scenarios S1–S7 work as described | ✅ `tests/ui/test_scenarios.py` |
+| S1 under 10 s, keyboard only | ✅ Test, plus manual test M1 for the stopwatch |
+| Every Must feature complete | ✅ Custom species moved to version 2 by your choice (spec section 12) |
+| Every section 9 target met | ✅ docs/13-hardening.md, section 2 |
+| Every row of section 10 tested | ✅ docs/13-hardening.md, section 3 |
+| Backup → wipe → restore identical | ✅ `test_s6_new_pc_restore_from_the_backup_drive` |
+| Export → import into an empty library identical | ✅ `test_round_trip_into_an_empty_library` |
+| UI/UX audit has no open "high" items | ✅ Phase 12 |
+| Installer works on a fresh account; uninstall keeps data | ✅ Automated check (section 3). ⏳ Manual test M11 on a real new account. |
+
+---
+
+## 7. Problems found and fixed
+
+- **The first close request didn't close WildLife.**
+  - The installer check asks WildLife to close politely (the same request as the X button) and saw it ignored.
+  - The cause: a brand-new data folder opens the welcome dialog, and a close request closes only the dialog. Every Windows program behaves this way while a dialog is open.
+  - The main window itself closes politely, logs "Closed" and shuts the data file properly. The check now asks again after the dialog closes.
+- **Inno Setup read one of my message lines as a command.** Its preprocessor treats any line starting with `#` as a directive, and `#13#10` (a line break code) began a line. The lines are wrapped differently now, with a comment explaining why.
+- **The Bash tool turned `\n` into real line breaks again**, this time in the version-details file. It was fixed with the Edit tool, as the rule from Phase 9 says.
+- **A stray `E:\c` folder.** A test of mine passed a `/c/Users/…` path to Windows Python, which read it as `E:\c\Users\…` and wrote 33 licence files there. Nothing else is in it, but the safety check rightly wouldn't let me delete a folder at the root of a drive. **Please delete `E:\c` yourself.** It only holds those copies.
+
+## 8. What I learned
+
+- **Test the installer the way Windows uses it.** That means a silent install, an upgrade without telling it the folder, and an uninstall that hands over to a copy of itself and returns early (the check waits for it). Each of these behaves differently from just running the program.
+- **Keep the program and the data apart.** The program folder can then be wiped and replaced on every upgrade with no risk to your sightings. That's what makes "uninstall keeps your data" automatic rather than something to remember.
+- **A small icon is a different drawing.** The outline leaf turned to mush at 16 pixels. A solid shape reads clearly.
+- **Licences can be checked by a test.** A list kept by hand drifts. A test that compares it with what's actually installed doesn't.
+
+## 9. Files
+
+- `packaging/installer.iss`: the installer
+- `packaging/licenses/`: the LGPL-3.0 and GPL-3.0 texts
+- `scripts/build_installer.py`: builds the installer and runs the check
+- `scripts/notices.py`: the third-party list and licence copying
+- `scripts/make_icon.py` and `src/wildlife/resources/icons/`: the icon
+- `scripts/build_exe.py`: now adds the icon, version details and notices
+- `src/wildlife/app.py`: window icon, taskbar identity, the "running" mark
+- `tests/unit/test_notices.py`
+
+Version 1.0.0 installer SHA-256: `AC525F2A82DEA501635B15230DC80F8B85B7525E51ABFCCDF83E728A1A4A4A81`. A rebuild gives a different checksum, because build times are written into the files.

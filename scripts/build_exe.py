@@ -2,9 +2,10 @@
 
     uv run --with "pyinstaller>=6.16" python scripts/build_exe.py
 
-Output: build/dist/WildLife/WildLife.exe (a folder app; Phase 14 wraps it in an
-installer). The smoke test starts the built .exe against a temporary data
-folder and checks it opens and exits cleanly.
+Output: build/dist/WildLife/WildLife.exe (a folder app, with its icon, version details,
+THIRD-PARTY-NOTICES.txt and licenses/). scripts/build_installer.py then wraps it in the
+installer. The smoke test starts the built .exe against a temporary data folder and
+checks it opens and exits cleanly.
 """
 
 from __future__ import annotations
@@ -19,6 +20,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "build"
 DIST = BUILD / "dist" / "WildLife"
+ICON = ROOT / "src" / "wildlife" / "resources" / "icons" / "wildlife.ico"
+sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import notices  # noqa: E402
+
+from wildlife import __version__  # noqa: E402
 
 # Qt modules WildLife never uses. Excluding them keeps the download smaller.
 EXCLUDE = [
@@ -61,6 +69,34 @@ EXCLUDE = [
 KEEP_LOCALES = {"en-GB.pak", "en-US.pak"}  # browser-engine translations we keep
 
 
+def version_file() -> Path:
+    """The details Windows shows in the .exe's Properties › Details."""
+    numbers = (*(int(n) for n in __version__.split(".")), 0)
+    path = BUILD / "version_info.txt"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    strings = {
+        "CompanyName": "WildLife",
+        "FileDescription": "WildLife wildlife journal",
+        "FileVersion": __version__,
+        "InternalName": "WildLife",
+        "LegalCopyright": "WildLife. Third-party notices: THIRD-PARTY-NOTICES.txt",
+        "OriginalFilename": "WildLife.exe",
+        "ProductName": "WildLife",
+        "ProductVersion": __version__,
+    }
+    table = ", ".join(f"StringStruct({k!r}, {v!r})" for k, v in strings.items())
+    lines = [
+        "VSVersionInfo(",
+        f"  ffi=FixedFileInfo(filevers={numbers}, prodvers={numbers}, mask=0x3f, flags=0x0,",
+        "    OS=0x40004, fileType=0x1, subtype=0x0, date=(0, 0)),",
+        f"  kids=[StringFileInfo([StringTable('080904B0', [{table}])]),",  # en-GB, Unicode
+        "    VarFileInfo([VarStruct('Translation', [2057, 1200])])]",
+        ")",
+    ]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
 def run_pyinstaller() -> None:
     cmd = [
         sys.executable,
@@ -72,6 +108,10 @@ def run_pyinstaller() -> None:
         "--windowed",
         "--name",
         "WildLife",
+        "--icon",
+        str(ICON),
+        "--version-file",
+        str(version_file()),
         "--distpath",
         str(BUILD / "dist"),
         "--workpath",
@@ -126,6 +166,7 @@ def smoke_test() -> None:
         and "Smoke test: catalogue" in log
         and "Smoke test: map ready" in log
         and "Smoke test: RAW ok" in log
+        and "Smoke test: icon ok" in log
         and "Smoke test OK" in log
     )
     print(
@@ -140,6 +181,7 @@ def main() -> None:
     run_pyinstaller()
     saved = trim()
     print(f"Trimmed {saved / 1e6:.0f} MB. App folder: {size_of(DIST) / 1e6:.0f} MB at {DIST}")
+    print(f"Third-party notices written ({notices.write(DIST)} licence files)")
     smoke_test()
 
 

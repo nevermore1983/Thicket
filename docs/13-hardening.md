@@ -124,6 +124,8 @@ uv run python scripts/benchmark.py --data-dir local_data/demo13
 
 ## 5. Open items for you to decide
 
+**Decided on 17 Oct 2026:** both moved to the version 2 backlog (spec section 12).
+
 1. **Custom species** (spec 5.1 and section 10: "create a custom species" while importing). This is not built, following your Phase 12 choice to leave out "add your own species". Today a name that isn't on the UK list can be matched to an existing species, or its rows can be skipped. Options:
    - build it (about a day's work);
    - or move it to the version 2 backlog.

@@ -5,10 +5,11 @@ from __future__ import annotations
 import argparse
 import logging
 import sys
+from importlib import resources
 from pathlib import Path
 
 from PySide6.QtCore import QCoreApplication, Qt, QThread, QThreadPool, QTimer, QUrl
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from wildlife import __version__
@@ -18,6 +19,9 @@ from wildlife.domain.errors import WildlifeError
 from wildlife.logging_setup import setup_logging
 
 log = logging.getLogger("wildlife")
+APP_USER_MODEL_ID = "WildLife.WildLife"  # also in packaging/installer.iss
+RUNNING_MUTEX = "WildLife.Running"  # the installer waits while this exists (AppMutex)
+_running = None  # the mutex handle, kept open until WildLife exits
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -47,7 +51,9 @@ def main(argv: list[str] | None = None) -> int:
     from wildlife.ui.web import scheme
 
     scheme.prepare()  # before QApplication: the map's web engine needs it
+    _set_app_id()
     app = QApplication(sys.argv[:1])
+    app.setWindowIcon(QIcon(str(resources.files("wildlife.resources.icons") / "wildlife.ico")))
 
     # Imported after QApplication exists (these create Qt objects)
     from wildlife.ui import error_handler
@@ -58,6 +64,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.smoke_test and _already_running(args.restarting):
         log.info("Already running; asked the existing window to come forward")
         return 0
+    _mark_running()
 
     from wildlife.data.restore import apply_pending_restore
 
@@ -101,6 +108,25 @@ def main(argv: list[str] | None = None) -> int:
         log.info("Closed")
 
 
+def _set_app_id() -> None:
+    """Tell Windows this is WildLife, not "Python": the taskbar then shows WildLife's icon
+    and groups its windows with the Start-menu shortcut (the installer uses the same ID)."""
+    if sys.platform == "win32":
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_USER_MODEL_ID)
+
+
+def _mark_running() -> None:
+    """Let the installer see WildLife is open, so it asks you to close it first instead
+    of replacing files under a running app. Windows removes the mark when WildLife exits."""
+    global _running
+    if sys.platform == "win32":
+        import ctypes
+
+        _running = ctypes.windll.kernel32.CreateMutexW(None, False, RUNNING_MUTEX)
+
+
 def _run_smoke_checks(window, app) -> None:
     """A build check must never wait for a person: any error is logged and exits with 1."""
     try:
@@ -124,6 +150,9 @@ def _smoke_checks(window, app) -> None:
         first["k"],
     )
     _smoke_raw()
+    if app.windowIcon().isNull():
+        raise RuntimeError("The app icon wasn't bundled")
+    log.info("Smoke test: icon ok")
     window.go("map")
     waited = 0
 
