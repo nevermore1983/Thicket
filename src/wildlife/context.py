@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 
 from wildlife.config.paths import DataPaths
 from wildlife.data import snapshot
-from wildlife.data.db import Database
+from wildlife.data.db import Database, is_temporary
 from wildlife.data.migrate import migrate
 from wildlife.domain.errors import DatabaseError
 from wildlife.services.backup import BackupService
@@ -37,6 +37,11 @@ from wildlife.services.wildlife_import import WildlifeImporter
 
 log = logging.getLogger(__name__)
 DAMAGED = "Your WildLife data file looks damaged. You can restore it from a backup."
+UNREADABLE = (
+    "WildLife couldn't read its data file just now. Another program (such as antivirus or "
+    "a sync app) may be using it. Close WildLife, wait a moment and start it again. If it "
+    "keeps happening, you can restore it from a backup."
+)
 
 
 @dataclass
@@ -104,7 +109,9 @@ class AppContext:
         try:
             db = Database(paths.database)
         except sqlite3.DatabaseError as exc:  # so damaged SQLite can't even open it
-            raise DatabaseError(DAMAGED, detail=str(exc)) from exc
+            # (or held by another program for longer than Database waits: not damage)
+            message = UNREADABLE if is_temporary(exc) else DAMAGED
+            raise DatabaseError(message, detail=str(exc)) from exc
         try:
             with db.connection() as conn:
                 try:

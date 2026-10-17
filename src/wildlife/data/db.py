@@ -13,6 +13,7 @@ import contextlib
 import logging
 import sqlite3
 import threading
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -27,6 +28,23 @@ PRAGMAS = (
     "PRAGMA busy_timeout = 5000",  # wait up to 5 s for another writer
     "PRAGMA temp_store = MEMORY",
 )
+
+
+# Errors that can pass in a moment: another program (antivirus, a sync app, or a WildLife
+# that has just crashed and is still letting go) holding the file. Opening tries again
+# for a few seconds before giving up. Real damage ("not a database") is never retried.
+TEMPORARY = {
+    sqlite3.SQLITE_IOERR,
+    sqlite3.SQLITE_BUSY,
+    sqlite3.SQLITE_LOCKED,
+    sqlite3.SQLITE_CANTOPEN,
+}
+OPEN_RETRY_S = 5.0
+
+
+def is_temporary(exc: sqlite3.Error) -> bool:
+    code = getattr(exc, "sqlite_errorcode", None)
+    return code is not None and (code & 0xFF) in TEMPORARY  # low byte: the main error code
 
 
 def connect(path: Path | str) -> sqlite3.Connection:
@@ -54,15 +72,24 @@ class Database:
         self._all: list[sqlite3.Connection] = []
         self._busy: dict[int, int] = {}  # id(connection) -> how many blocks are using it now
         self._lock = threading.Lock()
-        try:
-            with self.connection() as conn:
-                # WAL is stored in the file itself, so setting it once is enough.
-                mode = conn.execute("PRAGMA journal_mode = WAL").fetchone()[0]
-                if mode.lower() != "wal":
-                    log.warning("Could not enable WAL mode (got %s)", mode)
-        except BaseException:
-            self.close()  # an open connection would keep the file locked (e.g. for a restore)
-            raise
+        give_up = time.monotonic() + OPEN_RETRY_S
+        while True:
+            try:
+                with self.connection() as conn:
+                    # WAL is stored in the file itself, so setting it once is enough.
+                    mode = conn.execute("PRAGMA journal_mode = WAL").fetchone()[0]
+                    if mode.lower() != "wal":
+                        log.warning("Could not enable WAL mode (got %s)", mode)
+                return
+            except sqlite3.OperationalError as exc:
+                self.close()  # an open connection would keep the file locked
+                if not is_temporary(exc) or time.monotonic() > give_up:
+                    raise
+                log.info("Data file not readable yet (%s): trying again", exc)
+                time.sleep(0.25)
+            except BaseException:
+                self.close()  # an open connection would keep the file locked (e.g. for a restore)
+                raise
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:

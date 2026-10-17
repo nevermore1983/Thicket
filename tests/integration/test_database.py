@@ -199,3 +199,46 @@ def test_close_never_pulls_a_connection_from_under_a_running_job(paths):
     t.join(5)
     assert result == [1]
     database.close()  # now idle: closed
+
+
+def _io_error() -> sqlite3.OperationalError:
+    exc = sqlite3.OperationalError("disk I/O error")
+    exc.sqlite_errorcode = sqlite3.SQLITE_IOERR
+    return exc
+
+
+def test_a_moment_of_disk_trouble_at_opening_is_waited_out(paths, monkeypatch):
+    """Another program (antivirus, a sync app, a process that has just crashed) can hold
+    the file for a moment. WildLife used to call that damage and offer an old backup."""
+    from wildlife.data import db as db_module
+
+    real, failures = db_module.connect, [_io_error(), _io_error()]
+
+    def flaky(path):
+        if failures:
+            raise failures.pop()
+        return real(path)
+
+    monkeypatch.setattr(db_module, "connect", flaky)
+    database = db_module.Database(paths.database)
+    try:
+        with database.connection() as conn:
+            assert conn.execute("SELECT 1").fetchone()[0] == 1
+    finally:
+        database.close()
+    assert failures == []  # it tried again after each
+
+
+def test_disk_trouble_that_lasts_is_not_called_damage(paths, monkeypatch):
+    from wildlife.context import DAMAGED, AppContext
+    from wildlife.data import db as db_module
+
+    def always(path):
+        raise _io_error()
+
+    monkeypatch.setattr(db_module, "connect", always)
+    monkeypatch.setattr(db_module, "OPEN_RETRY_S", 0.3)
+    with pytest.raises(DatabaseError) as failed:
+        AppContext.open(paths)
+    assert failed.value.user_message != DAMAGED
+    assert "couldn't read" in failed.value.user_message

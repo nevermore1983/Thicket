@@ -17,6 +17,7 @@ import pytest
 
 from helpers import MINI_CATALOGUE
 from wildlife.context import AppContext
+from wildlife.data.db import Database
 from wildlife.data.repositories import taxa as taxa_repo
 from wildlife.data.restore import check
 
@@ -83,15 +84,26 @@ def run_and_kill(tmp_path, paths, job: str, after: int) -> int:
     return last
 
 
+def opened_like_wildlife(path) -> Database:
+    """Open the data as WildLife does: waiting a moment if the killed process (or a virus
+    scanner looking at what it wrote) is still letting go of the file. If it never can,
+    say exactly what SQLite reported."""
+    try:
+        return Database(path)
+    except sqlite3.OperationalError as exc:
+        pytest.fail(f"{exc} ({getattr(exc, 'sqlite_errorname', '?')}) after waiting")
+
+
 @pytest.mark.parametrize("after", [5, 37, 120])
 def test_killed_while_saving_loses_nothing_that_was_saved(library, tmp_path, after):
     reported = run_and_kill(tmp_path, library, "save", after)
-    conn = sqlite3.connect(library.database)
+    database = opened_like_wildlife(library.database)
     try:
-        assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
-        saved = conn.execute("SELECT COUNT(*) FROM sighting").fetchone()[0]
+        with database.connection() as conn:
+            assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+            saved = conn.execute("SELECT COUNT(*) FROM sighting").fetchone()[0]
     finally:
-        conn.close()
+        database.close()
     assert reported <= saved <= reported + 1  # at most the save in progress is missing
     AppContext.open(library).close()  # and WildLife opens it normally
 
