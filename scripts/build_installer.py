@@ -1,6 +1,6 @@
 """Build the WildLife installer, then check it really installs, upgrades and uninstalls.
 
-    uv run --with "pyinstaller>=6.16" python scripts/build_exe.py   (first)
+    uv run --with "pyinstaller==6.22.3" python scripts/build_exe.py   (first)
     uv run python scripts/build_installer.py
 
 Output: build/installer/WildLife-Setup-<version>.exe

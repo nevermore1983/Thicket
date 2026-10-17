@@ -1,6 +1,6 @@
 """Build the Windows app folder with PyInstaller, trim it, and smoke-test it.
 
-    uv run --with "pyinstaller>=6.16" python scripts/build_exe.py
+    uv run --with "pyinstaller==6.22.3" python scripts/build_exe.py
 
 Output: build/dist/WildLife/WildLife.exe (a folder app, with its icon, version details,
 THIRD-PARTY-NOTICES.txt and licenses/). scripts/build_installer.py then wraps it in the

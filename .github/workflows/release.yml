@@ -1,0 +1,75 @@
+# Publishing a version of WildLife (docs/14-packaging.md, "Publishing a release").
+#
+# Pushing a tag such as v1.0.3 runs this on a clean Windows machine at GitHub. It runs
+# every test, builds the app and its installer, checks the installer really installs,
+# upgrades and uninstalls, then publishes it as a GitHub Release with its checksum and
+# the notes for that version from CHANGELOG.md. If any step fails, nothing is published.
+#
+# Outside code is pinned to exact versions (actions by commit, Inno Setup by checksum),
+# so a changed or tampered download stops the build instead of reaching the installer.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write # to create the release; nothing else
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      TAG: ${{ github.ref_name }}
+      PYTHONUTF8: "1"
+    steps:
+      - name: Get the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+
+      - name: Install Python and WildLife's libraries (exactly as locked)
+        run: uv sync --locked
+
+      - name: The tag matches WildLife's version
+        run: |
+          $version = (uv run python -c "import wildlife; print(wildlife.__version__)").Trim()
+          if ("v$version" -ne $env:TAG) { throw "Tag $env:TAG doesn't match version $version" }
+          "VERSION=$version" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Run the tests
+        run: uv run pytest -q -p no:cacheprovider
+
+      - name: Install Inno Setup 7.1.0 (checksum checked)
+        run: |
+          $url = "https://github.com/jrsoftware/issrc/releases/download/is-7_1_0/innosetup-7.1.0-x64.exe"
+          $expected = "0362a383ed217d4c4239b5933866dd96d3eb2102737da92f80f6057a4b40df2f"
+          Invoke-WebRequest $url -OutFile innosetup.exe
+          $actual = (Get-FileHash innosetup.exe -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $expected) { throw "Inno Setup checksum is $actual, expected $expected" }
+          $signature = Get-AuthenticodeSignature innosetup.exe
+          if ($signature.Status -ne "Valid") { throw "Inno Setup's signature isn't valid" }
+          Start-Process innosetup.exe -Wait -ArgumentList "/VERYSILENT", "/CURRENTUSER", "/SUPPRESSMSGBOXES", "/NORESTART", "/NOICONS"
+
+      - name: Build the app (and its smoke test)
+        run: uv run --with "pyinstaller==6.22.3" python scripts/build_exe.py
+
+      - name: Build the installer and check it installs, upgrades and uninstalls
+        run: uv run python scripts/build_installer.py
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $name = "WildLife-Setup-$env:VERSION.exe"
+          $setup = "build/installer/$name"
+          $sha = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
+          "$sha  $name" | Out-File SHA256SUMS.txt -Encoding ascii
+          uv run python scripts/release_notes.py $env:VERSION $sha notes.md
+          gh release create $env:TAG $setup SHA256SUMS.txt --title "WildLife $env:VERSION" --notes-file notes.md

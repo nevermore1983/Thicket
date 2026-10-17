@@ -43,7 +43,7 @@ The program file itself now has:
 There are two steps. Each is one command:
 
 ```
-uv run --with "pyinstaller>=6.16" python scripts/build_exe.py
+uv run --with "pyinstaller==6.22.3" python scripts/build_exe.py
 uv run python scripts/build_installer.py
 ```
 
@@ -181,3 +181,36 @@ If you ever distribute WildLife to other people, have these terms looked at agai
 - `tests/unit/test_notices.py`
 
 Version 1.0.0 installer SHA-256: `AC525F2A82DEA501635B15230DC80F8B85B7525E51ABFCCDF83E728A1A4A4A81`. A rebuild gives a different checksum, because build times are written into the files.
+
+---
+
+## 10. Publishing a release (added 17 Oct 2026)
+
+Installers for download are built by GitHub, not on this PC (`.github/workflows/release.yml`). A build on GitHub's own clean Windows machine shows the release was made from exactly the source in the repository, and carries no traces of this PC (such as your Windows username in internal file paths).
+
+**To publish a new version:**
+1. Set the version in `pyproject.toml` and `src/wildlife/__init__.py`, then run `uv lock`.
+2. Add what changed under a new `## <version>` heading in `CHANGELOG.md`. A test fails if you forget.
+3. Commit and push.
+4. Tag the commit and push the tag:
+
+   ```
+   git tag v1.0.3
+   git push origin v1.0.3
+   ```
+
+GitHub then does, in order (if any step fails, nothing is published):
+1. Checks the tag matches the version.
+2. Runs all the tests.
+3. Installs Inno Setup 7.1.0 after checking its checksum and signature.
+4. Builds the app and runs its smoke test.
+5. Builds the installer and runs the install, upgrade and uninstall check.
+6. Publishes the release, with the installer, a `SHA256SUMS.txt` file and the changelog notes for that version.
+
+The progress is on the repository's **Actions** tab, and the result on its **Releases** page.
+
+**Safeguards:**
+- Outside code is pinned to exact versions: GitHub's actions by commit, Inno Setup by checksum and signature, PyInstaller 6.22.3, and every Python library by `uv.lock`.
+- The workflow's only permission is `contents: write`, the one needed to publish a release (it also covers the repository's files, but the workflow only creates the release). Nothing else, such as settings or issues, is allowed. It uses GitHub's own short-lived token, so no password or key is stored anywhere.
+
+**Licences:** a public download counts as distributing Qt, so the notices state that WildLife's terms allow modifying the Qt libraries and reverse engineering for debugging, as the LGPL requires (version 1.0.3).

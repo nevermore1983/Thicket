@@ -92,7 +92,9 @@ def components() -> list[Component]:
             _version("pyside6"),
             "WildLife uses Qt under the GNU LGPL version 3 (the texts are in licenses/). "
             "Qt's libraries are the separate files in _internal/PySide6 and can be replaced "
-            "with your own builds of the same version. The source code is available from "
+            "with your own builds of the same version. WildLife's own terms do not restrict "
+            "you from modifying the Qt libraries in it, or from reverse engineering WildLife "
+            "to debug such modifications, as the LGPL requires. The source code is available from "
             "https://download.qt.io/official_releases/QtForPython/ and "
             "https://download.qt.io/official_releases/qt/. Qt WebEngine contains Chromium; "
             "its third-party licences are listed at "
