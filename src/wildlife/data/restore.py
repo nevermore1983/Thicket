@@ -84,7 +84,7 @@ def check(path: Path) -> snapshot.Verification:
         raise BackupError("That backup file isn't there any more. Is the drive connected?")
     try:
         result = snapshot.verify(path)
-        conn = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)
+        conn = snapshot.open_read_only(path)
         try:
             version = conn.execute("PRAGMA user_version").fetchone()[0]
             has_sightings = conn.execute(
@@ -225,7 +225,7 @@ def _safety_copy(paths: DataPaths) -> Path | None:
 
 def _bring_back_photos(paths: DataPaths, mirror: Path) -> int:
     """Copy photo files the restored data needs, and the library lacks, from the mirror."""
-    conn = sqlite3.connect(f"file:{paths.database.as_posix()}?mode=ro", uri=True)
+    conn = snapshot.open_read_only(paths.database)
     try:
         rels = [
             r[0]

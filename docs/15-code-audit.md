@@ -2,7 +2,7 @@
 
 **Date:** 17 October 2026
 **Scope:** all 23,350 lines in `src/`, plus the build scripts and tests.
-**Status:** All bugs (A1–A12) and improvements B1, B2, B3 and B5 **fixed on 17 Oct 2026 in version 1.0.1** (section 4). B4, B6, B7 and B8 are left for later.
+**Status:** All bugs (A1–A12) and improvements B1, B2, B3 and B5 **fixed in version 1.0.1** (section 4). B6, B7 and B8, plus one more bug found while doing them, **fixed in version 1.0.2** (section 5). Only B4 (splitting the biggest files) is left, on purpose.
 
 **How it was done:**
 - I read every layer: database, services, screens and the map page.
@@ -78,3 +78,19 @@ Each fix started with a test that failed on the old code and passes on the new.
 | A12 | Names from an import file are escaped. | `test_exchange_ui::test_names_from_the_file_are_shown_as_plain_text` |
 | B3 | The start-up path ("can't open your data, restore the latest backup?") is now its own function, `app.open_data`, tested with the real dialog. | `tests/ui/test_startup.py` (4 tests) |
 | B5 | The SQL timestamp is defined once (`data/repositories/__init__.py`). | (covered by the existing tests) |
+
+---
+
+## 5. The leftovers (version 1.0.2)
+
+All 526 tests pass, 6 of them new. The app smoke test and the installer check pass.
+
+| # | Fix | Test |
+|---|---|---|
+| B6 | **Rotating a photo removes its old thumbnails** (every size), instead of leaving them on disk for ever. | `test_photo_library::test_rotating_removes_the_old_thumbnails` |
+| B6 | **The backup's photo folder is tidied.** A photo copy is removed only when neither your library nor any backup still kept refers to it, so every kept backup still restores with all its photos. Only WildLife's own photo copies (named by their content hash) are ever removed. If any kept backup can't be read, nothing is removed that time. A backup of the 20,000-sighting stress library takes 2.3–3.3 s (target ≤ 10 s). | `test_photos_and_backup::test_backup_drops_photo_copies_no_kept_backup_needs`, `…_unreadable_backup_means_no_photo_copies_are_removed` |
+| B7 | **Spreadsheet exports are safe to open in Excel.** Text starting with `=`, `+`, `-` or `@` gets a leading `'`, so Excel shows it rather than running it as a formula. Numbers (a negative longitude) are left as numbers. WildLife's spreadsheet import takes the `'` off again, so export → import still gives back exactly what you wrote. | `test_export::test_text_that_looks_like_a_formula_stays_text`, `test_spreadsheet_import::test_round_trip_through_the_spreadsheet_export` (notes now start with `=`) |
+| B8 | **A new day redraws the pages.** Just after midnight (or on waking, if the PC was asleep), pages showing "today" are redrawn: the one on screen at once, the others when next shown. | `test_main_window::test_pages_are_redrawn_when_the_day_changes` |
+| A13 (found while doing B6) | **A backup folder whose name contains `#` or `%` was read wrongly.** Backups were opened read-only through a file address that didn't encode those characters, so "Backups #2" was read as "Backups ". The backup itself was fine, but the restore list showed it as empty. Fixed with one shared read-only open (`snapshot.open_read_only`) that encodes the path. | `test_safety_nets::test_a_backup_folder_with_unusual_characters_works` |
+
+**Left on purpose: B4 (splitting the seven biggest files).** It's a large restructure with nothing you'd notice in use. It's safest done alongside a feature that changes those files anyway.

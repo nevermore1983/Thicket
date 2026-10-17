@@ -54,9 +54,33 @@ def remove(path: Path) -> None:
     path.with_suffix(".json").unlink(missing_ok=True)
 
 
+def open_read_only(path: Path) -> sqlite3.Connection:
+    """Open a database file without any chance of changing it. The file is named by a
+    URI, so characters such as # and % in a folder name are encoded (as_uri): otherwise
+    "Backups #2" would be read as "Backups " and the wrong file opened."""
+    return sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)
+
+
+def photo_paths(path: Path) -> set[str]:
+    """Every photo file (RAW originals too) a backup's data refers to, as library paths
+    ('photos/2026/05/<hash>.jpg'), recycle bin included: restoring it needs them all.
+    Raises sqlite3.Error if the backup can't be read."""
+    conn = open_read_only(path)
+    try:
+        return {
+            r[0]
+            for r in conn.execute(
+                "SELECT rel_path FROM photo UNION "
+                "SELECT raw_rel_path FROM photo WHERE raw_rel_path IS NOT NULL"
+            )
+        }
+    finally:
+        conn.close()
+
+
 def verify(path: Path) -> Verification:
     """Open a copy read-only and check it thoroughly."""
-    conn = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)
+    conn = open_read_only(path)
     try:
         integrity = conn.execute("PRAGMA integrity_check").fetchone()[0]
         fk = conn.execute("PRAGMA foreign_key_check").fetchall()

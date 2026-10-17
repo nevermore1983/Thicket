@@ -225,3 +225,13 @@ def test_snapshot_side_files_are_removed_with_it(tmp_path):
     (tmp_path / "x.json").write_text("{}")
     snapshot.remove(db)
     assert list(tmp_path.iterdir()) == []
+
+
+def test_a_backup_folder_with_unusual_characters_works(ctx, tmp_path):
+    """Backups are opened read-only through a file address; # and % in a folder name
+    must not change which file that address means."""
+    add(ctx)
+    ctx.settings.update(backup_folder=str(tmp_path / "Backups #2 (100% mine)"))
+    assert ctx.backup.backup_now("manual").ok
+    (info,) = ctx.backup.backups()
+    assert info.sightings == 1

@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import sqlite3
 import threading
 import time
 from dataclasses import asdict, dataclass
@@ -35,6 +36,8 @@ KEEP_DAILY, KEEP_WEEKLY, KEEP_MONTHLY = 7, 4, 12
 # "2026-10-11_093012_auto.db", or "2026-10-11_093012-2_manual.db" for a second one that
 # second. Any other .db file in the folder isn't one of WildLife's backups: left alone.
 SNAPSHOT_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{6}(-\d+)?_[a-z]+$")
+# A photo in the library (and its backup copy) is named by its content hash
+LIBRARY_FILE = re.compile(r"^[0-9a-f]{64}\.[a-z0-9]+$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,6 +161,7 @@ class BackupService:
                 json.dumps(manifest, indent=2), encoding="utf-8"
             )
             self._rotate(root / "snapshots")
+            self._prune_mirror(root, rel_paths)
         except BackupError as exc:
             self._record(
                 BackupResult(
@@ -225,6 +229,31 @@ class BackupService:
             copy_atomically(source, dest)
             copied += 1
         return copied
+
+    def _prune_mirror(self, root: Path, current: list[str]) -> int:
+        """Remove photo copies from the backup that nothing needs any more: not your
+        library, and not any backup still kept (so each one restores with all its
+        photos). If any kept backup can't be read, nothing is removed this time."""
+        needed = set(current)
+        try:
+            for snap in _snapshots_in(root / "snapshots"):
+                needed |= snapshot.photo_paths(snap)
+        except sqlite3.Error as exc:
+            log.warning("Backup photo tidy-up skipped (a backup couldn't be read): %s", exc)
+            return 0
+        mirror, removed = root / "photos", 0
+        for f in mirror.rglob("*") if mirror.exists() else []:
+            if not (f.is_file() and LIBRARY_FILE.match(f.name)):
+                continue  # only WildLife's own photo copies are ever removed
+            if "photos/" + f.relative_to(mirror).as_posix() not in needed:
+                try:
+                    f.unlink()
+                    removed += 1
+                except OSError as exc:
+                    log.info("Left backup copy %s: %s", f.name, exc)
+        if removed:
+            log.info("Backup: removed %d photo copies no kept backup needs", removed)
+        return removed
 
     def _rotate(self, folder: Path) -> None:
         """Keep newest-per-day (7), per-week (4), per-month (12) automatic snapshots; all manual ones."""

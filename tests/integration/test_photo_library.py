@@ -163,11 +163,24 @@ def test_cover_rotation_and_caption(ctx):
 def test_rotated_thumbnails_are_cached_separately(ctx):
     photo = ctx.photos.import_files([FIXTURES / "sample.jpg"]).imported[0]
     upright = ctx.photos.thumbnail(photo)
+    with Image.open(upright) as up:
+        upright_size = up.size
     turned = ctx.photos.thumbnail(ctx.photos.rotate(photo.id))
     assert upright != turned
-    with Image.open(upright) as up, Image.open(turned) as down:
-        assert up.size[::-1] == down.size
+    with Image.open(turned) as down:
+        assert upright_size[::-1] == down.size
     assert ctx.photos.screen_image(photo) is not None
+
+
+def test_rotating_removes_the_old_thumbnails(ctx):
+    """Thumbnails are cached per rotation; the old ones used to stay on disk for ever."""
+    photo = ctx.photos.import_files([FIXTURES / "sample.jpg"]).imported[0]
+    old = [ctx.photos.thumbnail(photo, size) for size in (256, 1024)]
+    old.append(ctx.photos.screen_image(photo))
+    assert all(p.exists() for p in old)
+    turned = ctx.photos.rotate(photo.id)
+    assert not any(p.exists() for p in old)
+    assert ctx.photos.thumbnail(turned) is not None  # made again, the new way up
 
 
 # ---- recycle bin --------------------------------------------------------------------

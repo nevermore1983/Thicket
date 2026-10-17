@@ -133,3 +133,42 @@ def test_rotation_keeps_daily_weekly_monthly_and_manual(ctx):
     assert "2025-01-01_120000_manual" in kept
     assert all(f"2026-10-{d:02d}_090000_auto" in kept for d in range(5, 12))  # last 7 days
     assert len(kept) <= 1 + 7 + 4 + 12
+
+
+# ---- the backup's photo folder ---------------------------------------------------------
+def test_backup_drops_photo_copies_no_kept_backup_needs(ctx, tmp_path):
+    """The backup's photo folder only ever grew. A copy is now removed once neither your
+    library nor any backup still kept refers to it, so every kept backup restores whole."""
+    from wildlife.data import snapshot
+
+    ctx.settings.update(backup_folder=str(tmp_path / "drive"))
+    gone, kept = ctx.photos.import_files(
+        [FIXTURES / "sample.jpg", FIXTURES / "sample.heic"]
+    ).imported
+    first = Path(ctx.backup.backup_now("manual").snapshot)
+    mirror = ctx.backup.folder() / "photos"
+    gone_copy = mirror / gone.rel_path.removeprefix("photos/")
+    kept_copy = mirror / kept.rel_path.removeprefix("photos/")
+    yours = mirror / "my notes.txt"
+    yours.write_text("not WildLife's", encoding="utf-8")
+    ctx.photos.delete([gone.id])
+    ctx.photos.purge_recycle_bin(older_than_days=0)  # deleted for good
+    ctx.backup.backup_now("manual")
+    assert gone_copy.exists()  # the first backup still needs it
+    snapshot.remove(first)  # that backup is no longer kept
+    ctx.backup.backup_now("manual")
+    assert not gone_copy.exists()
+    assert kept_copy.exists() and yours.exists()
+
+
+def test_an_unreadable_backup_means_no_photo_copies_are_removed(ctx, tmp_path):
+    ctx.settings.update(backup_folder=str(tmp_path / "drive"))
+    photo = ctx.photos.import_files([FIXTURES / "sample.jpg"]).imported[0]
+    ctx.backup.backup_now("manual")
+    copy = ctx.backup.folder() / "photos" / photo.rel_path.removeprefix("photos/")
+    ctx.photos.delete([photo.id])
+    ctx.photos.purge_recycle_bin(older_than_days=0)
+    for snap in ctx.backup.snapshots():
+        snap.write_bytes(b"damaged")  # can't tell which photos it needs
+    ctx.backup.backup_now("manual")
+    assert copy.exists()  # so nothing is removed

@@ -73,7 +73,7 @@ def test_round_trip_through_the_spreadsheet_export(ctx, tmp_path):
             identification=Identification.PROBABLE,
             habitat=Habitat.WOODLAND,
             is_not_wild=True,
-            notes="Line one\nLine two, with “quotes”",
+            notes="=1+1 is how Excel adds\nLine two, with “quotes”",  # comes back as written
         )
     ).sighting
     for fmt in ("csv", "dwc"):

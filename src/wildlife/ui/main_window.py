@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, time, timedelta
 
 from PySide6.QtCore import QSettings, Qt, QTimer
 from PySide6.QtGui import QAction, QCloseEvent, QKeySequence, QShortcut
@@ -121,6 +121,9 @@ class MainWindow(QMainWindow):
         self._stale: set[str] = set()
         self._refresh_timer = QTimer(self, singleShot=True, interval=0)
         self._refresh_timer.timeout.connect(self._refresh_visible)
+        self._day_timer = QTimer(self, singleShot=True)
+        self._day_timer.timeout.connect(self._new_day)
+        self._schedule_new_day()
         self._build_pages()
         self._install_shortcuts()
         self._paint_icons()
@@ -421,6 +424,20 @@ class MainWindow(QMainWindow):
         if current in self._stale:
             self._stale.discard(current)
             getattr(self.pages.currentWidget(), "refresh", lambda: None)()
+
+    def _schedule_new_day(self) -> None:
+        """Wake just after midnight. (If the PC is asleep then, on waking instead.)"""
+        now = datetime.now()
+        midnight = datetime.combine(now.date() + timedelta(days=1), time(0, 0, 5))
+        self._day_timer.start(int((midnight - now).total_seconds() * 1000))
+
+    def _new_day(self) -> None:
+        """A new day: pages showing "today" (the dashboard's week, the calendar's
+        highlight, "this year") were drawn yesterday. Redraw the one on screen now and
+        the others when they're next shown."""
+        self._stale.update(REFRESH_ON)
+        self._refresh_visible()
+        self._schedule_new_day()
 
     def show_date(self, q: DateQuery) -> None:
         """A date chosen in search ("May 2025"): open it in the calendar."""

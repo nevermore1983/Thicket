@@ -271,3 +271,16 @@ def test_recycle_bin_restore(window):
     dialog.list.selectAll()
     dialog._restore()
     assert dialog.restored == 1 and window.ctx.sightings.totals(SightingFilter())[0] == 1
+
+
+def test_pages_are_redrawn_when_the_day_changes(window, monkeypatch):
+    """Left open past midnight, the dashboard and calendar still showed yesterday as
+    'today'. A timer now redraws them just after midnight."""
+    assert 0 < window._day_timer.remainingTime() <= 24 * 3600 * 1000 + 10_000
+    window.go("dashboard")
+    redrawn = []
+    monkeypatch.setattr(window.dashboard, "refresh", lambda: redrawn.append("dashboard"))
+    window._new_day()
+    assert redrawn == ["dashboard"]  # the page on screen, straight away
+    assert {"calendar", "statistics"} <= window._stale  # the others when next shown
+    assert window._day_timer.isActive()  # and again tomorrow

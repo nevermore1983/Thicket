@@ -342,8 +342,24 @@ def _write_csv(columns, rows) -> bytes:
     out = io.StringIO()
     writer = csv.writer(out, lineterminator="\r\n")
     writer.writerow(columns)
-    writer.writerows(rows)
+    writer.writerows([safe_cell(c) for c in row] for row in rows)
     return ("﻿" + out.getvalue()).encode("utf-8")  # the BOM tells Excel it's UTF-8
+
+
+FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
+
+
+def safe_cell(value):
+    """Text that Excel would run as a formula (it starts with = + - or @) gets a leading
+    ' so it stays text. Numbers, such as a negative longitude, are left as they are.
+    WildLife's spreadsheet import takes the ' off again (domain/csv_import.py)."""
+    if not isinstance(value, str) or not value.startswith(FORMULA_START):
+        return value
+    try:
+        float(value)
+    except ValueError:
+        return "'" + value
+    return value
 
 
 _UNSAFE = re.compile(r"[^A-Za-z0-9 ._-]+")

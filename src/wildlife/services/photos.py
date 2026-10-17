@@ -440,6 +440,7 @@ class PhotoService:
         photo = self.get(photo_id)
         with self._db.transaction() as conn:
             repo.set_rotation(conn, photo_id, photo.rotation + degrees)
+        self._remove_thumbnails(photo, photo.rotation)  # the old way up isn't needed now
         self._events.publish(TOPIC, (photo_id,))
         return self.get(photo_id)
 
@@ -523,11 +524,18 @@ class PhotoService:
         for rel in (photo.rel_path, photo.raw_rel_path):
             if rel:
                 (self._paths.root / rel).unlink(missing_ok=True)
+        self._remove_thumbnails(photo)
+
+    def _remove_thumbnails(self, photo: Photo, rotation: int | None = None) -> None:
+        """Delete a photo's cached thumbnails: every rotation, or just one."""
+        turned = "*" if rotation is None else str(rotation % 360)
         for size in (*THUMB_SIZES, SCREEN):
-            for cached in (self._paths.thumbnails / str(size) / photo.sha256[:2]).glob(
-                f"{photo.sha256}_*.*"
-            ):
-                cached.unlink(missing_ok=True)
+            folder = self._paths.thumbnails / str(size) / photo.sha256[:2]
+            for cached in folder.glob(f"{photo.sha256}_{turned}.*"):
+                try:
+                    cached.unlink()
+                except OSError as exc:  # open in the viewer: it goes next time
+                    log.info("Left thumbnail %s: %s", cached.name, exc)
 
     # ---- missing files -------------------------------------------------------------
     def missing(self) -> list[Photo]:

@@ -177,3 +177,31 @@ def test_nothing_half_written_is_left_behind(ctx, out, monkeypatch):
     with pytest.raises(OSError):
         export(ctx, out, "fails", format="csv")
     assert list((out / "out").iterdir()) == []
+
+
+def test_text_that_looks_like_a_formula_stays_text(ctx, out):
+    """Excel runs a cell starting with = + - or @ as a formula. A leading ' keeps it text;
+    numbers (a negative longitude) are left as numbers."""
+    for notes in ('=HYPERLINK("http://example.com","Click")', "+44 seen", "-ish", "@home"):
+        ctx.sightings.save(
+            SightingDraft(
+                taxon_id(ctx, "Erithacus rubecula"),
+                date(2026, 5, 3),
+                notes=notes,
+                latitude=51.5,
+                longitude=-0.12,
+                uncertainty_m=10,
+            )
+        )
+    for fmt in ("csv", "dwc"):
+        _, data = export(ctx, out, f"formulas-{fmt}", format=fmt)
+        rows = read_csv(data)
+        notes = {r["Notes" if fmt == "csv" else "occurrenceRemarks"] for r in rows}
+        assert notes == {
+            '\'=HYPERLINK("http://example.com","Click")',
+            "'+44 seen",
+            "'-ish",
+            "'@home",
+        }
+        longitude = rows[0]["Longitude" if fmt == "csv" else "decimalLongitude"]
+        assert longitude.startswith("-0.12")  # a number, not made into text

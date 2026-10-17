@@ -294,10 +294,18 @@ def _float(text: str) -> float | None:
         return None
 
 
+def unguard(text: str) -> str:
+    """Undo the ' a spreadsheet export puts before text starting with = + - or @ (so
+    Excel doesn't run it as a formula): "'=1+1" reads back as "=1+1"."""
+    if len(text) > 1 and text[0] == "'" and text[1] in "=+-@":
+        return text[1:]
+    return text
+
+
 def to_records(table: Table, mapping: dict[str, int]) -> list[ImportRecord]:
     def cell(row: list[str], key: str) -> str:
         i = mapping.get(key)
-        return row[i].strip() if i is not None and i < len(row) else ""
+        return unguard(row[i].strip()) if i is not None and i < len(row) else ""
 
     records = []
     for n, row in enumerate(table.rows):
