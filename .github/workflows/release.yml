@@ -59,7 +59,18 @@ jobs:
           if ($actual -ne $expected) { throw "Inno Setup checksum is $actual, expected $expected" }
           $signature = Get-AuthenticodeSignature innosetup.exe
           if ($signature.Status -ne "Valid") { throw "Inno Setup's signature isn't valid" }
-          Start-Process innosetup.exe -Wait -ArgumentList "/VERYSILENT", "/CURRENTUSER", "/SUPPRESSMSGBOXES", "/NORESTART", "/NOICONS"
+          # Wait for the installer itself (not every program it starts, which is what
+          # Start-Process -Wait does in PowerShell 7), and at most 5 minutes.
+          $dir = Join-Path $env:RUNNER_TEMP "InnoSetup7"
+          $log = Join-Path $env:RUNNER_TEMP "innosetup-install.log"
+          $setup = Start-Process innosetup.exe -PassThru -ArgumentList "/VERYSILENT", "/CURRENTUSER", "/SUPPRESSMSGBOXES", "/NORESTART", "/NOICONS", "/DIR=`"$dir`"", "/LOG=`"$log`""
+          $finished = $setup.WaitForExit(300000)
+          if (-not $finished -or $setup.ExitCode -ne 0 -or -not (Test-Path "$dir\ISCC.exe")) {
+            $tail = if (Test-Path $log) { (Get-Content $log -Tail 15) -join "%0A" } else { "no log" }
+            Write-Output "::error title=Inno Setup didn't install (finished: $finished)::$tail"
+            throw "Inno Setup didn't install"
+          }
+          "ISCC=$dir\ISCC.exe" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Build the app (and its smoke test)
         run: uv run --with "pyinstaller==6.22.3" python scripts/build_exe.py
