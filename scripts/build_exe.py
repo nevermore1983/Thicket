@@ -130,7 +130,9 @@ def trim() -> int:
     """Remove files the app can't use. Returns bytes saved."""
     saved = 0
     qt = DIST / "_internal" / "PySide6"
-    for path in [qt / "qml", qt / "opengl32sw.dll"]:
+    # opengl32sw.dll stays: it's Qt's software graphics, which the map needs on a PC with
+    # no working graphics driver (a virtual machine, Remote Desktop, GitHub's build machine)
+    for path in [qt / "qml"]:
         if path.exists():
             saved += size_of(path)
             shutil.rmtree(path) if path.is_dir() else path.unlink()
