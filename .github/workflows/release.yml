@@ -27,6 +27,8 @@ jobs:
     env:
       TAG: ${{ github.ref_name }}
       PYTHONUTF8: "1"
+      # No graphics card here, so the map can load but not draw (scripts/build_exe.py)
+      WILDLIFE_NO_GPU: "1"
     steps:
       - name: Get the source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

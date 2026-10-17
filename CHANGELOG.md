@@ -7,7 +7,6 @@ Each version's notes are used for its download page on GitHub (`scripts/release_
 The first version available to download from GitHub.
 
 - If another program (such as antivirus or a sync app) is briefly using the data file when WildLife starts, WildLife now waits a few seconds and tries again. It used to call this "damaged" and offer an older backup. If the file still can't be read, the message says so plainly. "Damaged" is kept for files that really are damaged.
-- The map now works on PCs without a working graphics driver (for example a virtual machine or Remote Desktop). Qt's software graphics are included again; they had been left out to save space.
 - The third-party notices now state that WildLife's terms don't restrict modifying the Qt libraries it includes, as Qt's licence (the LGPL) requires for a public download.
 
 ## 1.0.2

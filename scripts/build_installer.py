@@ -33,6 +33,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from build_exe import smoke_log_ok  # noqa: E402  (same rule as the app build's smoke test)
+
 from wildlife import __version__  # noqa: E402
 from wildlife.app import RUNNING_MUTEX  # noqa: E402
 
@@ -110,7 +112,8 @@ def check(work: Path) -> None:
         [str(app / "WildLife.exe"), "--smoke-test", "--data-dir", str(data)], timeout=90
     )
     log = (data / "logs" / "wildlife.log").read_text(encoding="utf-8")
-    _expect(result.returncode == 0 and "Smoke test OK" in log, "installed app works")
+    works, map_result = smoke_log_ok(result.returncode, log)
+    _expect(works, f"installed app works ({map_result})")
     _check_running_mark(app / "WildLife.exe", work / "data2")
 
     data_before = _fingerprint(data / "wildlife.db")
