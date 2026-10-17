@@ -204,7 +204,29 @@ def test_purging_a_sighting_removes_photos_no_one_else_uses(ctx):
     assert ctx.photos.inbox_count() == 0
 
 
+def test_importing_a_photo_from_the_recycle_bin_brings_it_back(ctx):
+    """It used to say "already in your library" and stay hidden in the bin, so attaching
+    it to a sighting showed nothing, and it was deleted for good 30 days later."""
+    photo = ctx.photos.import_files([FIXTURES / "sample.jpg"]).imported[0]
+    ctx.photos.delete([photo.id])
+    again = ctx.photos.import_files([FIXTURES / "sample.jpg"])
+    assert [p.id for p in again.imported] == [photo.id] and again.duplicates == []
+    assert [p.id for p in ctx.photos.inbox()] == [photo.id]
+    assert ctx.photos.recycle_bin() == []
+    s = add_sighting(ctx)
+    ctx.photos.attach(s.id, [photo.id])
+    assert [p.id for p in ctx.photos.for_sighting(s.id)] == [photo.id]
+
+
 # ---- missing files -----------------------------------------------------------------
+def test_importing_a_photo_again_puts_back_its_missing_file(ctx):
+    photo = ctx.photos.import_files([FIXTURES / "sample.jpg"]).imported[0]
+    ctx.photos.path_of(photo).unlink()  # deleted outside WildLife
+    again = ctx.photos.import_files([FIXTURES / "sample.jpg"])
+    assert [p.id for p in again.duplicates] == [photo.id]  # the same photo, not a new one
+    assert ctx.photos.missing() == []
+
+
 def test_missing_file_is_found_and_can_be_located(ctx, tmp_path):
     photo = ctx.photos.import_files([FIXTURES / "sample.jpg"]).imported[0]
     ctx.photos.path_of(photo).unlink()

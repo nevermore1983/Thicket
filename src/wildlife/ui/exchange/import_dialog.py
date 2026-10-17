@@ -11,6 +11,7 @@ go. Reading, importing and downloading all run in the background.
 
 from __future__ import annotations
 
+import html
 import threading
 from dataclasses import dataclass
 from pathlib import Path
@@ -469,9 +470,9 @@ class ImportDialog(QDialog):
             grid.setVerticalSpacing(8)
             for row, (name, rows) in enumerate(unmatched.items()):
                 common = rows[0].record.common_name
-                label = QLabel(
-                    f"<b>{name}</b><br><span>{plural(len(rows), 'record')}"
-                    f"{' · ' + common if common and common != name else ''}</span>"
+                also = f" · {html.escape(common)}" if common and common != name else ""
+                label = QLabel(  # names come from the file: shown as text, never markup
+                    f"<b>{html.escape(name)}</b><br><span>{plural(len(rows), 'record')}{also}</span>"
                 )
                 label.setTextFormat(Qt.TextFormat.RichText)
                 label.setWordWrap(True)

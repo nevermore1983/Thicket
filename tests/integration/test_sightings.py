@@ -160,6 +160,36 @@ def test_places_in_use_cannot_be_deleted_but_can_be_archived(ctx):
     assert ctx.places.all() == [] and len(ctx.places.all(include_archived=True)) == 1
 
 
+def test_a_place_an_outing_uses_cannot_be_deleted_and_says_why(ctx):
+    """It used to fail with a raw database error ("Something went wrong")."""
+    from wildlife.domain.models import OutingDraft
+
+    garden = ctx.places.save(PlaceDraft("Garden", 51.75, -0.34))
+    ctx.outings.save(OutingDraft(date(2026, 5, 3), place_id=garden.id))
+    with pytest.raises(ConflictError) as refused:
+        ctx.places.delete(garden.id)
+    assert "1 outing" in refused.value.user_message
+
+
+def test_why_a_place_is_in_use_mentions_the_recycle_bin(ctx):
+    garden = ctx.places.save(PlaceDraft("Garden", 51.75, -0.34))
+    kept, binned = add(ctx, place_id=garden.id), add(ctx, place_id=garden.id)
+    ctx.sightings.delete([binned.id])
+    with pytest.raises(ConflictError) as refused:
+        ctx.places.delete(garden.id)
+    assert "2 sightings (1 in the recycle bin)" in refused.value.user_message
+    ctx.sightings.delete([kept.id])
+    with pytest.raises(ConflictError) as refused:
+        ctx.places.delete(garden.id)
+    assert "2 sightings in the recycle bin" in refused.value.user_message
+
+
+def test_an_unused_place_can_be_deleted(ctx):
+    pond = ctx.places.save(PlaceDraft("Pond", 51.75, -0.34))
+    ctx.places.delete(pond.id)
+    assert ctx.places.all() == []
+
+
 def test_nearest_place_within_radius(ctx):
     garden = ctx.places.save(PlaceDraft("Garden", 51.75, -0.34, radius_m=100))
     assert ctx.places.nearest(51.7502, -0.3401).id == garden.id
@@ -206,3 +236,26 @@ def test_bulk_place_date_and_outing_with_undo(ctx):
     assert ctx.sightings.get(a.id).outing_id == outing.id
     undo.run()
     assert ctx.sightings.get(a.id).outing_id is None
+
+
+def test_search_treats_wildcard_characters_as_plain_text(ctx):
+    """In SQL, _ and % match anything. Searching for them must find only themselves."""
+    add(ctx, notes="50% sure")
+    add(ctx, notes="seen near the old_bridge")
+    add(ctx, notes="nothing special")
+    assert ctx.sightings.totals(SightingFilter(text="_"))[0] == 1
+    assert ctx.sightings.totals(SightingFilter(text="%"))[0] == 1
+    wood = ctx.places.save(PlaceDraft("Abc Wood", 51.75, -0.34))
+    add(ctx, place_id=wood.id)
+    assert ctx.sightings.totals(SightingFilter(text="A_c"))[0] == 0  # not "Abc Wood"
+    assert ctx.sightings.totals(SightingFilter(text="Abc"))[0] == 1
+
+
+def test_bulk_changes_to_tens_of_thousands_of_sightings(ctx):
+    """SQLite takes at most 32,766 values in one query; bigger selections go in parts."""
+    robin = add(ctx)
+    ids = [robin.id, *range(1_000_000, 1_040_000)]  # one real sighting among 40,000 ids
+    ctx.sightings.change_date(ids, date(2026, 5, 1)).run()
+    ctx.sightings.change_species(ids, taxon_id(ctx, "Motacilla alba")).run()
+    ctx.sightings.delete(ids).run()
+    assert ctx.sightings.get(robin.id).taxon_id == taxon_id(ctx, "Erithacus rubecula")

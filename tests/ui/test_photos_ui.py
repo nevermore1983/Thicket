@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 
 import pytest
-from PySide6.QtCore import QMimeData, QPoint, QPointF, Qt, QUrl
+from PySide6.QtCore import QMimeData, QPoint, QPointF, Qt, QThreadPool, QUrl
 from PySide6.QtGui import QDropEvent
 from PySide6.QtWidgets import QFileDialog
 
@@ -332,3 +332,49 @@ def test_thumbnails_scrolled_past_are_not_made(qtbot):
     _time.sleep(0.05)
     assert 39 in made and 99 in made  # what's on screen, and the other grid's photo
     assert len(made) <= 10
+
+
+def test_save_waits_while_photos_are_still_being_added(window, qtbot):
+    """Saving mid-import used to save the sighting without them (they went to the Inbox)."""
+    ctx = window.ctx
+    window.add_sighting()
+    editor = window.panel.current()
+    editor.picker.set_taxon(ctx.catalogue.get(taxon_id(ctx, "Erithacus rubecula")))
+    editor._add_photo_files([FIXTURES / "sample.jpg"])
+    assert not editor.save_btn.isEnabled()
+    assert editor.save() is None  # Enter or Ctrl+S meanwhile: not yet
+    assert "Still adding photos" in editor.f_photos.note.text()
+    qtbot.waitUntil(lambda: editor.save_btn.isEnabled(), timeout=10_000)
+    saved = editor.save()
+    assert ctx.sightings.get(saved.sighting.id).photo_count == 1
+
+
+def test_closing_the_form_while_photos_are_added_is_fine(window, qtbot):
+    """The import finishing after the form closed used to raise an error."""
+    ctx = window.ctx
+    window.add_sighting()
+    editor = window.panel.current()
+    editor._add_photo_files([FIXTURES / "sample.jpg"])
+    editor._dirty = False
+    window.panel.close_panel()
+    editor.deleteLater()
+    qtbot.wait(50)  # the form is deleted
+    qtbot.waitUntil(lambda: ctx.photos.inbox_count() == 1, timeout=10_000)
+    QThreadPool.globalInstance().waitForDone(10_000)
+    qtbot.wait(100)  # the import's "done" arrives: must not touch the deleted form
+
+
+def test_undoing_an_edit_brings_back_photos_removed_in_it(window, qtbot):
+    ctx = window.ctx
+    s = add_sighting(ctx)
+    first, second = ctx.photos.import_files(
+        [FIXTURES / "sample.jpg", FIXTURES / "sample.heic"]
+    ).imported
+    ctx.photos.attach(s.id, [first.id, second.id])
+    window.edit_sighting(s.id)
+    editor = window.panel.current()
+    editor._remove_photo(first)
+    result = editor.save()
+    assert [p.id for p in ctx.photos.for_sighting(s.id)] == [second.id]
+    result.undo.run()
+    assert [p.id for p in ctx.photos.for_sighting(s.id)] == [first.id, second.id]

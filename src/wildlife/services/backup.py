@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import json
 import logging
-import shutil
+import re
+import threading
 import time
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
@@ -21,6 +22,7 @@ from wildlife import __version__
 from wildlife.config.paths import DataPaths
 from wildlife.data import restore, snapshot
 from wildlife.data.db import Database
+from wildlife.data.files import copy_atomically, remove_stale_parts
 from wildlife.data.migrate import current_version
 from wildlife.data.repositories import photos as photos_repo
 from wildlife.data.repositories import taxa as meta_repo
@@ -30,6 +32,9 @@ from wildlife.services.settings import SettingsService
 
 log = logging.getLogger(__name__)
 KEEP_DAILY, KEEP_WEEKLY, KEEP_MONTHLY = 7, 4, 12
+# "2026-10-11_093012_auto.db", or "2026-10-11_093012-2_manual.db" for a second one that
+# second. Any other .db file in the folder isn't one of WildLife's backups: left alone.
+SNAPSHOT_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{6}(-\d+)?_[a-z]+$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +55,7 @@ class BackupService:
     ) -> None:
         self._paths, self._db, self._events, self._settings = paths, db, events, settings
         self._changed_since_backup = False
+        self._lock = threading.Lock()
         events.subscribe(self._on_change)
 
     def _on_change(self, event) -> None:
@@ -84,6 +90,19 @@ class BackupService:
 
     # ---- doing it -------------------------------------------------------------
     def backup_now(self, kind: str = "manual") -> BackupResult:
+        """Back up now. One backup runs at a time: a second request (the start-up
+        backup, "Back up now", the backup on exit) waits for the first to finish."""
+        with self._lock:
+            # Cleared before the snapshot, so a change saved while this backup runs
+            # still counts as "not backed up yet" (it's after the snapshot)
+            changed, self._changed_since_backup = self._changed_since_backup, False
+            try:
+                return self._backup_now(kind)
+            except BaseException:
+                self._changed_since_backup |= changed  # nothing was backed up after all
+                raise
+
+    def _backup_now(self, kind: str) -> BackupResult:
         started = time.perf_counter()
         when = datetime.now(UTC)
         root = self.folder()
@@ -167,7 +186,6 @@ class BackupService:
                 )
             )
             raise BackupError(result.message, detail=str(exc)) from exc
-        self._changed_since_backup = False
         try:
             restore.remember_backup_folder(self._paths, root)
         except OSError:
@@ -204,16 +222,13 @@ class BackupService:
             dest = mirror / rel.removeprefix("photos/")
             if dest.exists() or not source.exists():
                 continue
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            tmp = dest.with_suffix(dest.suffix + ".part")
-            shutil.copy2(source, tmp)
-            tmp.replace(dest)
+            copy_atomically(source, dest)
             copied += 1
         return copied
 
     def _rotate(self, folder: Path) -> None:
         """Keep newest-per-day (7), per-week (4), per-month (12) automatic snapshots; all manual ones."""
-        snaps = sorted(folder.glob("*.db"), reverse=True)  # names start with a sortable timestamp
+        snaps = _snapshots_in(folder)
         keep: set[Path] = set()
         days: list[str] = []
         weeks: list[str] = []
@@ -239,12 +254,11 @@ class BackupService:
         for snap in snaps:
             if snap not in keep:
                 snapshot.remove(snap)
-        for leftover in folder.glob("*.part"):  # copies interrupted before they finished
-            leftover.unlink(missing_ok=True)
+        remove_stale_parts(folder)  # snapshots interrupted before they finished
+        remove_stale_parts(folder.parent / "photos", recursive=True)
 
     def snapshots(self) -> list[Path]:
-        folder = self.folder() / "snapshots"
-        return sorted(folder.glob("*.db"), reverse=True) if folder.exists() else []
+        return _snapshots_in(self.folder() / "snapshots")
 
     # ---- restoring -------------------------------------------------------------------
     def backups(self) -> list[restore.BackupInfo]:
@@ -254,3 +268,11 @@ class BackupService:
     def request_restore(self, backup: Path) -> restore.BackupInfo:
         """Check `backup` and arrange for it to be restored when WildLife restarts."""
         return restore.request_restore(self._paths, backup)
+
+
+def _snapshots_in(folder: Path) -> list[Path]:
+    """WildLife's own backups in `folder`, newest first (their names start with a
+    sortable timestamp). Other .db files there are someone else's: never touched."""
+    if not folder.exists():
+        return []
+    return sorted((p for p in folder.glob("*.db") if SNAPSHOT_NAME.match(p.stem)), reverse=True)

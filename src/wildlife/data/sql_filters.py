@@ -68,16 +68,17 @@ def where(flt: SightingFilter, alias: str = "v") -> tuple[str, dict[str, Any]]:
         parts.append(f"{a}.eff_latitude IS NULL")
     text = " ".join(flt.text.split())
     if text:
-        params["text"] = text
+        # In LIKE, _ and % match anything: escape them (with !) so they match themselves
+        params["text"] = text.replace("!", "!!").replace("%", "!%").replace("_", "!_")
         if len(text) >= 3:  # use the full-text indexes
             params["fts"] = '"' + text.replace('"', '""') + '"'
             name_match = "SELECT n.taxon_id FROM taxon_name_fts f JOIN taxon_name n ON n.id = f.rowid WHERE taxon_name_fts MATCH :fts"
             notes_match = f"{a}.id IN (SELECT rowid FROM sighting_text_fts WHERE sighting_text_fts MATCH :fts)"
         else:
-            name_match = "SELECT taxon_id FROM taxon_name WHERE name LIKE :text || '%'"
-            notes_match = f"({a}.notes LIKE '%' || :text || '%')"
+            name_match = "SELECT taxon_id FROM taxon_name WHERE name LIKE :text || '%' ESCAPE '!'"
+            notes_match = f"({a}.notes LIKE '%' || :text || '%' ESCAPE '!')"
         parts.append(
             f"({a}.taxon_id IN ({name_match}) OR {a}.species_id IN ({name_match})"
-            f" OR {a}.place_name LIKE '%' || :text || '%' OR {notes_match})"
+            f" OR {a}.place_name LIKE '%' || :text || '%' ESCAPE '!' OR {notes_match})"
         )
     return (" AND ".join(parts) or "1"), params

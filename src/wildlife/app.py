@@ -7,6 +7,7 @@ import logging
 import sys
 from importlib import resources
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QCoreApplication, Qt, QThread, QThreadPool, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices, QIcon
@@ -17,6 +18,9 @@ from wildlife.config.paths import DataPaths, default_data_root
 from wildlife.context import AppContext
 from wildlife.domain.errors import WildlifeError
 from wildlife.logging_setup import setup_logging
+
+if TYPE_CHECKING:
+    from wildlife.data.restore import RestoreOutcome
 
 log = logging.getLogger("wildlife")
 APP_USER_MODEL_ID = "WildLife.WildLife"  # also in packaging/installer.iss
@@ -66,25 +70,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     _mark_running()
 
-    from wildlife.data.restore import apply_pending_restore
-
-    restored = apply_pending_restore(paths)  # before anything opens the database
-
     reporter = error_handler.ErrorReporter()
     error_handler.install(reporter)
-    try:
-        ctx = AppContext.open(paths)
-    except WildlifeError as exc:
-        log.exception("Could not open data")
-        if not _startup_failed(exc.user_message, paths):
-            return 1
-        restored = apply_pending_restore(paths)  # the latest backup, chosen just now
-        try:
-            ctx = AppContext.open(paths)
-        except WildlifeError as again:
-            log.exception("Could not open the restored data either")
-            _startup_failed(again.user_message, paths, offer_restore=False)
-            return 1
+    opened = open_data(paths)
+    if opened is None:
+        return 1
+    ctx, restored = opened
 
     theme = ThemeManager(app, ctx.settings.current.theme)
     theme.apply()
@@ -106,6 +97,30 @@ def main(argv: list[str] | None = None) -> int:
         QThreadPool.globalInstance().waitForDone(60_000)
         ctx.close()
         log.info("Closed")
+
+
+def open_data(paths: DataPaths) -> tuple[AppContext, RestoreOutcome | None] | None:
+    """Open the data folder: (context, outcome of a restore done just now, or None).
+
+    A restore chosen earlier is applied first, before anything opens the database. If
+    the data can't be opened, you're told why and offered the latest backup; choosing it
+    restores it (keeping a safety copy) and tries again. None if WildLife can't start."""
+    from wildlife.data.restore import apply_pending_restore
+
+    restored = apply_pending_restore(paths)
+    try:
+        return AppContext.open(paths), restored
+    except WildlifeError as exc:
+        log.exception("Could not open data")
+        if not _startup_failed(exc.user_message, paths):
+            return None
+    restored = apply_pending_restore(paths)  # the latest backup, chosen just now
+    try:
+        return AppContext.open(paths), restored
+    except WildlifeError as again:
+        log.exception("Could not open the restored data either")
+        _startup_failed(again.user_message, paths, offer_restore=False)
+        return None
 
 
 def _set_app_id() -> None:

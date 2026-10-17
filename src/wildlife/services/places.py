@@ -45,10 +45,10 @@ class PlaceService:
 
     def delete(self, place_id: int) -> None:
         with self._db.transaction() as conn:
-            used = repo.in_use(conn, place_id)
-            if used:
+            sightings, binned, outings = repo.in_use(conn, place_id)
+            if sightings or outings:
                 raise ConflictError(
-                    f"This place is used by {used} sighting{'s' if used != 1 else ''}, so it can't be "
+                    f"This place is used by {_users(sightings, binned, outings)}, so it can't be "
                     "deleted. Archive it instead to hide it from lists."
                 )
             repo.delete(conn, place_id)
@@ -71,3 +71,18 @@ class PlaceService:
             if d <= place.radius_m and (best is None or d < best[0]):
                 best = (d, place)
         return best[1] if best else None
+
+
+def _users(sightings: int, binned: int, outings: int) -> str:
+    """'3 sightings (1 in the recycle bin) and 1 outing'."""
+    parts = []
+    if sightings:
+        text = f"{sightings} sighting{'s' if sightings != 1 else ''}"
+        if binned == sightings:
+            text += " in the recycle bin"
+        elif binned:
+            text += f" ({binned} in the recycle bin)"
+        parts.append(text)
+    if outings:
+        parts.append(f"{outings} outing{'s' if outings != 1 else ''}")
+    return " and ".join(parts)

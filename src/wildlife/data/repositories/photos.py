@@ -7,10 +7,9 @@ import uuid as uuid_mod
 from dataclasses import dataclass
 
 from wildlife.data import sql_filters
+from wildlife.data.repositories import NOW
 from wildlife.domain.filters import SightingFilter
 from wildlife.domain.models import Photo
-
-NOW = "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')"
 
 
 @dataclass(frozen=True, slots=True)
@@ -248,6 +247,11 @@ def soft_delete(conn: sqlite3.Connection, ids: list[int]) -> None:
 def mark_deleted(conn: sqlite3.Connection, ids: list[int], when_iso: str) -> None:
     """Put photos in the recycle bin as if deleted at `when_iso`."""
     conn.executemany("UPDATE photo SET deleted_at = ? WHERE id = ?", [(when_iso, i) for i in ids])
+
+
+def in_recycle_bin(conn: sqlite3.Connection, photo_id: int) -> bool:
+    row = conn.execute("SELECT deleted_at FROM photo WHERE id = ?", (photo_id,)).fetchone()
+    return bool(row and row[0])
 
 
 def restore(conn: sqlite3.Connection, ids: list[int]) -> None:

@@ -6,7 +6,7 @@ offline.
 
 ## Installing
 
-Run `WildLife-Setup-1.0.0.exe`. It installs for your Windows account only, with no
+Run `WildLife-Setup-1.0.1.exe` (or newer). It installs for your Windows account only, with no
 administrator rights, and adds WildLife to the Start menu. See
 [docs/14-packaging.md](docs/14-packaging.md) for what it does, including the "Windows
 protected your PC" message.
@@ -15,7 +15,7 @@ Your data lives in `%LOCALAPPDATA%\WildLife`. Upgrading and uninstalling never t
 
 ## Status
 
-Version 1.0.0. See `docs/` for the research, specification, architecture, UI design and
+Version 1.0.1. See `docs/` for the research, specification, architecture, UI design and
 each phase's record, and `prototype/index.html` for the clickable design prototype.
 
 ## Developer setup

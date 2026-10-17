@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import re
+from dataclasses import replace
 from datetime import date, datetime
 from pathlib import Path
 
+import shiboken6
 from PySide6.QtCore import QDate, QEvent, QObject, Qt, QTimer, Signal
 from PySide6.QtGui import QDragEnterEvent, QDropEvent, QPixmap
 from PySide6.QtWidgets import (
@@ -45,7 +48,7 @@ from wildlife.domain.errors import NotFoundError, ValidationError
 from wildlife.domain.models import Photo, Sighting, SightingDraft
 from wildlife.domain.photo_groups import draft_from_photos
 from wildlife.services.photos import SUPPORTED, ImportSummary
-from wildlife.services.sightings import SaveResult
+from wildlife.services.sightings import SaveResult, Undo
 from wildlife.ui.components.common import clear_layout
 from wildlife.ui.components.flow_layout import flow_box
 from wildlife.ui.components.side_panel import PanelView
@@ -54,6 +57,8 @@ from wildlife.ui.components.visuals import plural, rounded
 from wildlife.ui.theme.icons import icon, pixmap
 from wildlife.ui.theme.manager import ThemeManager
 from wildlife.ui.workers import run_in_background
+
+log = logging.getLogger(__name__)
 
 _TIME = re.compile(r"^\s*(\d{1,2})[:.]?(\d{2})\s*$")
 
@@ -183,7 +188,8 @@ class SightingEditor(PanelView):
         )
         self._original = draft
         self._photos: list[Photo] = ctx.photos.for_sighting(existing.id) if existing else []
-        self._removed_photos: list[int] = []
+        self._photos_before = [p.id for p in self._photos]  # for Undo, and what was removed
+        self._adding_photos = 0  # imports still running (Save waits for them)
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -617,10 +623,13 @@ class SightingEditor(PanelView):
             self._add_photo_files([Path(f) for f in files])
 
     def _add_photo_files(self, files: list[Path]) -> None:
-        self._photo_zone.set_busy(True)
+        self._set_adding(+1)
 
         def done(summary: ImportSummary) -> None:
-            self._photo_zone.set_busy(False)
+            if not shiboken6.isValid(self) or self._done:
+                log.info("Photos finished importing after the form closed: left in the Inbox")
+                return
+            self._set_adding(-1)
             new = [p for p in summary.photos if p.id not in {x.id for x in self._photos}]
             self._photos += new
             self._mark_dirty()
@@ -632,15 +641,25 @@ class SightingEditor(PanelView):
                     f"Couldn't add {plural(len(summary.failed), 'file')}: {names}", "error"
                 )
 
+        def failed(exc: BaseException) -> None:
+            if shiboken6.isValid(self):
+                self._set_adding(-1)
+            raise exc  # to the error reporter
+
         run_in_background(
-            lambda: self.ctx.photos.import_files(files),
-            on_done=done,
-            on_error=lambda exc: (self._photo_zone.set_busy(False), self._raise(exc)),
+            lambda: self.ctx.photos.import_files(files), on_done=done, on_error=failed
         )
 
-    @staticmethod
-    def _raise(exc: BaseException) -> None:
-        raise exc
+    def _set_adding(self, change: int) -> None:
+        """Photos being added: Save waits until they're in, so none are left out."""
+        self._adding_photos += change
+        busy = self._adding_photos > 0
+        self._photo_zone.set_busy(busy)
+        for b in (self.save_btn, getattr(self, "another_btn", None)):
+            if b is not None:
+                b.setEnabled(not busy)
+        if not busy and self.f_photos.note.text().startswith("Still adding photos"):
+            self.f_photos.reset_note()
 
     def _autofill_from_photos(self, photos: list[Photo]) -> None:
         """Fill empty date, time and position from the photos (rules in domain.photo_groups)."""
@@ -726,8 +745,6 @@ class SightingEditor(PanelView):
 
     def _remove_photo(self, photo: Photo) -> None:
         self._photos = [p for p in self._photos if p.id != photo.id]
-        if self.existing:
-            self._removed_photos.append(photo.id)
         self._mark_dirty()
         self._refresh_photo_strip()
 
@@ -786,6 +803,9 @@ class SightingEditor(PanelView):
     def save(self, another: bool = False) -> SaveResult | None:
         if self._done:
             return None
+        if self._adding_photos:
+            self.f_photos.set_note("Still adding photos… Save again in a moment.", "error")
+            return None
         for field in (self.f_species, self.f_date, self.f_time, self.f_place, self.f_notes):
             field.reset_note()
         self._update_location_note()
@@ -797,11 +817,7 @@ class SightingEditor(PanelView):
             except ValidationError as exc:
                 errors = exc.fields
             else:
-                ids = [p.id for p in self._photos]
-                self.ctx.photos.attach(result.sighting.id, ids)
-                self.ctx.photos.reorder(result.sighting.id, ids)  # the order shown here
-                if self._removed_photos:
-                    self.ctx.photos.detach(result.sighting.id, self._removed_photos)
+                result = self._save_photos(result)
                 self._dirty = False
                 self._done = True  # this form has done its job (another save gets a new form)
                 self.saved.emit(result, another and self.existing is None)
@@ -825,6 +841,22 @@ class SightingEditor(PanelView):
         elif first is not None:
             first.control.setFocus()
         return None
+
+    def _save_photos(self, result: SaveResult) -> SaveResult:
+        """Put the photos shown here on the sighting, in this order. For an edit, Undo
+        then puts back the photos it had before, as well as its details."""
+        sid, ids, before = result.sighting.id, [p.id for p in self._photos], self._photos_before
+        removed = [i for i in before if i not in ids]
+        self.ctx.photos.set_sighting_photos(sid, ids, removed)
+        if not self.existing or ids == before:
+            return result
+        details, photos = result.undo, self.ctx.photos
+
+        def undo() -> None:
+            details.run()
+            photos.set_sighting_photos(sid, before, [i for i in ids if i not in before])
+
+        return replace(result, undo=Undo(details.description, undo))
 
     def keyPressEvent(self, event) -> None:
         ctrl = event.modifiers() & Qt.KeyboardModifier.ControlModifier

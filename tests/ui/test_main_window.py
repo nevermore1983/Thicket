@@ -2,7 +2,7 @@
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QLabel, QMessageBox
+from PySide6.QtWidgets import QLabel, QMessageBox, QPushButton
 
 from helpers import TODAY, taxon_id
 from wildlife.config.settings import Theme
@@ -222,6 +222,43 @@ def test_backup_now_from_settings(window, qtbot):
     window.settings_page.backup_requested.emit()
     qtbot.waitUntil(lambda: window.ctx.backup.last_result() is not None, timeout=10_000)
     assert window.ctx.backup.last_result().ok
+
+
+def test_empty_now_empties_photos_too(window, monkeypatch):
+    """It used to remove only sightings: their photos, and photos deleted on their own,
+    stayed in the bin for another 30 days."""
+    from pathlib import Path
+
+    ctx = window.ctx
+    fixtures = Path(__file__).parents[1] / "fixtures" / "photos"
+    on_sighting, loose = ctx.photos.import_files(
+        [fixtures / "sample.jpg", fixtures / "sample.heic"]
+    ).imported
+    s = _add(window)
+    ctx.photos.attach(s.id, [on_sighting.id])
+    ctx.sightings.delete([s.id])
+    ctx.photos.delete([loose.id])
+    window.go("settings")
+    page = window.settings_page
+    page.refresh()
+    assert "1 sighting · 1 photo" in " ".join(lbl.text() for lbl in page.findChildren(QLabel))
+    monkeypatch.setattr(QMessageBox, "question", lambda *a, **k: QMessageBox.StandardButton.Yes)
+    page._empty_bin()
+    assert ctx.sightings.recycle_bin() == [] and ctx.photos.recycle_bin() == []
+    assert not ctx.photos.path_of(on_sighting).exists()
+    assert not ctx.photos.path_of(loose).exists()
+
+
+def test_empty_now_works_when_only_photos_are_in_the_bin(window):
+    from pathlib import Path
+
+    photo = window.ctx.photos.import_files(
+        [Path(__file__).parents[1] / "fixtures" / "photos" / "sample.jpg"]
+    ).imported[0]
+    window.ctx.photos.delete([photo.id])
+    window.settings_page.refresh()
+    buttons = {b.text(): b for b in window.settings_page.findChildren(QPushButton)}
+    assert buttons["Empty now"].isEnabled()
 
 
 def test_recycle_bin_restore(window):

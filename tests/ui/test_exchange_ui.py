@@ -225,3 +225,18 @@ def test_bulk_change_menu(window, qtbot, monkeypatch):
     page._change_place()
     assert {s.place_id for s in window.ctx.sightings.page(SightingFilter())} == {garden.id}
     assert any("moved to Garden" in m for m in window.toasts.messages())
+
+
+def test_names_from_the_file_are_shown_as_plain_text(window, qtbot, tmp_path):
+    from PySide6.QtWidgets import QLabel
+
+    window.ctx.settings.update(allow_online=False)
+    path = tmp_path / "observations-2.csv"
+    odd = "Oddus <i>maximus"  # an unmatched name with markup in it
+    path.write_text(inat_csv([inat_row(1, odd, iconic_taxon_name="Insecta")]), encoding="utf-8")
+    dialog = window.import_data("inaturalist")
+    dialog.open_file(path)
+    qtbot.waitUntil(lambda: dialog.pages.currentIndex() == CHECK, timeout=10_000)
+    texts = [label.text() for label in dialog.findChildren(QLabel)]
+    assert any("Oddus &lt;i&gt;maximus" in t for t in texts)
+    dialog.reject()

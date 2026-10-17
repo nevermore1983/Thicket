@@ -9,13 +9,13 @@ It never deletes your photos: files it doesn't recognise are only reported.
 from __future__ import annotations
 
 import logging
-import shutil
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from wildlife.config.paths import DataPaths
 from wildlife.data.db import Database
+from wildlife.data.files import copy_atomically, is_stale_part, remove_stale_parts
 from wildlife.data.repositories import photos as photos_repo
 from wildlife.services.backup import BackupService
 from wildlife.services.species_catalogue import SpeciesCatalogue
@@ -159,7 +159,8 @@ class HealthService:
                     continue
                 rel = f.relative_to(self._paths.root).as_posix()
                 if f.suffix == ".part":
-                    partial.append(rel)
+                    if is_stale_part(f):  # a recent one is a copy still running
+                        partial.append(rel)
                 elif rel not in known:
                     unknown.append(rel)
         if partial:
@@ -260,20 +261,13 @@ class HealthService:
             source = mirror / rel.removeprefix("photos/")
             if dest.exists() or not source.exists():
                 continue
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            tmp = dest.with_suffix(dest.suffix + ".part")
-            shutil.copy2(source, tmp)
-            tmp.replace(dest)
+            copy_atomically(source, dest)
             copied += 1
         log.info("Health check: brought back %d photo files from the backup", copied)
         return copied
 
     def remove_partial(self) -> int:
-        removed = 0
-        for f in self._paths.photos.rglob("*.part"):
-            f.unlink(missing_ok=True)
-            removed += 1
-        return removed
+        return remove_stale_parts(self._paths.photos, recursive=True)
 
     def clear_thumbnails(self) -> int:
         removed = 0

@@ -7,10 +7,9 @@ import uuid as uuid_mod
 from datetime import date
 from typing import Any
 
+from wildlife.data.repositories import NOW
 from wildlife.domain.codes import Visibility, Weather, Wind
 from wildlife.domain.models import Outing, OutingDraft
-
-NOW = "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')"
 
 # Live outings with their place name and how many live sightings / species they hold.
 _SELECT = """

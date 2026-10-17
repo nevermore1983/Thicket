@@ -8,6 +8,7 @@ from datetime import date
 from typing import Any
 
 from wildlife.data import sql_filters
+from wildlife.data.repositories import NOW
 from wildlife.domain.codes import (
     CountQualifier,
     Evidence,
@@ -18,8 +19,6 @@ from wildlife.domain.codes import (
 )
 from wildlife.domain.filters import SightingFilter
 from wildlife.domain.models import Sighting, SightingDraft
-
-NOW = "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')"
 
 SORTS = {  # sort key -> ORDER BY (ascending); the list reverses for descending
     "date": "v.observed_date {d}, v.observed_time {d}, v.id {d}",
@@ -198,24 +197,29 @@ def recycle_bin(conn: sqlite3.Connection) -> list[tuple[int, str, str, str]]:
     ]
 
 
+def _chunks(ids: list[int], size: int = 500):
+    """`ids` in parts: SQLite takes at most 32,766 values in one query, and a bulk change
+    can cover any number of sightings."""
+    for start in range(0, len(ids), size):
+        chunk = list(ids[start : start + size])
+        yield chunk, ",".join("?" * len(chunk))
+
+
 def photo_ids(conn: sqlite3.Connection, ids: list[int]) -> list[int]:
     """Photos attached to these sightings."""
-    if not ids:
-        return []
-    marks = ",".join("?" * len(ids))
-    return [
-        r[0]
-        for r in conn.execute(
-            f"SELECT DISTINCT photo_id FROM sighting_photo WHERE sighting_id IN ({marks})", ids
-        )
-    ]
+    found: dict[int, None] = {}  # in order, each once
+    for chunk, marks in _chunks(ids):
+        sql = f"SELECT DISTINCT photo_id FROM sighting_photo WHERE sighting_id IN ({marks})"
+        found |= dict.fromkeys(r[0] for r in conn.execute(sql, chunk))
+    return list(found)
 
 
 def taxon_of(conn: sqlite3.Connection, ids: list[int]) -> dict[int, int]:
-    marks = ",".join("?" * len(ids))
-    return dict(
-        conn.execute(f"SELECT id, taxon_id FROM sighting WHERE id IN ({marks})", ids).fetchall()
-    )
+    out: dict[int, int] = {}
+    for chunk, marks in _chunks(ids):
+        sql = f"SELECT id, taxon_id FROM sighting WHERE id IN ({marks})"
+        out |= dict(conn.execute(sql, chunk).fetchall())
+    return out
 
 
 def set_taxon(conn: sqlite3.Connection, mapping: dict[int, int]) -> None:
@@ -243,9 +247,12 @@ def values_of(
     """{sighting id: {column: value}} for a bulk change and its Undo."""
     if not set(columns) <= set(BULK_COLUMNS):
         raise ValueError(columns)
-    marks = ",".join("?" * len(ids))
-    rows = conn.execute(f"SELECT id, {', '.join(columns)} FROM sighting WHERE id IN ({marks})", ids)
-    return {r[0]: dict(zip(columns, r[1:], strict=True)) for r in rows}
+    out: dict[int, dict] = {}
+    for chunk, marks in _chunks(ids):
+        sql = f"SELECT id, {', '.join(columns)} FROM sighting WHERE id IN ({marks})"
+        for r in conn.execute(sql, chunk):
+            out[r[0]] = dict(zip(columns, r[1:], strict=True))
+    return out
 
 
 def set_values(conn: sqlite3.Connection, changes: dict[int, dict]) -> None:

@@ -1,8 +1,11 @@
 """The health check: findings in plain words, and the fixes it offers."""
 
+import os
+import time
 from datetime import date
 
 from helpers import jpeg_with_gps, taxon_id
+from wildlife.data.files import STALE_AFTER_S
 from wildlife.domain.models import SightingDraft
 from wildlife.services.health import OK, PROBLEM, WARNING
 
@@ -48,8 +51,12 @@ def test_strange_files_are_reported_never_deleted(ctx, tmp_path):
     stray = ctx.paths.photos / "2026" / "stray.jpg"
     stray.parent.mkdir(parents=True, exist_ok=True)
     stray.write_bytes(b"x")
-    partial = ctx.paths.photos / "2026" / "abc.jpg.part"
+    partial = ctx.paths.photos / "2026" / "abc.jpg.1234abcd.part"
     partial.write_bytes(b"x")
+    old = time.time() - STALE_AFTER_S - 60
+    os.utime(partial, (old, old))  # left by an import that was interrupted
+    running = ctx.paths.photos / "2026" / "def.jpg.5678abcd.part"
+    running.write_bytes(b"x")  # an import copying right now: not a problem, not touched
     found = titles(ctx.health.check())
     assert found["1 file in the photo folder isn't in your library"].items == (
         "photos/2026/stray.jpg",
@@ -57,6 +64,7 @@ def test_strange_files_are_reported_never_deleted(ctx, tmp_path):
     assert found["1 unfinished copy in the photo folder"].action == "remove_partial"
     assert ctx.health.remove_partial() == 1
     assert stray.exists() and not partial.exists()
+    assert running.exists()
 
 
 def test_no_backup_yet_is_a_problem(ctx):

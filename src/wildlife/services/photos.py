@@ -13,7 +13,6 @@ from __future__ import annotations
 import hashlib
 import io
 import logging
-import shutil
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -25,6 +24,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 from wildlife.config.paths import DataPaths
 from wildlife.data.db import Database
+from wildlife.data.files import copy_atomically, write_atomically
 from wildlife.data.repositories import photos as repo
 from wildlife.domain.errors import NotFoundError, PhotoError
 from wildlife.domain.filters import SightingFilter
@@ -289,10 +289,7 @@ class PhotoService:
         rel = f"photos/{when[:4]}/{when[5:7]}/{sha}{source.suffix.lower()}"
         dest = self._paths.root / rel
         if not dest.exists():
-            dest.parent.mkdir(parents=True, exist_ok=True)
-            tmp = dest.with_suffix(dest.suffix + ".part")
-            shutil.copy2(source, tmp)
-            tmp.replace(dest)  # appears in the library only once fully copied
+            copy_atomically(source, dest)  # appears in the library only once fully copied
         return rel, dest
 
     def _import_one(self, item: ImportItem) -> tuple[Photo, bool, int]:
@@ -305,10 +302,11 @@ class PhotoService:
                 repo.by_raw_sha(conn, raw_sha) or repo.by_sha(conn, raw_sha)
             )
         if existing:
+            revived = self._revive(existing, item.main, sha)
             if item.raw and not raw_known and not existing.has_raw:
                 existing = self._add_raw(existing, item.raw, raw_sha)  # the RAW arrived later
-                return existing, False, 1
-            return existing, False, 0
+                return existing, revived, 1
+            return existing, revived, 0
         info = read_info(item.main)
         rel, dest = self._copy_in(item.main, sha, info.taken_at)
         raw_rel = raw_dest = None
@@ -343,6 +341,20 @@ class PhotoService:
                 raw_dest.unlink(missing_ok=True)
             raise
         return photo, True, 1 if raw_rel else 0
+
+    def _revive(self, photo: Photo, source: Path, sha: str) -> bool:
+        """A photo being imported that WildLife already has. If it's in the recycle bin
+        it comes back out (to the Inbox); if its library file has gone, the file being
+        imported puts it back. True if it came back from the bin (so it counts as new)."""
+        if photo.sha256 == sha and not self.path_of(photo).exists():
+            copy_atomically(source, self.path_of(photo))
+            log.info("Import put back the missing file of photo %s", photo.id)
+        with self._db.transaction() as conn:
+            if not repo.in_recycle_bin(conn, photo.id):
+                return False
+            repo.restore(conn, [photo.id])
+        log.info("Photo %s imported again: brought back from the recycle bin", photo.id)
+        return True
 
     def add_raw(self, photo_id: int, raw: Path) -> Photo:
         """Keep a RAW original with a photo that has none yet (e.g. from an export)."""
@@ -402,6 +414,19 @@ class PhotoService:
             repo.make_cover(conn, sighting_id, photo_id)
         self._events.publish("sightings", (sighting_id,))
         self._events.publish(TOPIC, (photo_id,))
+
+    def set_sighting_photos(
+        self, sighting_id: int, photo_ids: list[int], removed: Iterable[int] = ()
+    ) -> None:
+        """What the sighting form saves, in one step: these photos on the sighting, in this
+        order (the first is the cover), and `removed` taken off it (back to the Inbox).
+        Photos linked some other way meanwhile are left as they are."""
+        with self._db.transaction() as conn:
+            repo.detach(conn, sighting_id, [i for i in removed if i not in photo_ids])
+            repo.attach(conn, sighting_id, photo_ids)
+            repo.reorder(conn, sighting_id, photo_ids)
+        self._events.publish("sightings", (sighting_id,))
+        self._events.publish(TOPIC, (*photo_ids, *removed))
 
     def reorder(self, sighting_id: int, photo_ids: list[int]) -> None:
         """Set the order of a sighting's photos (the first is the cover)."""
@@ -519,11 +544,7 @@ class PhotoService:
                 f"“{candidate.name}” isn't the same photo (its contents are different). "
                 "Choose the original file."
             )
-        dest = self.path_of(photo)
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        tmp = dest.with_suffix(dest.suffix + ".part")
-        shutil.copy2(candidate, tmp)
-        tmp.replace(dest)
+        copy_atomically(candidate, self.path_of(photo))
         self._events.publish(TOPIC, (photo_id,))
         return photo
 
@@ -548,10 +569,7 @@ class PhotoService:
             target = wanted.get(file_sha256(candidate))
             if target is None or target[0].exists():
                 continue
-            target[0].parent.mkdir(parents=True, exist_ok=True)
-            tmp = target[0].with_suffix(target[0].suffix + ".part")
-            shutil.copy2(candidate, tmp)
-            tmp.replace(target[0])
+            copy_atomically(candidate, target[0])
             found += 1
         progress(len(candidates), len(candidates))
         if found:
@@ -586,19 +604,15 @@ class PhotoService:
         target = self._thumbnail_path(photo, size)
         if target.exists():
             return target
-        suffix = target.suffix[1:]
         original = self.path_of(photo)
         if not original.exists():
             return None
         try:
             img = open_image(original, photo.rotation, size)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            tmp = target.with_suffix(".part")
-            if suffix == "webp":
-                img.save(tmp, "WEBP", quality=82)
+            if target.suffix == ".webp":
+                write_atomically(target, lambda tmp: img.save(tmp, "WEBP", quality=82))
             else:
-                img.save(tmp, "JPEG", quality=90)
-            tmp.replace(target)
+                write_atomically(target, lambda tmp: img.save(tmp, "JPEG", quality=90))
         except (OSError, ValueError, rawpy.LibRawError) as exc:
             log.warning("Thumbnail failed for %s: %s", original, exc)
             return None

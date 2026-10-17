@@ -3,6 +3,8 @@ the single-window rule and the log file."""
 
 import logging
 import sqlite3
+import threading
+import time
 import urllib.error
 from datetime import date
 
@@ -29,6 +31,62 @@ def test_a_backup_that_fails_its_check_is_discarded(ctx, monkeypatch):
     assert "discarded" in failed.value.user_message
     assert list((ctx.backup.folder() / "snapshots").glob("*.db")) == []
     assert ctx.backup.last_result().ok is False and ctx.backup.is_due()  # tried again later
+
+
+def test_backups_run_one_at_a_time(ctx, monkeypatch):
+    """The start-up backup, "Back up now" and the backup on exit can all be asked for at
+    once. They used to run side by side and could spoil each other's files."""
+    add(ctx)
+    real, running, most = snapshot.take_snapshot, [0], [0]
+
+    def slow(conn, target):
+        running[0] += 1
+        most[0] = max(most[0], running[0])
+        time.sleep(0.2)  # long enough for the other requests to arrive meanwhile
+        try:
+            real(conn, target)
+        finally:
+            running[0] -= 1
+
+    monkeypatch.setattr(snapshot, "take_snapshot", slow)
+    results = []
+    threads = [
+        threading.Thread(target=lambda k=kind: results.append(ctx.backup.backup_now(k)))
+        for kind in ("auto", "manual", "exit")
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert most[0] == 1
+    assert len(results) == 3 and all(r.ok for r in results)
+    assert len({r.snapshot for r in results}) == 3  # three separate, complete backups
+    # The keep-rules then keep the manual one and the newest automatic one of the day
+    kinds = sorted(b.kind for b in ctx.backup.backups())
+    assert len(kinds) == 2 and "manual" in kinds  # (which automatic one is newest varies)
+
+
+def test_other_files_in_the_backup_folder_are_left_alone(ctx):
+    add(ctx)
+    ctx.backup.backup_now("manual")
+    mine = ctx.backup.folder() / "snapshots" / "my own copy.db"
+    mine.write_bytes(b"something you saved here yourself")
+    assert ctx.backup.backup_now("auto").ok  # it used to stop every backup
+    assert mine.exists()
+    assert all(b.path != mine for b in ctx.backup.backups())  # and isn't offered to restore
+
+
+def test_a_change_made_while_a_backup_runs_is_backed_up_on_exit(ctx, monkeypatch):
+    add(ctx)
+    real = snapshot.take_snapshot
+
+    def change_meanwhile(conn, target):
+        real(conn, target)
+        add(ctx)  # saved after the snapshot was taken, before the backup finished
+
+    monkeypatch.setattr(snapshot, "take_snapshot", change_meanwhile)
+    ctx.backup.backup_now("auto")
+    assert ctx.backup.needed_on_exit()  # that sighting isn't in the backup yet
 
 
 def test_a_full_backup_drive_is_explained(ctx, monkeypatch):

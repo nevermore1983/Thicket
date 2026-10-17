@@ -5,10 +5,9 @@ from __future__ import annotations
 import sqlite3
 import uuid as uuid_mod
 
+from wildlife.data.repositories import NOW
 from wildlife.domain.codes import Habitat
 from wildlife.domain.models import Place, PlaceDraft
-
-NOW = "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')"
 
 
 def _place(r: sqlite3.Row) -> Place:
@@ -89,10 +88,16 @@ def recent(conn: sqlite3.Connection, limit: int = 4) -> list[int]:
     ]
 
 
-def in_use(conn: sqlite3.Connection, place_id: int) -> int:
-    return conn.execute("SELECT COUNT(*) FROM sighting WHERE place_id = ?", (place_id,)).fetchone()[
-        0
-    ]
+def in_use(conn: sqlite3.Connection, place_id: int) -> tuple[int, int, int]:
+    """What still refers to a place: (sightings, of which in the recycle bin, outings).
+    Anything at all keeps it from being deleted (the database insists)."""
+    sightings, binned = conn.execute(
+        "SELECT COUNT(*), COUNT(deleted_at) FROM sighting WHERE place_id = ?", (place_id,)
+    ).fetchone()
+    outings = conn.execute(
+        "SELECT COUNT(*) FROM outing WHERE place_id = ?", (place_id,)
+    ).fetchone()[0]
+    return sightings, binned, outings
 
 
 def delete(conn: sqlite3.Connection, place_id: int) -> None:

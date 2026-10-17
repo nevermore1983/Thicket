@@ -5,7 +5,9 @@ backup or import) and checks that what was saved before is still there and sound
 Killing WildLife outright is in test_kill.py.
 """
 
+import os
 import sqlite3
+import time
 from datetime import date
 
 import pytest
@@ -13,6 +15,7 @@ import pytest
 from helpers import TODAY, taxon_id
 from wildlife.context import AppContext
 from wildlife.data import snapshot
+from wildlife.data.files import STALE_AFTER_S
 from wildlife.data.repositories import imports as imports_repo
 from wildlife.domain.errors import DatabaseError
 from wildlife.domain.filters import SightingFilter
@@ -78,9 +81,13 @@ def test_an_interrupted_backup_never_looks_like_a_backup(ctx):
     with pytest.raises(sqlite3.OperationalError):
         snapshot.take_snapshot(PulledOut(), folder / "2026-10-11_120000_manual.db")
     assert len(ctx.backup.backups()) == 1  # only the complete one is offered
-    assert list(folder.glob("*.part"))  # the half-copy is still on the drive...
+    (half,) = folder.glob("*.part")  # the half-copy is still on the drive...
     ctx.backup.backup_now("manual")
-    assert not list(folder.glob("*.part"))  # ...until the next backup tidies it away
+    assert half.exists()  # ...a recent one could be a backup still running, so it stays...
+    old = time.time() - STALE_AFTER_S - 60
+    os.utime(half, (old, old))
+    ctx.backup.backup_now("manual")
+    assert not half.exists()  # ...and once it's old, the next backup tidies it away
 
 
 def test_a_damaged_data_file_is_never_opened_quietly(paths):

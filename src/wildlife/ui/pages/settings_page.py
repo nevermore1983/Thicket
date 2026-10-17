@@ -199,11 +199,11 @@ class SettingsPage(QWidget):
         page.add(_section("Import & export", self._exchange_rows()))
 
         # data
-        bin_items = ctx.sightings.recycle_bin()
+        binned, loose_photos = self._bin_contents()
         open_bin = button("Open…", "secondary", "trash", theme, self._open_bin)
-        open_bin.setEnabled(bool(bin_items))
+        open_bin.setEnabled(bool(binned or loose_photos))
         empty_bin = _pair(open_bin, button("Empty now", "secondary", None, None, self._empty_bin))
-        empty_bin.setEnabled(bool(bin_items))
+        empty_bin.setEnabled(bool(binned or loose_photos))
         folder = QLabel(str(ctx.paths.root))
         folder.setProperty("role", "muted")
         folder.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
@@ -236,7 +236,8 @@ class SettingsPage(QWidget):
             ),
             _row(
                 "Recycle bin",
-                f"{plural(len(bin_items), 'sighting')} · emptied automatically after "
+                f"{plural(binned, 'sighting')} · {plural(loose_photos, 'photo')} · "
+                "emptied automatically after "
                 f"{s.recycle_bin_days} days",
                 empty_bin,
             ),
@@ -461,17 +462,30 @@ class SettingsPage(QWidget):
             self.toast.emit(f"Restored {plural(dialog.restored, 'sighting')}", None)
         self.refresh()
 
+    def _bin_contents(self) -> tuple[int, int]:
+        """(sightings, photos deleted on their own) in the recycle bin. Photos of deleted
+        sightings are in the bin with their sighting, so they aren't counted twice."""
+        loose = [p for p in self.ctx.photos.recycle_bin() if not p.sighting_ids]
+        return len(self.ctx.sightings.recycle_bin()), len(loose)
+
     def _empty_bin(self) -> None:
-        n = len(self.ctx.sightings.recycle_bin())
+        sightings, photos = self._bin_contents()
+        what = " and ".join(
+            plural(n, word) for n, word in ((sightings, "sighting"), (photos, "photo")) if n
+        )
         answer = QMessageBox.question(
             self,
             "Empty the recycle bin?",
-            f"Permanently delete {plural(n, 'sighting')}? This can't be undone.",
+            f"Permanently delete {what}, with their photo files? This can't be undone.",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
         )
         if answer == QMessageBox.StandardButton.Yes:
             removed = self.ctx.sightings.purge_recycle_bin(0)
-            self.toast.emit(f"Recycle bin emptied ({plural(removed, 'sighting')})", None)
+            files = self.ctx.photos.purge_recycle_bin(0)  # theirs too, and loose photos
+            self.toast.emit(
+                f"Recycle bin emptied ({plural(removed, 'sighting')}, {plural(files, 'photo')})",
+                None,
+            )
             self.refresh()
 
 

@@ -23,6 +23,7 @@ from pathlib import Path
 
 from wildlife.config.paths import DataPaths
 from wildlife.data import snapshot
+from wildlife.data.files import copy_atomically
 from wildlife.data.migrate import available_migrations
 from wildlife.domain.errors import BackupError
 
@@ -240,9 +241,6 @@ def _bring_back_photos(paths: DataPaths, mirror: Path) -> int:
         source = mirror / rel.removeprefix("photos/")
         if dest.exists() or not source.exists() or ".." in Path(rel).parts:
             continue
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        tmp = dest.with_suffix(dest.suffix + ".part")
-        shutil.copy2(source, tmp)
-        tmp.replace(dest)
+        copy_atomically(source, dest)
         copied += 1
     return copied
