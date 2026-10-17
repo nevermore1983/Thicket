@@ -1,7 +1,7 @@
 # WildLife — Phase 14: packaging
 
 **Date:** 17 October 2026
-**Status:** Complete, awaiting review (manual tests M11–M13 are yours to run)
+**Status:** Complete. Manual test M11 (a brand-new Windows account) passed on 17 Oct 2026; M12–M13 are yours to run.
 
 WildLife 1.0.0 now has:
 - a proper Windows installer;
@@ -13,7 +13,7 @@ An automated check installs it, upgrades it and uninstalls it, and confirms your
 
 **Exit rule: installs cleanly on a clean Windows account.**
 - ✅ The automated install, upgrade and uninstall check passes.
-- ⏳ The real clean-account test is manual test M11: creating a Windows account is something only you should do.
+- ✅ Manual test M11: you installed WildLife on a brand-new Windows account on 17 Oct 2026, and it worked.
 
 ---
 
@@ -148,7 +148,7 @@ If you ever distribute WildLife to other people, have these terms looked at agai
 | Backup → wipe → restore identical | ✅ `test_s6_new_pc_restore_from_the_backup_drive` |
 | Export → import into an empty library identical | ✅ `test_round_trip_into_an_empty_library` |
 | UI/UX audit has no open "high" items | ✅ Phase 12 |
-| Installer works on a fresh account; uninstall keeps data | ✅ Automated check (section 3). ⏳ Manual test M11 on a real new account. |
+| Installer works on a fresh account; uninstall keeps data | ✅ Automated check (section 3), and manual test M11 on a new account (17 Oct 2026) |
 
 ---
 
