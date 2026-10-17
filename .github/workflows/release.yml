@@ -44,7 +44,11 @@ jobs:
           "VERSION=$version" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Run the tests
-        run: uv run pytest -q -p no:cacheprovider
+        run: uv run pytest -q -p no:cacheprovider --color=no --junitxml=test-results.xml
+
+      - name: Show failed tests on the run's page (readable without signing in)
+        if: failure()
+        run: uv run python scripts/ci_report.py test-results.xml
 
       - name: Install Inno Setup 7.1.0 (checksum checked)
         run: |
