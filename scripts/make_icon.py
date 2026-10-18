@@ -1,4 +1,4 @@
-"""Draw the WildLife app icon: the leaf from the app's own icon set, in white on the
+"""Draw the Thicket app icon: the leaf from the app's own icon set, in white on the
 app's green, at every size Windows asks for (title bar, taskbar, Start menu, Explorer).
 
     uv run python scripts/make_icon.py

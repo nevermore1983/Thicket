@@ -35,7 +35,7 @@ def main() -> int:
     data_dir = args.data_dir or Path(tempfile.mkdtemp(prefix="wildlife-shot-"))
     paths = DataPaths(data_dir).ensure()
     setup_logging(paths.logs)
-    QCoreApplication.setOrganizationName("WildLife-Screenshots")  # don't touch real window state
+    QCoreApplication.setOrganizationName("Thicket-Screenshots")  # don't touch real window state
     from wildlife.ui.web import scheme
 
     scheme.prepare()

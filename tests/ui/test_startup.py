@@ -1,4 +1,4 @@
-"""Starting WildLife when its data can't be opened (app.open_data and its dialog).
+"""Starting Thicket when its data can't be opened (app.open_data and its dialog).
 
 The real dialog is built; only the click is pretended (QMessageBox.exec is replaced by
 picking one of its buttons), so the text, the buttons and what they do are all tested."""

@@ -1,4 +1,4 @@
-"""Importing spreadsheets: duplicates, places, and round trips through WildLife's exports."""
+"""Importing spreadsheets: duplicates, places, and round trips through Thicket's exports."""
 
 from datetime import date
 

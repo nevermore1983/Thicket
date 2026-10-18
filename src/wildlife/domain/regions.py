@@ -1,4 +1,4 @@
-"""Where you record: the regions WildLife knows (docs/16-regions-plan.md).
+"""Where you record: the regions Thicket knows (docs/16-regions-plan.md).
 
 'uk' (the built-in UK list) and the US states and DC ('us-oh', ...), each with where the
 map opens when there's nothing else to go on. The state centres are approximate

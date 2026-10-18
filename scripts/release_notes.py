@@ -30,9 +30,9 @@ def notes(version: str, sha256: str) -> str:
 
 ## Installing
 
-1. Download **WildLife-Setup-{version}.exe** below.
-2. Run it. It installs for your Windows account only, with no administrator password, and adds WildLife to the Start menu.
-3. Already have WildLife? Running it upgrades your copy. Your sightings, photos and settings are kept.
+1. Download **Thicket-Setup-{version}.exe** below.
+2. Run it. It installs for your Windows account only, with no administrator password, and adds Thicket to the Start menu.
+3. Already have Thicket? Running it upgrades your copy. Your sightings, photos and settings are kept.
 
 **"Windows protected your PC"**: Windows shows this for programs downloaded from the internet that aren't signed with a paid certificate. Click **More info**, then **Run anyway**. ([Why?]({REPO}/blob/main/docs/14-packaging.md#4-windows-protected-your-pc))
 

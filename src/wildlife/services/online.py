@@ -1,4 +1,4 @@
-"""The only way WildLife's Python code talks to the internet.
+"""The only way Thicket's Python code talks to the internet.
 
 Requests go out only over HTTPS, only to hosts on the allow-list, only while
 "Allow online features" is on (the caller checks that), and with a size limit.
@@ -23,11 +23,11 @@ ALLOWED_HOSTS = frozenset(
         "api.inaturalist.org",  # which photos an observation has
         "inaturalist-open-data.s3.amazonaws.com",  # openly licensed photos
         "static.inaturalist.org",  # other photos
-        "github.com",  # species packs: WildLife's own GitHub releases (services/species_packs.py)
+        "github.com",  # species packs: Thicket's own GitHub releases (services/species_packs.py)
         "release-assets.githubusercontent.com",  # ...where GitHub keeps release files
     }
 )
-USER_AGENT = f"WildLife/{__version__} (UK wildlife recording desktop app)"
+USER_AGENT = f"Thicket/{__version__} (UK wildlife recording desktop app)"
 MAX_BYTES = 40 * 1024 * 1024  # an original photo is a few MB
 
 Fetch = Callable[[str], bytes]
@@ -54,7 +54,7 @@ def fetch(url: str, timeout: float = 30.0, max_bytes: int = MAX_BYTES) -> bytes:
     """Download `url`. Raises OnlineServiceError (with a plain message) on any failure."""
     if not is_allowed(url):
         raise OnlineServiceError(
-            "WildLife only connects to the services it knows.", detail=f"blocked: {url}"
+            "Thicket only connects to the services it knows.", detail=f"blocked: {url}"
         )
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:

@@ -97,7 +97,7 @@ def test_the_welcome_carries_on_with_the_uk_without_internet(ctx, monkeypatch, q
     assert ctx.catalogue.region() == "uk"
 
 
-# ---- step 4: the rest of WildLife follows the region ----------------------------------
+# ---- step 4: the rest of Thicket follows the region ----------------------------------
 def test_the_map_follows_the_region(window):
     from PySide6.QtCore import QSettings
 

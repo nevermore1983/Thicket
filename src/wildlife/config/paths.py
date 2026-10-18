@@ -1,4 +1,4 @@
-"""Where WildLife keeps its data on disk.
+"""Where Thicket keeps its data on disk.
 
 The program and the user's data live in different places, so reinstalling or
 upgrading the app never touches the data. Default data folder:
@@ -11,7 +11,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-APP_NAME = "WildLife"
+APP_NAME = "WildLife"  # Thicket's first name: the data folder keeps it, so upgrades find it
 
 
 def default_data_root() -> Path:

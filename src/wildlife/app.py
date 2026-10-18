@@ -1,4 +1,4 @@
-"""Starting WildLife: logging, data folder, database, theme, then the main window."""
+"""Starting Thicket: logging, data folder, database, theme, then the main window."""
 
 from __future__ import annotations
 
@@ -23,18 +23,20 @@ if TYPE_CHECKING:
     from wildlife.data.restore import RestoreOutcome
 
 log = logging.getLogger("wildlife")
+# Thicket was called WildLife up to 1.1.0. Names Windows remembers keep that first name,
+# so upgrades find everything where it was (packaging/installer.iss lists them all).
 APP_USER_MODEL_ID = "WildLife.WildLife"  # also in packaging/installer.iss
 RUNNING_MUTEX = "WildLife.Running"  # the installer waits while this exists (AppMutex)
-_running = None  # the mutex handle, kept open until WildLife exits
+_running = None  # the mutex handle, kept open until Thicket exits
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="wildlife", description="WildLife wildlife journal")
+    parser = argparse.ArgumentParser(prog="wildlife", description="Thicket wildlife journal")
     parser.add_argument("--data-dir", type=Path, help="use this data folder instead of the default")
     parser.add_argument("--debug", action="store_true", help="write detailed logs")
     # Used to check a packaged build: open the window, then close and exit 0.
     parser.add_argument("--smoke-test", action="store_true", help=argparse.SUPPRESS)
-    # Set when WildLife restarts itself (after choosing a backup to restore): wait for the
+    # Set when Thicket restarts itself (after choosing a backup to restore): wait for the
     # old window to close instead of handing over to it.
     parser.add_argument("--restarting", action="store_true", help=argparse.SUPPRESS)
     return parser.parse_args(argv)
@@ -44,8 +46,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(sys.argv[1:] if argv is None else argv)
     paths = DataPaths(args.data_dir or default_data_root()).ensure()
     setup_logging(paths.logs, debug=args.debug)
-    log.info("Starting WildLife %s", __version__)
+    log.info("Starting Thicket %s", __version__)
 
+    # Where QSettings keeps window and view choices (the registry): the first name, kept
     QCoreApplication.setOrganizationName("WildLife")
     QCoreApplication.setApplicationName("WildLife")
     QCoreApplication.setApplicationVersion(__version__)
@@ -104,7 +107,7 @@ def open_data(paths: DataPaths) -> tuple[AppContext, RestoreOutcome | None] | No
 
     A restore chosen earlier is applied first, before anything opens the database. If
     the data can't be opened, you're told why and offered the latest backup; choosing it
-    restores it (keeping a safety copy) and tries again. None if WildLife can't start."""
+    restores it (keeping a safety copy) and tries again. None if Thicket can't start."""
     from wildlife.data.restore import apply_pending_restore
 
     restored = apply_pending_restore(paths)
@@ -124,7 +127,7 @@ def open_data(paths: DataPaths) -> tuple[AppContext, RestoreOutcome | None] | No
 
 
 def _set_app_id() -> None:
-    """Tell Windows this is WildLife, not "Python": the taskbar then shows WildLife's icon
+    """Tell Windows this is Thicket, not "Python": the taskbar then shows Thicket's icon
     and groups its windows with the Start-menu shortcut (the installer uses the same ID)."""
     if sys.platform == "win32":
         import ctypes
@@ -133,8 +136,8 @@ def _set_app_id() -> None:
 
 
 def _mark_running() -> None:
-    """Let the installer see WildLife is open, so it asks you to close it first instead
-    of replacing files under a running app. Windows removes the mark when WildLife exits."""
+    """Let the installer see Thicket is open, so it asks you to close it first instead
+    of replacing files under a running app. Windows removes the mark when Thicket exits."""
     global _running
     if sys.platform == "win32":
         import ctypes
@@ -232,7 +235,7 @@ def _startup_failed(message: str, paths: DataPaths, offer_restore: bool = True) 
     from wildlife.data.restore import latest_backup, request_restore
 
     latest = latest_backup(paths) if offer_restore else None
-    box = QMessageBox(QMessageBox.Icon.Critical, "WildLife", message)
+    box = QMessageBox(QMessageBox.Icon.Critical, "Thicket", message)
     info = f"Data folder: {paths.root}"
     restore = None
     if latest is not None:

@@ -171,13 +171,13 @@ def test_s6_new_pc_restore_from_the_backup_drive(window, qtbot, tmp_path):
     ctx.backup.backup_now("manual")
     backup = ctx.backup.backups()[0].path
 
-    new_pc = DataPaths(tmp_path / "New PC" / "WildLife").ensure()  # a fresh install
+    new_pc = DataPaths(tmp_path / "New PC" / "Thicket").ensure()  # a fresh install
     fresh = AppContext.open(new_pc)
     try:
         fresh.backup.request_restore(backup)  # Settings > Backup > Restore > Choose a file
     finally:
         fresh.close()
-    assert apply_pending_restore(new_pc).ok  # done as WildLife restarts
+    assert apply_pending_restore(new_pc).ok  # done as Thicket restarts
     restored = AppContext.open(new_pc)
     try:
         (back,) = restored.sightings.page(SightingFilter())

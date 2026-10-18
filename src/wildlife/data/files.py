@@ -1,6 +1,6 @@
 """Writing files so they are either complete or not there at all.
 
-Every file WildLife stores (a photo copied into the library, a thumbnail, a backup copy)
+Every file Thicket stores (a photo copied into the library, a thumbnail, a backup copy)
 is first written under a temporary name, then renamed in one step. An interrupted copy
 leaves only a `.part` file, never a half-written photo with the right name.
 
@@ -32,7 +32,7 @@ def part_path(dest: Path) -> Path:
 def write_atomically(dest: Path, write: Callable[[Path], None]) -> None:
     """Call `write(temporary path)`, then move the result to `dest` in one step.
 
-    For files whose name says what they contain (WildLife's photos are named by their
+    For files whose name says what they contain (Thicket's photos are named by their
     content hash, thumbnails by photo and size): if `dest` appears meanwhile, another
     copy of the very same file won the race, and that's fine."""
     dest.parent.mkdir(parents=True, exist_ok=True)

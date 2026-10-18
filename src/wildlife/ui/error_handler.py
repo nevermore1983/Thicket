@@ -54,7 +54,7 @@ class ErrorReporter(QObject):
         self._showing = True
         try:
             box = QMessageBox(self._window)
-            box.setWindowTitle("WildLife")
+            box.setWindowTitle("Thicket")
             box.setIcon(QMessageBox.Icon.Warning if expected else QMessageBox.Icon.Critical)
             box.setText(message)
             if not expected:

@@ -72,7 +72,7 @@ def test_quality_wild_status_and_notes():
 
 def test_positions():
     assert one(positional_accuracy="").uncertainty_m is None
-    assert one(positional_accuracy="250000").uncertainty_m == 100_000  # WildLife's limit
+    assert one(positional_accuracy="250000").uncertainty_m == 100_000  # Thicket's limit
     hidden = one(coordinates_obscured="true", public_positional_accuracy="28000")
     assert hidden.uncertainty_m == 28000  # the extra uncertainty from obscuring
     exact = one(private_latitude="51.4", private_longitude="0.2", coordinates_obscured="true")

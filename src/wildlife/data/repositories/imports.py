@@ -25,7 +25,7 @@ class Existing:
 
     sighting_id: int
     source_updated_at: str | None
-    edited_here: bool  # changed in WildLife since it was last imported
+    edited_here: bool  # changed in Thicket since it was last imported
     deleted: bool  # in the recycle bin
 
 

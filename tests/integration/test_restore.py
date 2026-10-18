@@ -48,7 +48,7 @@ def test_damaged_or_foreign_files_are_refused(ctx, tmp_path):
     junk.write_bytes(b"this is not a database at all" * 100)
     with pytest.raises(BackupError) as refused:
         ctx.backup.request_restore(junk)
-    assert refused.value.user_message == "That file isn't a WildLife backup."
+    assert refused.value.user_message == "That file isn't a Thicket backup."
     with pytest.raises(BackupError, match="isn't there"):
         ctx.backup.request_restore(tmp_path / "missing.db")
 

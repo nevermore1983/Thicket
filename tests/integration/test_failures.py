@@ -2,7 +2,7 @@
 
 Each test breaks something on purpose (a full disk, a damaged file, an interrupted
 backup or import) and checks that what was saved before is still there and sound.
-Killing WildLife outright is in test_kill.py.
+Killing Thicket outright is in test_kill.py.
 """
 
 import os

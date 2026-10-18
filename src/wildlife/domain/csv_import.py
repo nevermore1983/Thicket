@@ -1,7 +1,7 @@
 """Reading sightings from any spreadsheet saved as CSV.
 
 Every spreadsheet names its columns differently, so the columns are *mapped*:
-WildLife guesses which column holds what (it knows its own export, Darwin Core,
+Thicket guesses which column holds what (it knows its own export, Darwin Core,
 iRecord-style and common English headings), and you can change the guess before
 importing. Each row then becomes an ordinary `ImportRecord`.
 
@@ -212,7 +212,7 @@ def read_table_text(text: str, name: str = "sightings.csv") -> Table:
 
 
 def guess_mapping(header: list[str]) -> dict[str, int]:
-    """field key -> column index, for the columns whose heading WildLife recognises."""
+    """field key -> column index, for the columns whose heading Thicket recognises."""
     found: dict[str, int] = {}
     lowered = [h.strip().lower() for h in header]
     for f in FIELDS:
@@ -337,7 +337,7 @@ def to_records(
         # An empty count means "not counted": nothing is invented
         count, qualifier = parse_count(cell(row, "count"))
         if count is not None and (stated := _code(CountQualifier, cell(row, "count_type"))):
-            qualifier = stated  # e.g. "Approximate" in WildLife's own spreadsheet
+            qualifier = stated  # e.g. "Approximate" in Thicket's own spreadsheet
         identification = _code(Identification, cell(row, "identification"))
         if identification is None and cell(row, "identification").lower() in ("cf.", "cf", "?"):
             identification = Identification.PROBABLE

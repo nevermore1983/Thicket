@@ -283,12 +283,10 @@ class MapPage(QWidget):
             text = (
                 "The map needs graphics acceleration (WebGL 2), which isn't available here. "
                 "This can happen over Remote Desktop, in some virtual machines, or with old "
-                "graphics drivers. Everything else in WildLife works normally."
+                "graphics drivers. Everything else in Thicket works normally."
             )
         else:
-            text = (
-                f"The map couldn't start ({message}). Everything else in WildLife works normally."
-            )
+            text = f"The map couldn't start ({message}). Everything else in Thicket works normally."
         self.stack.addWidget(EmptyState(self.theme, "map", "The map can't be shown", text))
         self.stack.setCurrentIndex(self.stack.count() - 1)
 
@@ -479,7 +477,7 @@ class MapPage(QWidget):
         current = region(self.ctx.catalogue.region())
         if self._region == current.code:
             return
-        changed = self._region is not None  # changed while WildLife is open
+        changed = self._region is not None  # changed while Thicket is open
         self._region = current.code
         self.modes.button_for("squares").setVisible(current.is_uk)
         if not current.is_uk and self.mode == "squares":

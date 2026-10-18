@@ -1,4 +1,4 @@
-"""Measure WildLife against the targets in the spec (docs/02, section 9).
+"""Measure Thicket against the targets in the spec (docs/02, section 9).
 
 Opens the real window on a library (normally the full stress library) and times each
 thing the spec gives a target for, then prints a table with pass/fail.
@@ -117,7 +117,7 @@ def main() -> int:
 
     paths = DataPaths(args.data_dir)
     setup_logging(paths.logs)
-    QCoreApplication.setOrganizationName("WildLife-Benchmark")
+    QCoreApplication.setOrganizationName("Thicket-Benchmark")
     from wildlife.ui.web import scheme
 
     scheme.prepare()

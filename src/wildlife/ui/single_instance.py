@@ -1,4 +1,4 @@
-"""Only one WildLife window at a time: a second launch brings the first to the front."""
+"""Only one Thicket window at a time: a second launch brings the first to the front."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ SERVER_NAME = f"WildLife-{getpass.getuser()}"
 
 
 def another_instance_is_running(ask_to_show: bool = True) -> bool:
-    """If WildLife is already open, ask it to show itself (unless told not to) and return True."""
+    """If Thicket is already open, ask it to show itself (unless told not to) and return True."""
     socket = QLocalSocket()
     socket.connectToServer(SERVER_NAME)
     if socket.waitForConnected(300):
@@ -25,7 +25,7 @@ def another_instance_is_running(ask_to_show: bool = True) -> bool:
 
 
 def restart_wildlife(data_dir: str) -> bool:
-    """Start a new WildLife (the caller then closes this one). True if it started."""
+    """Start a new Thicket (the caller then closes this one). True if it started."""
     import sys
 
     from PySide6.QtCore import QProcess

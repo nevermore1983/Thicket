@@ -1,24 +1,26 @@
-# WildLife
+# Thicket
 
 A personal wildlife sighting journal for Windows: record what you see in seconds, then explore
 your sightings on a calendar, a map and in statistics. Everything stays on your PC and works
 offline.
 
+Thicket was called **WildLife** up to version 1.1.0. Installing Thicket over WildLife upgrades it in place: your sightings, photos, settings and backups carry straight on.
+
 ## Download
 
-**[Download the latest WildLife installer](https://github.com/nevermore1983/WildlifeTracker/releases/latest)**: the file called `WildLife-Setup-<version>.exe`.
+**[Download the latest Thicket installer](https://github.com/nevermore1983/WildlifeTracker/releases/latest)**: the file called `Thicket-Setup-<version>.exe`.
 
-Run it. It installs for your Windows account only, with no administrator password, and adds WildLife to the Start menu. Running a newer installer upgrades your copy.
+Run it. It installs for your Windows account only, with no administrator password, and adds Thicket to the Start menu. Running a newer installer upgrades your copy.
 
-When WildLife first starts, choose where you record: the UK (its species list is built in) or a US state (its species pack downloads in a few seconds). You can change or add regions later in Settings › Region.
+When Thicket first starts, choose where you record: the UK (its species list is built in) or a US state (its species pack downloads in a few seconds). You can change or add regions later in Settings › Region.
 - Windows may say "Windows protected your PC", because the installer isn't signed with a paid certificate. Click **More info**, then **Run anyway**.
-- Your data lives in `%LOCALAPPDATA%\WildLife`. Upgrading and uninstalling never touch it.
+- Your data lives in `%LOCALAPPDATA%\WildLife` (the folder keeps the app's first name). Upgrading and uninstalling never touch it.
 
 What changed in each version: [CHANGELOG.md](CHANGELOG.md). How the installer works: [docs/14-packaging.md](docs/14-packaging.md).
 
 ## Status
 
-Version 1.1.0. See `docs/` for the research, specification, architecture, UI design and
+Version 1.2.0. See `docs/` for the research, specification, architecture, UI design and
 each phase's record, and `prototype/index.html` for the clickable design prototype.
 
 ## Developer setup

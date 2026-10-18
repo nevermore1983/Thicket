@@ -2,7 +2,7 @@
 
 It looks at the data file, every photo file, the photo folder, the thumbnail cache,
 backups and the species list, and reports each in plain words, with a fix where
-WildLife can make one safely (e.g. bringing lost photo files back from the backup).
+Thicket can make one safely (e.g. bringing lost photo files back from the backup).
 It never deletes your photos: files it doesn't recognise are only reported.
 """
 
@@ -133,7 +133,7 @@ class HealthService:
                         f"{recoverable:,} of them are in your backup and can be brought back."
                         if recoverable
                         else "They aren't in your backup either. If you moved them, put them "
-                        "back in WildLife's photo folder."
+                        "back in Thicket's photo folder."
                     ),
                     "restore_photos" if recoverable else "find_photos",
                     "Bring back from backup" if recoverable else "Look in a folder…",
@@ -146,8 +146,8 @@ class HealthService:
             out.append(
                 Finding(
                     WARNING,
-                    f"{_n(len(changed), 'photo file was', 'photo files were')} changed outside WildLife",
-                    "Another program saved over them. WildLife still shows them; the "
+                    f"{_n(len(changed), 'photo file was', 'photo files were')} changed outside Thicket",
+                    "Another program saved over them. Thicket still shows them; the "
                     "backup keeps the version you imported.",
                     items=tuple(changed[:20]),
                 )
@@ -181,7 +181,7 @@ class HealthService:
                     WARNING,
                     f"{_n(len(unknown), 'file', 'files')} in the photo folder "
                     f"{'isn' if len(unknown) == 1 else 'aren'}'t in your library",
-                    "WildLife leaves them alone. To add them, import them from Photos › Import.",
+                    "Thicket leaves them alone. To add them, import them from Photos › Import.",
                     "open_photos_folder",
                     "Open folder",
                     tuple(unknown[:20]),
@@ -245,7 +245,7 @@ class HealthService:
             return Finding(
                 WARNING,
                 "The species list needs updating",
-                "Restart WildLife to install the newer list.",
+                "Restart Thicket to install the newer list.",
             )
         return Finding(OK, f"Species list {self._catalogue.installed_version()} installed")
 

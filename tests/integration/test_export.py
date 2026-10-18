@@ -1,4 +1,4 @@
-"""Exporting: spreadsheet, Darwin Core, map data, WildLife JSON and the full archive."""
+"""Exporting: spreadsheet, Darwin Core, map data, Thicket JSON and the full archive."""
 
 import csv
 import hashlib
@@ -78,7 +78,7 @@ def test_spreadsheet(ctx, out):
     )
     assert first["Place"] == "Test Park" and first["Location description"] == "By the gate"
     assert first["Grid reference"] == "TQ 2906 7968" and first["Photos"] == "1"
-    assert first["WildLife ID"] == robin.uuid and first["Wild"] == "Yes"
+    assert first["Thicket ID"] == robin.uuid and first["Wild"] == "Yes"
     assert rows[1]["Count"] == "" and rows[1]["Identification"] == "Probable"
 
 

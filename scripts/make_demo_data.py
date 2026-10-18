@@ -1,4 +1,4 @@
-"""Create a demo WildLife library full of realistic sample sightings.
+"""Create a demo Thicket library full of realistic sample sightings.
 
     uv run python scripts/make_demo_data.py --data-dir local_data/demo --sightings 1500
     uv run wildlife --data-dir local_data/demo

@@ -75,7 +75,7 @@ def main() -> int:
     data_dir = args.data_dir or Path(tempfile.mkdtemp(prefix="wildlife-audit-"))
     paths = DataPaths(data_dir).ensure()
     setup_logging(paths.logs)
-    QCoreApplication.setOrganizationName("WildLife-Audit")
+    QCoreApplication.setOrganizationName("Thicket-Audit")
     from wildlife.ui.web import scheme
 
     scheme.prepare()

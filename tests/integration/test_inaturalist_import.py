@@ -144,7 +144,7 @@ def test_deleted_sightings_are_not_brought_back(ctx, tmp_path):
     _, first = import_rows(ctx, tmp_path, [inat_row(1)])
     ctx.sightings.delete(first.added)
     plan = ctx.inaturalist.preview(write(tmp_path, [inat_row(1)]))
-    assert plan.rows[0].reason == "You deleted it in WildLife"
+    assert plan.rows[0].reason == "You deleted it in Thicket"
 
 
 def test_undo_removes_the_whole_import(ctx, tmp_path):

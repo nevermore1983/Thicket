@@ -1,6 +1,6 @@
 """Choosing where you record, and adding a US state's species pack (docs/16-regions-plan.md).
 
-AddPackDialog lists the packs WildLife offers (from the internet, in the background),
+AddPackDialog lists the packs Thicket offers (from the internet, in the background),
 then downloads, checks and installs the one you choose, with progress. Nothing changes
 if anything goes wrong. Used from Settings › Region and the first-run welcome.
 """

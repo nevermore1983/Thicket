@@ -1,5 +1,5 @@
 """The health check window: runs the check in the background and lists what it found,
-with a button for each fix WildLife can make."""
+with a button for each fix Thicket can make."""
 
 from __future__ import annotations
 

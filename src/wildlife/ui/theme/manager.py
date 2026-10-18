@@ -14,7 +14,7 @@ from wildlife.ui.theme.tokens import DARK, FONT_FALLBACK, FONT_UI, LIGHT, SIZE_B
 
 
 def load_bundled_fonts() -> list[str]:
-    """Make the fonts shipped with WildLife available to Qt (once). Returns their families."""
+    """Make the fonts shipped with Thicket available to Qt (once). Returns their families."""
     families: list[str] = []
     for font in resources.files("wildlife.resources.fonts").iterdir():
         if font.name.endswith((".ttf", ".otf")):

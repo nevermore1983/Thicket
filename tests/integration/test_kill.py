@@ -1,4 +1,4 @@
-"""Killing WildLife outright (the nearest a test gets to a power cut).
+"""Killing Thicket outright (the nearest a test gets to a power cut).
 
 A separate process saves sightings (or makes backups) as fast as it can and reports
 each one that finished. The test kills it at an arbitrary moment, then checks that the
@@ -85,7 +85,7 @@ def run_and_kill(tmp_path, paths, job: str, after: int) -> int:
 
 
 def opened_like_wildlife(path) -> Database:
-    """Open the data as WildLife does: waiting a moment if the killed process (or a virus
+    """Open the data as Thicket does: waiting a moment if the killed process (or a virus
     scanner looking at what it wrote) is still letting go of the file. If it never can,
     say exactly what SQLite reported."""
     try:
@@ -105,7 +105,7 @@ def test_killed_while_saving_loses_nothing_that_was_saved(library, tmp_path, aft
     finally:
         database.close()
     assert reported <= saved <= reported + 1  # at most the save in progress is missing
-    AppContext.open(library).close()  # and WildLife opens it normally
+    AppContext.open(library).close()  # and Thicket opens it normally
 
 
 @pytest.mark.parametrize("after", [1, 3])

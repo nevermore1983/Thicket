@@ -56,7 +56,7 @@ def filter_to_dict(flt: SightingFilter) -> dict:
 
 
 def filter_from_dict(data: dict) -> SightingFilter:
-    """The reverse of filter_to_dict. Unknown keys (from a newer WildLife) are ignored."""
+    """The reverse of filter_to_dict. Unknown keys (from a newer Thicket) are ignored."""
     known = SightingFilter.__dataclass_fields__
     values: dict = {}
     for name, value in data.items():

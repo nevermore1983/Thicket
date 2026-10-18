@@ -1,4 +1,4 @@
-# Publishing a version of WildLife (docs/14-packaging.md, "Publishing a release").
+# Publishing a version of Thicket (docs/14-packaging.md, "Publishing a release").
 #
 # Pushing a tag such as v1.0.3 runs this on a clean Windows machine at GitHub. It runs
 # every test, builds the app and its installer, checks the installer really installs,
@@ -36,10 +36,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
 
-      - name: Install Python and WildLife's libraries (exactly as locked)
+      - name: Install Python and Thicket's libraries (exactly as locked)
         run: uv sync --locked
 
-      - name: The tag matches WildLife's version
+      - name: The tag matches Thicket's version
         run: |
           $version = (uv run python -c "import wildlife; print(wildlife.__version__)").Trim()
           if ("v$version" -ne $env:TAG) { throw "Tag $env:TAG doesn't match version $version" }
@@ -88,9 +88,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $name = "WildLife-Setup-$env:VERSION.exe"
+          $name = "Thicket-Setup-$env:VERSION.exe"
           $setup = "build/installer/$name"
           $sha = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
           "$sha  $name" | Out-File SHA256SUMS.txt -Encoding ascii
           uv run python scripts/release_notes.py $env:VERSION $sha notes.md
-          gh release create $env:TAG $setup SHA256SUMS.txt --title "WildLife $env:VERSION" --notes-file notes.md
+          gh release create $env:TAG $setup SHA256SUMS.txt --title "Thicket $env:VERSION" --notes-file notes.md

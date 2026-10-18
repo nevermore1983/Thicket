@@ -5,8 +5,8 @@ Two kinds of export:
 * **For sharing** (a spreadsheet, Darwin Core for iRecord / NBN Atlas / GBIF, or map
   data): locations can be blurred to a 1 km or 10 km square, and photos can be added
   (as a .zip), with where they were taken removed.
-* **Complete** (WildLife data as JSON, or a .zip with every photo): everything, exact,
-  and WildLife can import it again, here or on another PC.
+* **Complete** (Thicket data as JSON, or a .zip with every photo): everything, exact,
+  and Thicket can import it again, here or on another PC.
 
 Files are written to a temporary name and renamed when complete, so a half-written
 export never looks finished.
@@ -90,10 +90,10 @@ FORMATS = {
         ),
         ExportFormat(
             "json",
-            "WildLife data (JSON)",
+            "Thicket data (JSON)",
             ".json",
             False,
-            "Everything except photo files, exact. WildLife can import it again.",
+            "Everything except photo files, exact. Thicket can import it again.",
         ),
         ExportFormat(
             "archive",
@@ -101,7 +101,7 @@ FORMATS = {
             ".zip",
             False,
             "All your sightings, places and outings and every photo file, plus spreadsheet and Darwin "
-            "Core copies and a README. WildLife can import it again.",
+            "Core copies and a README. Thicket can import it again.",
         ),
     )
 }
@@ -168,7 +168,7 @@ CSV_COLUMNS = (
     "Imported from",
     "Source ID",
     "Species key (UKSI)",
-    "WildLife ID",
+    "Thicket ID",
 )
 DWC_COLUMNS = (
     "occurrenceID",
@@ -204,7 +204,7 @@ DWC_COLUMNS = (
     "associatedMedia",
     "modified",
 )
-SOURCE_LABELS = {"inaturalist": "iNaturalist", "csv": "Spreadsheet", "wildlife": "WildLife export"}
+SOURCE_LABELS = {"inaturalist": "iNaturalist", "csv": "Spreadsheet", "wildlife": "Thicket export"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -374,7 +374,7 @@ FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
 def safe_cell(value):
     """Text that Excel would run as a formula (it starts with = + - or @) gets a leading
     ' so it stays text. Numbers, such as a negative longitude, are left as they are.
-    WildLife's spreadsheet import takes the ' off again (domain/csv_import.py)."""
+    Thicket's spreadsheet import takes the ' off again (domain/csv_import.py)."""
     if not isinstance(value, str) or not value.startswith(FORMULA_START):
         return value
     try:
@@ -488,7 +488,7 @@ class ExportService:
     @staticmethod
     def _shareable_photo(path: Path, rotation: int, strip_gps: bool) -> tuple[bytes, str]:
         """A photo for sharing. With strip_gps: a JPEG with its location removed and the
-        picture untouched; other formats (and photos turned in WildLife) are saved as a
+        picture untouched; other formats (and photos turned in Thicket) are saved as a
         new JPEG, which carries no location at all."""
         suffix = path.suffix.lower()
         data = path.read_bytes()
@@ -505,7 +505,7 @@ class ExportService:
 
     # ---- complete formats ---------------------------------------------------------------
     def _json(self, conn, options, rows, photo_rows, files: dict[int, dict]) -> bytes:
-        """WildLife's own format: every field, linked by uuid. `files` maps a photo id to
+        """Thicket's own format: every field, linked by uuid. `files` maps a photo id to
         where its files are inside an archive."""
         everything = options.flt.is_empty
         taxon_ids = {r["taxon_id"] for r in rows}
@@ -581,8 +581,8 @@ def _zip_time(photo) -> tuple:
 
 
 def _keys(key: str | None) -> dict:
-    """A species' keys in WildLife's own export: `catalogue_key` (any pack's) and, for
-    older versions of WildLife reading it, `uksi_key` (UK species only)."""
+    """A species' keys in Thicket's own export: `catalogue_key` (any pack's) and, for
+    older versions of Thicket reading it, `uksi_key` (UK species only)."""
     return {"catalogue_key": key, "uksi_key": uksi_key(key)}
 
 
@@ -704,16 +704,16 @@ def _sighting_json(r, photo_uuids: list[str]) -> dict:
 
 
 def _readme(sightings: int, photos: int) -> str:
-    return f"""WildLife export
+    return f"""Thicket export
 ===============
 
-Made by WildLife {__version__} on {datetime.now().strftime("%d %B %Y")}: {sightings:,} sightings, {photos:,} photos.
+Made by Thicket {__version__} on {datetime.now().strftime("%d %B %Y")}: {sightings:,} sightings, {photos:,} photos.
 
 What's in this folder
 ---------------------
 wildlife-export.json  Everything, exactly: species, places, outings, sightings and photo
-                      details, linked by their ids. WildLife can import this file (or this
-                      whole .zip) again: Settings > Import > WildLife export.
+                      details, linked by their ids. Thicket can import this file (or this
+                      whole .zip) again: Settings > Import > Thicket export.
 sightings.csv         One row per sighting, for Excel or Google Sheets.
 darwin-core.csv       The same sightings in Darwin Core, the standard for biological records
                       (accepted by iRecord, the NBN Atlas and GBIF).

@@ -76,7 +76,7 @@ def test_a_wrong_file_is_explained(window, qtbot, tmp_path):
     dialog.reject()
 
 
-# ---- spreadsheets and WildLife exports ---------------------------------------------------
+# ---- spreadsheets and Thicket exports ---------------------------------------------------
 def test_spreadsheet_columns_are_matched_then_checked(window, qtbot, tmp_path):
     sheet = tmp_path / "my records.csv"
     sheet.write_text("Bird,When,Where,How many\nRobin,03/05/2026,Garden,2\n", encoding="utf-8")

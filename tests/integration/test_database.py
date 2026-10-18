@@ -209,7 +209,7 @@ def _io_error() -> sqlite3.OperationalError:
 
 def test_a_moment_of_disk_trouble_at_opening_is_waited_out(paths, monkeypatch):
     """Another program (antivirus, a sync app, a process that has just crashed) can hold
-    the file for a moment. WildLife used to call that damage and offer an old backup."""
+    the file for a moment. Thicket used to call that damage and offer an old backup."""
     from wildlife.data import db as db_module
 
     real, failures = db_module.connect, [_io_error(), _io_error()]

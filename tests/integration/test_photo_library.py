@@ -234,7 +234,7 @@ def test_importing_a_photo_from_the_recycle_bin_brings_it_back(ctx):
 # ---- missing files -----------------------------------------------------------------
 def test_importing_a_photo_again_puts_back_its_missing_file(ctx):
     photo = ctx.photos.import_files([FIXTURES / "sample.jpg"]).imported[0]
-    ctx.photos.path_of(photo).unlink()  # deleted outside WildLife
+    ctx.photos.path_of(photo).unlink()  # deleted outside Thicket
     again = ctx.photos.import_files([FIXTURES / "sample.jpg"])
     assert [p.id for p in again.duplicates] == [photo.id]  # the same photo, not a new one
     assert ctx.photos.missing() == []

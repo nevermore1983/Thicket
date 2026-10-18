@@ -94,6 +94,17 @@ def test_backup_snapshot_manifest_and_photo_mirror(ctx):
     assert ctx.backup.backup_now("manual").photos_copied == 0  # photos only copied once
 
 
+def test_backups_keep_going_where_wildlife_put_them(ctx, tmp_path):
+    """Thicket was called WildLife: a chosen folder's "WildLife Backups" stays in use."""
+    ctx.settings.update(backup_folder=str(tmp_path / "new drive"))
+    assert ctx.backup.folder() == tmp_path / "new drive" / "Thicket Backups"
+    earlier = tmp_path / "old drive" / "WildLife Backups"
+    earlier.mkdir(parents=True)
+    ctx.settings.update(backup_folder=str(tmp_path / "old drive"))
+    assert ctx.backup.folder() == earlier
+    assert Path(ctx.backup.backup_now("manual").snapshot).is_relative_to(earlier)
+
+
 def test_backup_to_missing_drive_fails_clearly(ctx):
     ctx.settings.update(backup_folder="Z:\\definitely\\not\\here")
     with pytest.raises(BackupError) as err:
@@ -150,7 +161,7 @@ def test_backup_drops_photo_copies_no_kept_backup_needs(ctx, tmp_path):
     gone_copy = mirror / gone.rel_path.removeprefix("photos/")
     kept_copy = mirror / kept.rel_path.removeprefix("photos/")
     yours = mirror / "my notes.txt"
-    yours.write_text("not WildLife's", encoding="utf-8")
+    yours.write_text("not Thicket's", encoding="utf-8")
     ctx.photos.delete([gone.id])
     ctx.photos.purge_recycle_bin(older_than_days=0)  # deleted for good
     ctx.backup.backup_now("manual")

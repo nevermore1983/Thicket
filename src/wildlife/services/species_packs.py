@@ -1,7 +1,7 @@
 """Species packs to download: which regions are offered, and getting one safely.
 
 docs/16-regions-plan.md, step 3. The packs are built and published by GitHub
-(.github/workflows/species-packs.yml). manifest.json, in WildLife's "species-packs"
+(.github/workflows/species-packs.yml). manifest.json, in Thicket's "species-packs"
 release, lists each pack with its address, size and SHA-256. A pack is installed only
 if it matches, and only while "Allow online features" is on. Everything goes through
 services/online.py, which only connects to its approved hosts.
@@ -56,7 +56,7 @@ class SpeciesPacks:
         self._offered: list[Pack] | None = None
 
     def offered(self, refresh: bool = False) -> list[Pack]:
-        """The packs WildLife can download, by name. Needs online features."""
+        """The packs Thicket can download, by name. Needs online features."""
         if self._offered is not None and not refresh:
             return self._offered
         self._need_online()
@@ -72,7 +72,7 @@ class SpeciesPacks:
             raise PackError("The list of species packs couldn't be read.")
         if manifest["format"] > FORMAT:
             raise PackError(
-                "These species packs need a newer version of WildLife. Please update WildLife."
+                "These species packs need a newer version of Thicket. Please update Thicket."
             )
         packs = []
         for p in manifest.get("packs", []):

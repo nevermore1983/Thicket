@@ -3,7 +3,7 @@
 One window for every kind of import:
 * iNaturalist exports (with optional photo download),
 * any spreadsheet saved as CSV (with a step to say which column is which),
-* WildLife's own export (.zip with photos, or .json).
+* Thicket's own export (.zip with photos, or .json).
 
 Nothing changes until "Import" is pressed, and the whole import can be undone in one
 go. Reading, importing and downloading all run in the background.
@@ -69,13 +69,13 @@ KINDS = {
             "inaturalist",
             "Import from iNaturalist",
             "Bring in your iNaturalist observations",
-            "Your observations become WildLife sightings, matched to your species list. "
+            "Your observations become Thicket sightings, matched to your species list. "
             "Research-grade IDs are marked <b>certain</b>; the rest <b>probable</b>. "
             "Importing the same export again later only adds what's new or changed.",
             "1. On <b>inaturalist.org</b>, open <b>Your observations › Export</b>.<br>"
             "2. Leave the filters as they are to export everything, then press "
             "<b>Create export</b>.<br>"
-            "3. When it's ready, download it. WildLife opens the <b>.zip</b> as it comes, "
+            "3. When it's ready, download it. Thicket opens the <b>.zip</b> as it comes, "
             "or the <b>.csv</b> inside it.",
             "iNaturalist export (*.csv *.zip)",
             "Choose export file…",
@@ -85,7 +85,7 @@ KINDS = {
             "Import a spreadsheet",
             "Bring in sightings from a spreadsheet",
             "Any table of sightings saved as CSV: from Excel, Google Sheets, another app, or "
-            "a WildLife or Darwin Core export. Before anything is imported, you'll check which "
+            "a Thicket or Darwin Core export. Before anything is imported, you'll check which "
             "column is which, and see what will happen to every row.",
             "In Excel, choose <b>File › Save As › CSV UTF-8</b>. Each row should be one sighting "
             "with at least a species and a date. Next, you can say how its dates are written "
@@ -95,13 +95,14 @@ KINDS = {
         ),
         Kind(
             "wildlife",
-            "Import a WildLife export",
-            "Bring back a WildLife export",
-            "An export from WildLife on this PC or another: the <b>.zip</b> with photos, or "
+            "Import a Thicket export",
+            "Bring back a Thicket export",
+            "An export from Thicket on this PC or another: the <b>.zip</b> with photos, or "
             "the <b>.json</b>. Places, outings and photos come with the sightings. Anything "
-            "already here is left as it is, so importing the same export twice is safe.",
+            "already here is left as it is, so importing the same export twice is safe. "
+            "Exports from before Thicket was renamed (“WildLife export”) work too.",
             "",
-            "WildLife export (*.zip *.json)",
+            "Thicket export (*.zip *.json)",
             "Choose export…",
         ),
     )
@@ -206,7 +207,7 @@ class ImportDialog(QDialog):
         v.addWidget(self.map_title)
         v.addWidget(
             self._text(
-                "WildLife has guessed which column holds what. Check each one, and change it "
+                "Thicket has guessed which column holds what. Check each one, and change it "
                 "if needed. You need a <b>date</b>, and a <b>species</b> (English or "
                 "scientific name)."
             )
@@ -469,7 +470,7 @@ class ImportDialog(QDialog):
         if plan.count(UPDATE):
             parts.append(f"<b>{plan.count(UPDATE):,}</b> changed {changed_where} since last time")
         if plan.count(SAME):
-            parts.append(f"{plan.count(SAME):,} already in WildLife")
+            parts.append(f"{plan.count(SAME):,} already in Thicket")
         if plan.count(SKIP):
             parts.append(f"{plan.count(SKIP):,} can't be imported")
         self.summary.setText(" · ".join(parts))
@@ -481,7 +482,7 @@ class ImportDialog(QDialog):
                     self.theme,
                     "info",
                     f"{plural(n, 'name')} {'isn' if n == 1 else 'aren'}'t in your species list "
-                    "as written. Choose the species (or a broader group) for each, and WildLife "
+                    "as written. Choose the species (or a broader group) for each, and Thicket "
                     "will remember it next time. Anything left empty isn't imported.",
                 )
             )

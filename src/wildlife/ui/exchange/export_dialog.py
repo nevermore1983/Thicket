@@ -1,8 +1,8 @@
 """The export window: what to export → which format → sharing options → save.
 
 Sharing formats (spreadsheet, Darwin Core, map data) can blur locations and include
-photos with where they were taken removed. The complete formats (WildLife data, or
-everything with photos) are always exact, so WildLife can import them again.
+photos with where they were taken removed. The complete formats (Thicket data, or
+everything with photos) are always exact, so Thicket can import them again.
 """
 
 from __future__ import annotations
@@ -157,7 +157,7 @@ class ExportDialog(QDialog):
             if not self.blur_m
             else f"Positions become the centre of their {dict(BLUR)[key]} (with a grid "
             "reference); place names and location descriptions are left out. Your records "
-            "in WildLife don't change."
+            "in Thicket don't change."
         )
 
     def format_key(self) -> str:
@@ -185,11 +185,11 @@ class ExportDialog(QDialog):
         fmt = FORMATS[options.format]
         stamp = date.today().isoformat()
         name = {
-            "dwc": f"WildLife Darwin Core {stamp}",
-            "geojson": f"WildLife map {stamp}",
-            "archive": f"WildLife export {stamp}",
-            "json": f"WildLife export {stamp}",
-        }.get(fmt.key, f"WildLife sightings {stamp}")
+            "dwc": f"Thicket Darwin Core {stamp}",
+            "geojson": f"Thicket map {stamp}",
+            "archive": f"Thicket export {stamp}",
+            "json": f"Thicket export {stamp}",
+        }.get(fmt.key, f"Thicket sightings {stamp}")
         start = Path.home() / "Documents" / (name + options.suffix)
         path, _ = QFileDialog.getSaveFileName(
             self, "Export sightings", str(start), f"{fmt.label} (*{options.suffix})"
@@ -235,7 +235,7 @@ class ExportDialog(QDialog):
             self.status.setText(
                 exc.user_message
                 if isinstance(exc, WildlifeError)
-                else "The export couldn't be saved. Is there space, and can WildLife write there?"
+                else "The export couldn't be saved. Is there space, and can Thicket write there?"
             )
             self.status.style().polish(self.status)
 

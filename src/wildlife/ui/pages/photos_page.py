@@ -163,7 +163,7 @@ class PhotosPage(QWidget):
         self.find_missing = button(
             "Look in a folder…", "secondary", "folder", self.theme, self._find_missing
         )
-        self.find_missing.setToolTip("WildLife looks through a folder for the missing files")
+        self.find_missing.setToolTip("Thicket looks through a folder for the missing files")
         self.find_missing.hide()
         v.addWidget(self.find_missing, 0, Qt.AlignmentFlag.AlignLeft)
         self.library_grid = PhotoGrid(self.loader, self.theme, tile=self.size_slider.value())
@@ -232,8 +232,8 @@ class PhotosPage(QWidget):
         if missing:
             self.missing_note.set_text(
                 f"<b>{plural(len(missing), 'photo file')} {'is' if len(missing) == 1 else 'are'} "
-                "missing</b> from your library folder (moved or deleted outside WildLife). "
-                "If you moved them, let WildLife look in that folder; or open one to locate "
+                "missing</b> from your library folder (moved or deleted outside Thicket). "
+                "If you moved them, let Thicket look in that folder; or open one to locate "
                 "its file or remove the photo."
             )
         self.missing_note.setVisible(bool(missing))
@@ -336,7 +336,7 @@ class PhotosPage(QWidget):
                     self.theme,
                     "inbox",
                     "The Inbox is empty",
-                    "Import photos from your phone or camera, or drop them here. WildLife reads "
+                    "Import photos from your phone or camera, or drop them here. Thicket reads "
                     "the date, time and position from each photo; RAW files are kept with their "
                     "JPEGs. Then you say what each photo shows.",
                     [button("Import photos…", "primary", "upload", self.theme, self._import_menu)],

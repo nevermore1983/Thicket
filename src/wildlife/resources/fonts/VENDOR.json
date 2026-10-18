@@ -1,5 +1,5 @@
 {
-  "note": "Fonts bundled with WildLife. Checked by tests/unit/test_fonts.py.",
+  "note": "Fonts bundled with Thicket. Checked by tests/unit/test_fonts.py.",
   "files": {
     "SourceSerif4Variable-Italic.ttf": {
       "what": "Source Serif 4 (variable, italic): scientific names",

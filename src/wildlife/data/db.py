@@ -30,7 +30,7 @@ PRAGMAS = (
 )
 
 
-# Errors that can pass in a moment: another program (antivirus, a sync app, or a WildLife
+# Errors that can pass in a moment: another program (antivirus, a sync app, or a Thicket
 # that has just crashed and is still letting go) holding the file. Opening tries again
 # for a few seconds before giving up. Real damage ("not a database") is never retried.
 TEMPORARY = {

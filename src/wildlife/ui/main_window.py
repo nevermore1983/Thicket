@@ -98,7 +98,7 @@ class MainWindow(QMainWindow):
     def __init__(self, ctx: AppContext, theme: ThemeManager) -> None:
         super().__init__()
         self.ctx, self.theme = ctx, theme
-        self.setWindowTitle("WildLife")
+        self.setWindowTitle("Thicket")
         self.setMinimumSize(1024, 640)
         root = QWidget()
         self.setCentralWidget(root)
@@ -156,7 +156,7 @@ class MainWindow(QMainWindow):
         brand.addWidget(self._brand_mark)
         names = QVBoxLayout()
         names.setSpacing(0)
-        self._brand_name = QLabel("WildLife")
+        self._brand_name = QLabel("Thicket")
         self._brand_name.setObjectName("BrandName")
         self._brand_sub = QLabel("Your wildlife journal")
         self._brand_sub.setObjectName("BrandSub")
@@ -353,15 +353,15 @@ class MainWindow(QMainWindow):
         return dialog
 
     def restart_to_restore(self) -> None:
-        """A backup is waiting to be restored: start a fresh WildLife, then close this one."""
+        """A backup is waiting to be restored: start a fresh Thicket, then close this one."""
         if self.panel.isVisible() and not self.panel.close_panel():
-            self._toast("The backup will be restored next time WildLife starts.", None)
+            self._toast("The backup will be restored next time Thicket starts.", None)
             return
         if not restart_wildlife(str(self.ctx.paths.root)):
             QMessageBox.information(
                 self,
                 "Restore",
-                "Please close WildLife and open it again to finish restoring the backup.",
+                "Please close Thicket and open it again to finish restoring the backup.",
             )
             return
         self.close()

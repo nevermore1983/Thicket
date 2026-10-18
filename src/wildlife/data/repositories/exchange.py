@@ -87,7 +87,7 @@ def add_species_note(conn: sqlite3.Connection, taxon_id: int, notes: str) -> boo
     return cur.rowcount == 1
 
 
-# --- importing WildLife's own export ----------------------------------------------------
+# --- importing Thicket's own export ----------------------------------------------------
 def ids_by_uuid(conn: sqlite3.Connection, table: str) -> dict[str, int]:
     """uuid -> id for places, outings, sightings or photos (deleted ones included)."""
     if table not in ("place", "outing", "sighting", "photo"):

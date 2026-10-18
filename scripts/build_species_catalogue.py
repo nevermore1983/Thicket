@@ -1,4 +1,4 @@
-"""Build WildLife's bundled species catalogue from the UK Species Inventory.
+"""Build Thicket's bundled species catalogue from the UK Species Inventory.
 
 Input:  the Natural History Museum's "UKSI Simplified Copy" workbook (.xlsx),
         downloaded by hand from https://data.nhm.ac.uk/dataset/uk-species-inventory-simplified-copy
@@ -34,7 +34,7 @@ KINGDOMS = ("Animalia", "Plantae", "Fungi")
 # Bump when the build rules change, so existing libraries reinstall the catalogue.
 BUILD = 2
 
-RANKS = {  # UKSI rank -> WildLife rank
+RANKS = {  # UKSI rank -> Thicket rank
     "Kingdom": "kingdom",
     "Phylum": "phylum",
     "Class": "class",
@@ -79,7 +79,7 @@ POPULAR = {  # informal groups most people record: these rank higher in the spec
 
 
 def rank_of(t: dict, lineage: dict[str, str]) -> str:
-    """WildLife rank for a UKSI taxon. Botanists and mycologists record aggregates
+    """Thicket rank for a UKSI taxon. Botanists and mycologists record aggregates
     ("Bramble", "Daffodil") as species, so outside animals they count as one;
     "A/B" or "A or B" pairs (and animal aggregates such as "Carrion/Hooded Crow")
     stay groups that don't count."""

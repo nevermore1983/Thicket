@@ -2,6 +2,15 @@
 
 Each version's notes are used for its download page on GitHub (`scripts/release_notes.py`).
 
+## 1.2.0
+
+WildLife is now called **Thicket**.
+
+- The new name is on the window, the Start menu, the installer and exports. Nothing else changes.
+- Installing Thicket over WildLife upgrades it in place. Your sightings, photos, settings and backups carry straight on, and the old Start-menu and desktop shortcuts are replaced by Thicket ones. A taskbar pin keeps working.
+- Exports made by WildLife import into Thicket as usual.
+- Behind the scenes some names stay as they were, so nothing goes missing: the data folder is still `%LOCALAPPDATA%\WildLife`, and a backup folder you chose keeps its "WildLife Backups" folder. New backup folders are called "Thicket Backups".
+
 ## 1.1.0
 
 WildLife now works outside the UK, starting with the United States.

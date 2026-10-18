@@ -1,9 +1,9 @@
-# Building WildLife's species packs (docs/16-regions-plan.md, step 2).
+# Building Thicket's species packs (docs/16-regions-plan.md, step 2).
 #
 # Pushing a tag such as packs-2026-10 builds a species pack for every US state (and DC)
-# from GBIF, checks each one installs properly with WildLife's own code, and publishes
+# from GBIF, checks each one installs properly with Thicket's own code, and publishes
 # them as a release (never marked "latest", so the app's download page is unchanged).
-# Only then is WildLife pointed at them: manifest.json in the "species-packs" release is
+# Only then is Thicket pointed at them: manifest.json in the "species-packs" release is
 # replaced, in one step. If anything fails, nothing is published or changed.
 #
 # The GBIF Backbone file is pinned by its SHA-256: if GBIF replaces it, this stops
@@ -33,7 +33,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
 
-      - name: Install Python and WildLife's libraries (exactly as locked)
+      - name: Install Python and Thicket's libraries (exactly as locked)
         run: uv sync --locked
 
       - name: Keep the GBIF Backbone between runs (about 1 GB)
@@ -64,13 +64,13 @@ jobs:
         run: |
           gh release create "$TAG" build/packs/*.jsonl.gz build/packs/manifest.json \
             --title "Species packs ($TAG)" --latest=false \
-            --notes "Species packs for WildLife: one per US state, from GBIF. WildLife downloads them itself (Settings › Region); there's nothing to download here by hand. $(uv run python -c 'import json; print(json.load(open("build/packs/manifest.json"))["citation"])')"
+            --notes "Species packs for Thicket: one per US state, from GBIF. Thicket downloads them itself (Settings › Region); there's nothing to download here by hand. $(uv run python -c 'import json; print(json.load(open("build/packs/manifest.json"))["citation"])')"
 
-      - name: Point WildLife at the new packs
+      - name: Point Thicket at the new packs
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view species-packs > /dev/null 2>&1 || gh release create species-packs \
             --title "Species packs (current)" --latest=false \
-            --notes "Holds manifest.json: which species packs WildLife offers, with each pack's address and SHA-256. Updated by the Species packs workflow."
+            --notes "Holds manifest.json: which species packs Thicket offers, with each pack's address and SHA-256. Updated by the Species packs workflow."
           gh release upload species-packs build/packs/manifest.json --clobber

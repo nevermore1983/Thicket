@@ -64,9 +64,9 @@ def test_an_import_report_can_be_saved(window, qtbot, tmp_path):
 
 def test_a_cloud_synced_data_folder_is_spotted(monkeypatch, tmp_path):
     monkeypatch.setenv("ONEDRIVE", str(tmp_path / "OneDrive"))
-    assert DataPaths(tmp_path / "OneDrive" / "WildLife").is_cloud_synced()
-    assert DataPaths(Path("C:/Users/x/Dropbox/WildLife")).is_cloud_synced()
-    assert not DataPaths(tmp_path / "Local" / "WildLife").is_cloud_synced()
+    assert DataPaths(tmp_path / "OneDrive" / "Thicket").is_cloud_synced()
+    assert DataPaths(Path("C:/Users/x/Dropbox/Thicket")).is_cloud_synced()
+    assert not DataPaths(tmp_path / "Local" / "Thicket").is_cloud_synced()
 
 
 def test_a_damaged_photo_says_cant_display_and_a_gone_one_says_missing(window, qtbot):

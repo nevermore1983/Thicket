@@ -1,4 +1,4 @@
-"""Importing WildLife's own export (the .json, or the .zip with photos).
+"""Importing Thicket's own export (the .json, or the .zip with photos).
 
 This is how records move between libraries or PCs, or come back from an export.
 Everything is matched by its permanent id (uuid), so importing the same export twice
@@ -59,7 +59,7 @@ class WildlifePlan:
     def describe(self) -> str:
         parts = [f"<b>{self.new_sightings:,}</b> new sightings"]
         if self.already:
-            parts.append(f"{self.already:,} already in WildLife")
+            parts.append(f"{self.already:,} already in Thicket")
         if self.new_places:
             parts.append(f"{self.new_places:,} new places")
         if self.new_outings:
@@ -101,7 +101,7 @@ def read_export(path: Path) -> tuple[dict, bool]:
                     info = z.getinfo(JSON_NAME)
                 except KeyError as exc:
                     raise ImportFileError(
-                        "This .zip isn't a WildLife export (it has no wildlife-export.json)."
+                        "This .zip isn't a Thicket export (it has no wildlife-export.json)."
                     ) from exc
                 if info.file_size > MAX_JSON:
                     raise ImportFileError("The export is too large to read.")
@@ -112,12 +112,12 @@ def read_export(path: Path) -> tuple[dict, bool]:
     except (OSError, zipfile.BadZipFile) as exc:
         raise ImportFileError("The file couldn't be opened. Is it still there?") from exc
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise ImportFileError("This file isn't a WildLife export, or it's damaged.") from exc
+        raise ImportFileError("This file isn't a Thicket export, or it's damaged.") from exc
     if not isinstance(data, dict) or data.get("format") != FORMAT_NAME:
-        raise ImportFileError("This file isn't a WildLife export.")
+        raise ImportFileError("This file isn't a Thicket export.")
     if not isinstance(data.get("format_version"), int) or data["format_version"] > FORMAT_VERSION:
         raise ImportFileError(
-            "This export was made by a newer version of WildLife. Please update WildLife first."
+            "This export was made by a newer version of Thicket. Please update Thicket first."
         )
     for key in ("taxa", "places", "outings", "photos", "sightings"):
         if not isinstance(data.get(key, []), list):
@@ -215,7 +215,7 @@ class WildlifeImporter:
                     continue
             imports_repo.finish_batch(conn, batch, len(result.added), 0, len(result.skipped))
         self._bring_photos(plan, links, result, progress)
-        log.info("WildLife import %s: %s", plan.file_name, result.describe())
+        log.info("Thicket import %s: %s", plan.file_name, result.describe())
         self._events.publish("places", tuple(result.places))
         self._events.publish("outings", tuple(result.outings))
         self._events.publish("sightings", tuple(result.added))
@@ -363,5 +363,5 @@ def _key_of(t: dict) -> str | None:
 
 def _why(exc: Exception) -> str:
     if isinstance(exc, sqlite3.IntegrityError) and "UNIQUE" in str(exc):
-        return "it's already in WildLife"
+        return "it's already in Thicket"
     return "some of its details aren't valid"

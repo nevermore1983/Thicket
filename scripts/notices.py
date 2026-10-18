@@ -1,4 +1,4 @@
-"""Third-party notices for the packaged app: what WildLife bundles, under which licence,
+"""Third-party notices for the packaged app: what Thicket bundles, under which licence,
 and the licence texts themselves. Used by build_exe.py; tests/unit/test_notices.py
 checks every bundled Python package is listed here.
 
@@ -90,10 +90,10 @@ def components() -> list[Component]:
             "https://www.qt.io/qt-for-python",
             lgpl,
             _version("pyside6"),
-            "WildLife uses Qt under the GNU LGPL version 3 (the texts are in licenses/). "
+            "Thicket uses Qt under the GNU LGPL version 3 (the texts are in licenses/). "
             "Qt's libraries are the separate files in _internal/PySide6 and can be replaced "
-            "with your own builds of the same version. WildLife's own terms do not restrict "
-            "you from modifying the Qt libraries in it, or from reverse engineering WildLife "
+            "with your own builds of the same version. Thicket's own terms do not restrict "
+            "you from modifying the Qt libraries in it, or from reverse engineering Thicket "
             "to debug such modifications, as the LGPL requires. The source code is available from "
             "https://download.qt.io/official_releases/QtForPython/ and "
             "https://download.qt.io/official_releases/qt/. Qt WebEngine contains Chromium; "
@@ -152,7 +152,7 @@ def components() -> list[Component]:
             catalogue["source_url"],
             [],
             catalogue["version"],
-            catalogue["attribution"] + ". Names were reformatted for WildLife; no other "
+            catalogue["attribution"] + ". Names were reformatted for Thicket; no other "
             "changes. Licence: https://creativecommons.org/licenses/by/4.0/",
         ),
         Component(
@@ -182,10 +182,10 @@ def write(app_folder: Path) -> int:
     target = app_folder / "licenses"
     shutil.rmtree(target, ignore_errors=True)
     lines = [
-        "WildLife: third-party notices",
+        "Thicket: third-party notices",
         "=============================",
         "",
-        "WildLife includes the components below. Their licence texts are in the "
+        "Thicket includes the components below. Their licence texts are in the "
         "'licenses' folder next to this file.",
         "",
         "Maps are loaded while online from OpenFreeMap (https://openfreemap.org/), using "

@@ -37,10 +37,10 @@ from wildlife.services.stats import StatsService
 from wildlife.services.wildlife_import import WildlifeImporter
 
 log = logging.getLogger(__name__)
-DAMAGED = "Your WildLife data file looks damaged. You can restore it from a backup."
+DAMAGED = "Your Thicket data file looks damaged. You can restore it from a backup."
 UNREADABLE = (
-    "WildLife couldn't read its data file just now. Another program (such as antivirus or "
-    "a sync app) may be using it. Close WildLife, wait a moment and start it again. If it "
+    "Thicket couldn't read its data file just now. Another program (such as antivirus or "
+    "a sync app) may be using it. Close Thicket, wait a moment and start it again. If it "
     "keeps happening, you can restore it from a backup."
 )
 

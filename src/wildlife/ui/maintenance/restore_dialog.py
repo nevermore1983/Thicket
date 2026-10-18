@@ -1,5 +1,5 @@
 """The restore window: pick a backup (from the backup folder, or any file), confirm,
-and WildLife restarts to put it in place."""
+and Thicket restarts to put it in place."""
 
 from __future__ import annotations
 
@@ -55,7 +55,7 @@ class RestoreDialog(QDialog):
         note = QLabel(
             "Your data goes back to how it was when the backup was made; anything added "
             "since is replaced. Your current data is kept as a safety copy first, and photo "
-            "files the library is missing are brought back from the backup. WildLife restarts "
+            "files the library is missing are brought back from the backup. Thicket restarts "
             "to do this."
         )
         note.setWordWrap(True)
@@ -89,9 +89,9 @@ class RestoreDialog(QDialog):
     def _pick(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Choose a WildLife backup",
+            "Choose a Thicket backup",
             str(self.ctx.backup.folder()),
-            "WildLife backup (*.db)",
+            "Thicket backup (*.db)",
         )
         if path:
             self.restore(describe(Path(path)))
@@ -107,7 +107,7 @@ class RestoreDialog(QDialog):
             answer = QMessageBox.question(
                 self,
                 "Restore this backup?",
-                f"WildLife will restart and bring back your data as it was on "
+                f"Thicket will restart and bring back your data as it was on "
                 f"{backup_text(info)}.\n\nYour current data is kept as a safety copy.",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
             )

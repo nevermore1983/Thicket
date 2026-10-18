@@ -1,4 +1,4 @@
-"""WildLife's own export, imported again: into an empty library, twice, with Undo."""
+"""Thicket's own export, imported again: into an empty library, twice, with Undo."""
 
 import json
 import shutil
@@ -134,7 +134,7 @@ def test_undo_removes_everything_the_import_added(ctx, other, tmp_path):
 def test_other_files_are_refused(other, tmp_path):
     wrong = tmp_path / "x.json"
     wrong.write_text(json.dumps({"hello": 1}), encoding="utf-8")
-    with pytest.raises(ImportFileError, match="isn't a WildLife export"):
+    with pytest.raises(ImportFileError, match="isn't a Thicket export"):
         other.wildlife_import.preview(wrong)
     newer = tmp_path / "newer.json"
     newer.write_text(json.dumps({"format": "wildlife-export", "format_version": 99}))
@@ -148,7 +148,7 @@ def test_other_files_are_refused(other, tmp_path):
 
 
 def test_archive_paths_cant_escape_the_library(ctx, other, tmp_path):
-    """A doctored archive naming '../..' files must not write outside WildLife's folders."""
+    """A doctored archive naming '../..' files must not write outside Thicket's folders."""
     seed(ctx, tmp_path)
     archive = ctx.export.export(ExportOptions("archive"), tmp_path / "everything").path
     with zipfile.ZipFile(archive) as z:

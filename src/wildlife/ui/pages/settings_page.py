@@ -216,7 +216,7 @@ class SettingsPage(QWidget):
                     theme,
                     "alert",
                     "Your data folder is inside a cloud-synced folder (such as OneDrive). Syncing a "
-                    "database while WildLife is open can damage it. Keep live data on this PC and "
+                    "database while Thicket is open can damage it. Keep live data on this PC and "
                     "use the cloud folder for backups instead.",
                     tone="warning",
                 )
@@ -263,7 +263,7 @@ class SettingsPage(QWidget):
                 "About",
                 [
                     _row(
-                        f"WildLife {__version__}",
+                        f"Thicket {__version__}",
                         f"Data format version {ctx.schema_version}. Species names: UK Species Inventory, Natural History "
                         f"Museum (CC BY 4.0){self._pack_credit()}. Map data © OpenStreetMap contributors.",
                         _pair(
@@ -350,7 +350,7 @@ class SettingsPage(QWidget):
         rows.append(
             _row(
                 "Automatic backups",
-                "Daily, and when you close WildLife after making changes.",
+                "Daily, and when you close Thicket after making changes.",
                 auto,
             )
         )
@@ -392,8 +392,8 @@ class SettingsPage(QWidget):
                 importer("csv"),
             ),
             _row(
-                "From a WildLife export",
-                "Sightings (and photos) exported from WildLife on this or another PC.",
+                "From a Thicket export",
+                "Sightings (and photos) exported from Thicket on this or another PC.",
                 importer("wildlife"),
             ),
             _row(

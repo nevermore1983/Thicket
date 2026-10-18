@@ -36,7 +36,7 @@ class FirstRunDialog(QDialog):
     def __init__(self, ctx: AppContext, theme: ThemeManager, updating: bool = False) -> None:
         super().__init__()
         self.ctx, self.theme = ctx, theme
-        self.setWindowTitle("Welcome to WildLife" if not updating else "Updating the species list")
+        self.setWindowTitle("Welcome to Thicket" if not updating else "Updating the species list")
         self.setMinimumWidth(520)
         self.setModal(True)
         v = QVBoxLayout(self)
@@ -60,8 +60,8 @@ class FirstRunDialog(QDialog):
         if not updating:
             self.pages.addWidget(
                 self._page(
-                    "Welcome to WildLife",
-                    "WildLife keeps your sightings on this PC. It works without internet, and you can export "
+                    "Welcome to Thicket",
+                    "Thicket keeps your sightings on this PC. It works without internet, and you can export "
                     f"everything at any time.<br><br><span style='color:{theme.tokens.text_3}'>Your data folder: "
                     f"{ctx.paths.root}</span>",
                 )
@@ -94,7 +94,7 @@ class FirstRunDialog(QDialog):
             self.pages.addWidget(
                 self._page(
                     "Your data is backed up automatically",
-                    "WildLife makes a verified backup every day and when you close it after changes. For the best "
+                    "Thicket makes a verified backup every day and when you close it after changes. For the best "
                     "protection, choose a backup folder on another drive (or a cloud-synced folder) in "
                     "<b>Settings › Backup</b>.",
                 )
@@ -151,7 +151,7 @@ class FirstRunDialog(QDialog):
         def failed(exc: BaseException) -> None:
             self.progress_text.setText(
                 "Couldn't install the species list. Details are in the log; please "
-                "restart WildLife to try again."
+                "restart Thicket to try again."
             )
             self.progress_text.setProperty("role", "error")
             self.next_btn.setText("Close")
@@ -180,7 +180,7 @@ class FirstRunDialog(QDialog):
     def _region_page(self) -> QWidget:
         page = self._page(
             "Where do you record?",
-            "WildLife's species list and suggestions follow it. You can change it, or add "
+            "Thicket's species list and suggestions follow it. You can change it, or add "
             "another region, in Settings › Region.",
         )
         layout = page.layout()

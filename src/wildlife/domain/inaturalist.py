@@ -1,6 +1,6 @@
 """Reading iNaturalist's CSV export (inaturalist.org › Your observations › Export).
 
-Each row becomes an `ImportRecord`: the observation in WildLife's terms (date, UK clock
+Each row becomes an `ImportRecord`: the observation in Thicket's terms (date, UK clock
 time, position, how sure the ID is), plus the names iNaturalist used, which the
 importer then matches to the UK species list. Rows that can't become a sighting
 (no date, no name) keep a `problem` explaining why, so the preview can show them.

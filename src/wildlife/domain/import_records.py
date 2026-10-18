@@ -1,4 +1,4 @@
-"""One record from any import file, in WildLife's terms, before it's matched to a species.
+"""One record from any import file, in Thicket's terms, before it's matched to a species.
 
 Every importer (iNaturalist, a spreadsheet, Darwin Core) turns its rows into
 `ImportRecord`s; the shared import pipeline then matches names, checks for

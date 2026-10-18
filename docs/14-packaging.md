@@ -1,5 +1,7 @@
 # WildLife — Phase 14: packaging
 
+> **Renamed:** WildLife became **Thicket** in version 1.2.0. This record keeps the old name where it describes what was built then; see "The rename to Thicket" at the end for what changed.
+
 **Date:** 17 October 2026
 **Status:** Complete. Manual test M11 (a brand-new Windows account) passed on 17 Oct 2026; M12–M13 are yours to run.
 
@@ -216,3 +218,23 @@ The progress is on the repository's **Actions** tab, and the result on its **Rel
 **Licences:** a public download counts as distributing Qt, so the notices state that WildLife's terms allow modifying the Qt libraries and reverse engineering for debugging, as the LGPL requires (version 1.0.3).
 
 **The map on GitHub's build machine.** It has no graphics card, and the map needs one (WebGL) to draw. Chromium inside Qt has no software fallback for it: SwiftShader and WARP were both tried, and neither works. So on GitHub (`WILDLIFE_NO_GPU=1` in the workflow), the smoke tests accept "WebGL isn't available" for the map step. That message means the map page and all its files loaded and ran; only the drawing is untested there. Every other check runs in full. A local build still requires the map to draw. On a PC without a graphics card (some virtual machines, Remote Desktop), WildLife shows its "the map can't be shown here" explanation instead of the map, as designed.
+
+## The rename to Thicket (version 1.2.0)
+
+Everything a person sees says **Thicket**: the window, the Start-menu and desktop shortcuts, Windows' "Installed apps" list, the .exe's Properties, the installer (`Thicket-Setup-<version>.exe`), messages and exports.
+
+Some names are remembered by Windows or by files already on people's PCs, so they keep the first name. Changing any of them would make an upgrade lose track of something:
+
+| Kept as WildLife | Why |
+|---|---|
+| AppId | Windows recognises the installed app by it; a new one would install a second copy |
+| `WildLife.exe` | Taskbar pins point at the .exe by name |
+| AppMutex `WildLife.Running` | A running WildLife 1.1.0 must still stop the installer |
+| AppUserModelID `WildLife.WildLife` | Keeps the window and its pinned shortcut on one taskbar button |
+| Data folder `%LOCALAPPDATA%\WildLife` | Where everyone's sightings and photos already are |
+| Saved window and view choices (QSettings) | Stored under the old name in the registry |
+| A chosen backup folder's "WildLife Backups" | Older backups stay listed and tidied; new backup folders are "Thicket Backups" |
+| The export file format (`wildlife-export.json`) | Older exports still import, and newer ones still open in older versions |
+| The program folder of an earlier install | Inno Setup reuses it (`UsePreviousAppDir`); new installs go to `Programs\Thicket` |
+
+An upgrade from WildLife also removes the old "WildLife" Start-menu and desktop shortcuts (`[InstallDelete]`), so there aren't two icons. The installer check covers this with a test copy's own old-name shortcut, so your real shortcuts are never touched.

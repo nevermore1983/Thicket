@@ -12,8 +12,8 @@ For each state:
    only the species needed are kept), and an English common name is chosen by
    choose_names() below.
 Output (in --out, default build/packs): us-ca.jsonl.gz ... in the same record format as
-the UK list (so WildLife installs them with the same code), and manifest.json with each
-pack's species count, size and SHA-256, which WildLife checks before installing.
+the UK list (so Thicket installs them with the same code), and manifest.json with each
+pack's species count, size and SHA-256, which Thicket checks before installing.
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ from wildlife.domain.regions import POSTAL_CODES  # noqa: E402  (one list of sta
 
 DOWNLOADS = "https://github.com/nevermore1983/WildlifeTracker/releases/download"
 API = "https://api.gbif.org/v1"
-USER_AGENT = "WildLife species pack builder (https://github.com/nevermore1983/WildlifeTracker)"
+USER_AGENT = "Thicket species pack builder (https://github.com/nevermore1983/WildlifeTracker)"
 COUNTED = (  # kinds of record that show a species lives there
     "HUMAN_OBSERVATION",
     "OBSERVATION",
@@ -52,7 +52,7 @@ COUNTED = (  # kinds of record that show a species lives there
     "OCCURRENCE",
 )
 PAGE = 20_000
-FORMAT = 1  # manifest format; WildLife refuses a newer one
+FORMAT = 1  # manifest format; Thicket refuses a newer one
 CITATION = (
     "Species and record counts: GBIF.org ({date}), GBIF Occurrence Search, "
     "https://www.gbif.org/. Names: GBIF Secretariat (2023), GBIF Backbone Taxonomy, "
@@ -180,7 +180,7 @@ def us_states() -> list[State]:
     for gid in sorted({f["name"] for f in facets if f["name"].startswith("USA.")}):
         name = get_json(f"geocode/gadm/{gid}")["name"]
         if name not in POSTAL_CODES:
-            raise SystemExit(f"GBIF knows a US area WildLife doesn't: {name} ({gid})")
+            raise SystemExit(f"GBIF knows a US area Thicket doesn't: {name} ({gid})")
         states.append(State(gid, name, POSTAL_CODES[name]))
     if len(states) != len(POSTAL_CODES):
         missing = sorted(set(POSTAL_CODES) - {s.name for s in states})
@@ -252,7 +252,7 @@ def read_backbone(
 
 def lineage(taxon: dict) -> list[str | None]:
     """[kingdom, phylum, class, order, family]. GBIF's Backbone gives ray-finned fish no
-    class (their orders sit straight under Chordata): it's filled in, so WildLife sorts
+    class (their orders sit straight under Chordata): it's filled in, so Thicket sorts
     them with the fish. (Bird and mammal orders always come with their class.)"""
     ranks = [taxon.get(r) or None for r in ("kingdom", "phylum", "class", "order", "family")]
     if ranks[1] == "Chordata" and ranks[2] is None and (ranks[3] or "").endswith("iformes"):
@@ -261,7 +261,7 @@ def lineage(taxon: dict) -> list[str | None]:
 
 
 def record(key: int, count: int, taxon: dict, synonyms: list[str], names: list[Candidate]) -> dict:
-    """One species in WildLife's pack format (the same as the UK list's)."""
+    """One species in Thicket's pack format (the same as the UK list's)."""
     common, others = choose_names(names, taxon.get("class") == "Aves")
     canonical = taxon.get("canonicalName") or taxon["scientificName"]
     rec = {

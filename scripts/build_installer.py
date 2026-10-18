@@ -1,12 +1,12 @@
-"""Build the WildLife installer, then check it really installs, upgrades and uninstalls.
+"""Build the Thicket installer, then check it really installs, upgrades and uninstalls.
 
     uv run --with "pyinstaller==6.22.3" python scripts/build_exe.py   (first)
     uv run python scripts/build_installer.py
 
-Output: build/installer/WildLife-Setup-<version>.exe
+Output: build/installer/Thicket-Setup-<version>.exe
 
 The check uses a test copy of the installer with its own name and app ID, so it never
-touches a real WildLife installation, and the installed app only ever runs on a
+touches a real Thicket installation, and the installed app only ever runs on a
 temporary data folder. It:
   1. installs an "old" version into a temporary folder;
   2. installs the current version over it (the upgrade) and checks stale files are gone;
@@ -42,7 +42,8 @@ APP_FOLDER = ROOT / "build" / "dist" / "WildLife"
 OUTPUT = ROOT / "build" / "installer"
 SCRIPT = ROOT / "packaging" / "installer.iss"
 TEST_APP_ID = "{6F1D0C52-9B7E-4C61-A0E3-3C5D2A7B8E14}"  # as in installer.iss (TestBuild)
-TEST_NAME = "WildLife installer test"
+TEST_NAME = "Thicket installer test"
+OLD_TEST_NAME = "WildLife installer test"  # OldAppName in installer.iss (TestBuild)
 UNINSTALL_KEY = rf"Software\Microsoft\Windows\CurrentVersion\Uninstall\{TEST_APP_ID}_is1"
 
 
@@ -74,7 +75,7 @@ def compile_installer(version: str, out: Path, test: bool = False) -> Path:
         cmd.append("-DTestBuild")
     started = time.perf_counter()
     subprocess.run([*cmd, str(SCRIPT)], check=True)
-    name = f"{'WildLife-InstallerTest' if test else 'WildLife'}-Setup-{version}.exe"
+    name = f"{'Thicket-InstallerTest' if test else 'Thicket'}-Setup-{version}.exe"
     setup = out / name
     print(
         f"Built {setup.name}: {setup.stat().st_size / 1e6:.0f} MB in {time.perf_counter() - started:.0f} s"
@@ -85,13 +86,13 @@ def compile_installer(version: str, out: Path, test: bool = False) -> Path:
 # ---- the check ----------------------------------------------------------------------
 def check(work: Path) -> None:
     app, data = work / "app", work / "data"
-    shortcut = (
-        Path(os.environ["APPDATA"]) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
-    ) / f"{TEST_NAME}.lnk"
+    programs = Path(os.environ["APPDATA"]) / "Microsoft" / "Windows" / "Start Menu" / "Programs"
+    shortcut = programs / f"{TEST_NAME}.lnk"
+    old_shortcut = programs / f"{OLD_TEST_NAME}.lnk"  # as made before the app was renamed
     if _registry() is not None:
         raise SystemExit("A previous installer test is still installed: uninstall it first")
     if _mutex_exists():
-        raise SystemExit("Close WildLife first: the check starts and closes a copy of it")
+        raise SystemExit("Close Thicket first: the check starts and closes a copy of it")
     real_data = _fingerprint(Path(os.environ["LOCALAPPDATA"]) / "WildLife" / "wildlife.db")
 
     old = compile_installer("0.0.1", work / "setup", test=True)
@@ -102,9 +103,11 @@ def check(work: Path) -> None:
     _expect(shortcut.is_file(), "Start-menu shortcut made")
     stale = app / "_internal" / "left-over-from-the-old-version.dll"
     stale.write_bytes(b"old")
+    old_shortcut.write_bytes(b"old")
 
     _install(new)  # no /DIR: an upgrade must find the existing installation itself
     _expect(_registry() == __version__, f"upgraded to {__version__}")
+    _expect(not old_shortcut.exists(), "the shortcut with the app's old name was removed")
     _expect((app / "WildLife.exe").is_file(), "upgrade went into the same folder")
     _expect(not stale.exists(), "files the new version doesn't need were removed")
 
@@ -147,7 +150,7 @@ def _uninstall(app: Path) -> None:
 
 
 def _check_running_mark(exe: Path, data: Path) -> None:
-    """While WildLife is open, the mark the installer looks for (AppMutex) exists."""
+    """While Thicket is open, the mark the installer looks for (AppMutex) exists."""
     proc = subprocess.Popen([str(exe), "--data-dir", str(data)])
     try:
         seen = False
@@ -156,7 +159,7 @@ def _check_running_mark(exe: Path, data: Path) -> None:
                 seen = True
                 break
             time.sleep(0.5)
-        _expect(seen, "a running WildLife is visible to the installer")
+        _expect(seen, "a running Thicket is visible to the installer")
     finally:
         # Close it like the X button (WM_CLOSE), not a kill. A new data folder opens the
         # welcome dialog first, and a close request closes only that, so ask again.
@@ -172,7 +175,7 @@ def _check_running_mark(exe: Path, data: Path) -> None:
         if proc.poll() is None:
             proc.kill()
             proc.wait()
-    _expect(not _mutex_exists(), f"the mark goes when WildLife closes ({how})")
+    _expect(not _mutex_exists(), f"the mark goes when Thicket closes ({how})")
 
 
 def _mutex_exists() -> bool:

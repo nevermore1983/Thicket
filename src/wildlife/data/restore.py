@@ -2,9 +2,9 @@
 
 A database can't be swapped while it's open, so restoring has two halves:
 
-1. `request_restore()` (while WildLife runs): checks the backup thoroughly, then
+1. `request_restore()` (while Thicket runs): checks the backup thoroughly, then
    leaves a note in the data folder saying which backup to restore.
-2. `apply_pending_restore()` (when WildLife next starts, before anything opens the
+2. `apply_pending_restore()` (when Thicket next starts, before anything opens the
    database): makes a safety copy of the current data, puts the backup in place,
    brings back any photo files the library is missing from the backup's photo
    mirror, and removes the note. If anything goes wrong, the current data stays.
@@ -78,8 +78,8 @@ def describe(path: Path) -> BackupInfo:
 
 
 def check(path: Path) -> snapshot.Verification:
-    """Raise BackupError (in plain words) unless `path` is a sound WildLife backup this
-    version of WildLife can open."""
+    """Raise BackupError (in plain words) unless `path` is a sound Thicket backup this
+    version of Thicket can open."""
     if not path.exists():
         raise BackupError("That backup file isn't there any more. Is the drive connected?")
     try:
@@ -93,16 +93,16 @@ def check(path: Path) -> snapshot.Verification:
         finally:
             conn.close()
     except sqlite3.Error as exc:
-        raise BackupError("That file isn't a WildLife backup.", detail=str(exc)) from exc
+        raise BackupError("That file isn't a Thicket backup.", detail=str(exc)) from exc
     if not has_sightings:
-        raise BackupError("That file isn't a WildLife backup.")
+        raise BackupError("That file isn't a Thicket backup.")
     if not result.ok:
         raise BackupError(
             "That backup failed its check, so it can't be restored. Try an older one.",
             detail=str(result),
         )
     if version > available_migrations()[-1].version:
-        raise BackupError("That backup was made by a newer version of WildLife. Update first.")
+        raise BackupError("That backup was made by a newer version of Thicket. Update first.")
     return result
 
 
@@ -131,7 +131,7 @@ def latest_backup(paths: DataPaths) -> BackupInfo | None:
 
 
 def request_restore(paths: DataPaths, backup: Path) -> BackupInfo:
-    """Check the backup, then note it to be restored when WildLife next starts."""
+    """Check the backup, then note it to be restored when Thicket next starts."""
     check(backup)
     note = {"backup": str(backup), "requested_utc": datetime.now(UTC).isoformat()}
     (paths.root / NOTE).write_text(json.dumps(note, indent=2), encoding="utf-8")

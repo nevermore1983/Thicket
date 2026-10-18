@@ -78,7 +78,7 @@ def test_a_record_is_in_the_uk_lists_format():
 
 
 def test_fish_without_a_class_are_filed_as_fish():
-    """GBIF gives ray-finned fish no class; WildLife sorts by class, so it's filled in."""
+    """GBIF gives ray-finned fish no class; Thicket sorts by class, so it's filled in."""
     perch = {
         "kingdom": "Animalia",
         "phylum": "Chordata",

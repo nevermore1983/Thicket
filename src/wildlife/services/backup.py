@@ -34,7 +34,7 @@ from wildlife.services.settings import SettingsService
 log = logging.getLogger(__name__)
 KEEP_DAILY, KEEP_WEEKLY, KEEP_MONTHLY = 7, 4, 12
 # "2026-10-11_093012_auto.db", or "2026-10-11_093012-2_manual.db" for a second one that
-# second. Any other .db file in the folder isn't one of WildLife's backups: left alone.
+# second. Any other .db file in the folder isn't one of Thicket's backups: left alone.
 SNAPSHOT_NAME = re.compile(r"^\d{4}-\d{2}-\d{2}_\d{6}(-\d+)?_[a-z]+$")
 # A photo in the library (and its backup copy) is named by its content hash
 LIBRARY_FILE = re.compile(r"^[0-9a-f]{64}\.[a-z0-9]+$")
@@ -68,7 +68,10 @@ class BackupService:
     # ---- where ---------------------------------------------------------------
     def folder(self) -> Path:
         chosen = self._settings.current.backup_folder
-        return Path(chosen) / "WildLife Backups" if chosen else self._paths.root / "backups"
+        if not chosen:
+            return self._paths.root / "backups"
+        earlier = Path(chosen) / "WildLife Backups"  # made before the app was renamed
+        return earlier if earlier.is_dir() else Path(chosen) / "Thicket Backups"
 
     def uses_default_folder(self) -> bool:
         return not self._settings.current.backup_folder
@@ -244,7 +247,7 @@ class BackupService:
         mirror, removed = root / "photos", 0
         for f in mirror.rglob("*") if mirror.exists() else []:
             if not (f.is_file() and LIBRARY_FILE.match(f.name)):
-                continue  # only WildLife's own photo copies are ever removed
+                continue  # only Thicket's own photo copies are ever removed
             if "photos/" + f.relative_to(mirror).as_posix() not in needed:
                 try:
                     f.unlink()
@@ -295,12 +298,12 @@ class BackupService:
         return [restore.describe(p) for p in self.snapshots()]
 
     def request_restore(self, backup: Path) -> restore.BackupInfo:
-        """Check `backup` and arrange for it to be restored when WildLife restarts."""
+        """Check `backup` and arrange for it to be restored when Thicket restarts."""
         return restore.request_restore(self._paths, backup)
 
 
 def _snapshots_in(folder: Path) -> list[Path]:
-    """WildLife's own backups in `folder`, newest first (their names start with a
+    """Thicket's own backups in `folder`, newest first (their names start with a
     sortable timestamp). Other .db files there are someone else's: never touched."""
     if not folder.exists():
         return []

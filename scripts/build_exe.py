@@ -29,7 +29,7 @@ import notices  # noqa: E402
 
 from wildlife import __version__  # noqa: E402
 
-# Qt modules WildLife never uses. Excluding them keeps the download smaller.
+# Qt modules Thicket never uses. Excluding them keeps the download smaller.
 EXCLUDE = [
     "PySide6.Qt3DAnimation",
     "PySide6.Qt3DCore",
@@ -76,13 +76,13 @@ def version_file() -> Path:
     path = BUILD / "version_info.txt"
     path.parent.mkdir(parents=True, exist_ok=True)
     strings = {
-        "CompanyName": "WildLife",
-        "FileDescription": "WildLife wildlife journal",
+        "CompanyName": "Thicket",
+        "FileDescription": "Thicket wildlife journal",
         "FileVersion": __version__,
-        "InternalName": "WildLife",
-        "LegalCopyright": "WildLife. Third-party notices: THIRD-PARTY-NOTICES.txt",
+        "InternalName": "Thicket",
+        "LegalCopyright": "Thicket. Third-party notices: THIRD-PARTY-NOTICES.txt",
         "OriginalFilename": "WildLife.exe",
-        "ProductName": "WildLife",
+        "ProductName": "Thicket",
         "ProductVersion": __version__,
     }
     table = ", ".join(f"StringStruct({k!r}, {v!r})" for k, v in strings.items())
@@ -108,7 +108,7 @@ def run_pyinstaller() -> None:
         "--onedir",
         "--windowed",
         "--name",
-        "WildLife",
+        "WildLife",  # the .exe keeps its first name: taskbar pins point at it
         "--icon",
         str(ICON),
         "--version-file",

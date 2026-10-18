@@ -16,7 +16,7 @@ from wildlife.data.repositories import taxa as taxa_repo
 
 @pytest.fixture
 def paths(tmp_path: Path) -> DataPaths:
-    return DataPaths(tmp_path / "WildLife").ensure()
+    return DataPaths(tmp_path / "Thicket").ensure()
 
 
 @pytest.fixture

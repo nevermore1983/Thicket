@@ -222,16 +222,16 @@ class RecordImporter:
             return PlannedRow(rec, SKIP, reason=rec.problem)
         before = known.get(rec.source_id) if rec.source_id else None
         if before and before.deleted:
-            return PlannedRow(rec, SKIP, reason="You deleted it in WildLife")
+            return PlannedRow(rec, SKIP, reason="You deleted it in Thicket")
         if before and (rec.updated_at is None or rec.updated_at == before.source_updated_at):
             return PlannedRow(
-                rec, SAME, reason="Already in WildLife", existing_id=before.sighting_id
+                rec, SAME, reason="Already in Thicket", existing_id=before.sighting_id
             )
         if before and before.edited_here:
             return PlannedRow(
                 rec,
                 SKIP,
-                reason="Changed in WildLife and in the file: your WildLife version is kept",
+                reason="Changed in Thicket and in the file: your Thicket version is kept",
                 existing_id=before.sighting_id,
             )
         if rec.observed_date > today:

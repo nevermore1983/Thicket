@@ -1,10 +1,10 @@
-"""Check built species packs the way WildLife will use them, before they're published.
+"""Check built species packs the way Thicket will use them, before they're published.
 
     uv run python scripts/check_species_packs.py build/packs
 
 Each pack is checked against manifest.json (size, SHA-256), then installed into a fresh
-WildLife database with the app's own code (on top of the UK list, as for a UK user who
-adds a state). Reports, per pack, how many species WildLife couldn't sort into one of
+Thicket database with the app's own code (on top of the UK list, as for a UK user who
+adds a state). Reports, per pack, how many species Thicket couldn't sort into one of
 its categories ("Other"), how many have no English name, how many were linked to a UK
 species instead of being added, and how long installing took. Exits 1 if anything is
 wrong, so the workflow publishes nothing.
@@ -31,7 +31,7 @@ from wildlife.data.migrate import migrate  # noqa: E402
 from wildlife.data.repositories import taxa  # noqa: E402
 from wildlife.services.species_catalogue import bundled_catalogue, read_records  # noqa: E402
 
-# "Other" is expected for algae, protists and bacteria (WildLife has no category for them,
+# "Other" is expected for algae, protists and bacteria (Thicket has no category for them,
 # in the UK list too). An animal, plant or fungus there means a sorting rule is missing.
 SORTABLE = ("Animalia", "Plantae", "Fungi")
 MAX_UNSORTED = 0.02  # at most 2% of a pack's species
@@ -90,7 +90,7 @@ def check(folder: Path) -> list[str]:
 
 
 def _uk_library(path: Path) -> None:
-    """A WildLife database with the UK list installed, as a UK user has."""
+    """A Thicket database with the UK list installed, as a UK user has."""
     uk_path, uk_info = bundled_catalogue()
     conn = sqlite3.connect(path, autocommit=True)
     try:

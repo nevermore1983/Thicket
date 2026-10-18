@@ -58,7 +58,7 @@ class DashboardPage(QWidget):
 
     def _welcome(self) -> Page:
         t = self.theme
-        page = Page("Welcome to WildLife")
+        page = Page("Welcome to Thicket")
         page.add(
             EmptyState(
                 t,

@@ -1,4 +1,4 @@
-"""The rest of WildLife following where you record (docs/16-regions-plan.md, step 4):
+"""The rest of Thicket following where you record (docs/16-regions-plan.md, step 4):
 the regions table, clocks for times in files, and spreadsheet date order."""
 
 from datetime import UTC, date, datetime

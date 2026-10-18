@@ -74,7 +74,7 @@ def migrate(
     version = current_version(conn)
     if version > latest:
         raise DatabaseError(
-            "This data was saved by a newer version of WildLife. Please update the app to open it.",
+            "This data was saved by a newer version of Thicket. Please update the app to open it.",
             detail=f"database version {version} > app version {latest}",
         )
     pending = [m for m in migrations if m.version > version]
@@ -88,7 +88,7 @@ def migrate(
             apply_migration(conn, migration)
         except sqlite3.Error as exc:
             raise DatabaseError(
-                "WildLife couldn't upgrade your data. Nothing was changed, and a backup was "
+                "Thicket couldn't upgrade your data. Nothing was changed, and a backup was "
                 "made first.",
                 detail=f"{migration.name}: {exc}",
             ) from exc

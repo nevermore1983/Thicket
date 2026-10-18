@@ -1,7 +1,7 @@
 """Line icons (24 px grid, stroke-based) drawn from SVG in any theme colour.
 
 Most come from Lucide (ISC licence, https://lucide.dev); the butterfly,
-dragonfly, frog, snail and mushroom are WildLife's own and still need a designer's polish.
+dragonfly, frog, snail and mushroom are Thicket's own and still need a designer's polish.
 """
 
 from __future__ import annotations

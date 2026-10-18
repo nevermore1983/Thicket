@@ -125,7 +125,7 @@ def test_a_newer_manifest_asks_for_a_newer_wildlife(ctx, internet):
     internet[MANIFEST_URL] = json.dumps({"format": 99, "packs": []}).encode()
     with pytest.raises(PackError) as refused:
         ctx.species_packs.offered()
-    assert "newer version of WildLife" in refused.value.user_message
+    assert "newer version of Thicket" in refused.value.user_message
 
 
 def test_only_wildlifes_github_releases_are_approved():

@@ -142,7 +142,7 @@ def read_info(path: Path) -> PhotoInfo:
     except (UnidentifiedImageError, OSError, ValueError) as exc:
         if not is_raw(path):
             raise PhotoError(
-                f"“{path.name}” isn't a photo WildLife can read.", detail=str(exc)
+                f"“{path.name}” isn't a photo Thicket can read.", detail=str(exc)
             ) from exc
         width, height, exif = _raw_size_and_exif(path)
     taken, lat, lon, accuracy, camera = _from_exif(exif)
@@ -161,7 +161,7 @@ def _raw_size_and_exif(path: Path) -> tuple[int, int, Image.Exif]:
                 width, height = height, width
     except (rawpy.LibRawError, OSError) as exc:
         raise PhotoError(
-            f"“{path.name}” isn't a RAW file WildLife can read.", detail=str(exc)
+            f"“{path.name}” isn't a RAW file Thicket can read.", detail=str(exc)
         ) from exc
     exif = Image.Exif()
     try:
@@ -343,7 +343,7 @@ class PhotoService:
         return photo, True, 1 if raw_rel else 0
 
     def _revive(self, photo: Photo, source: Path, sha: str) -> bool:
-        """A photo being imported that WildLife already has. If it's in the recycle bin
+        """A photo being imported that Thicket already has. If it's in the recycle bin
         it comes back out (to the Inbox); if its library file has gone, the file being
         imported puts it back. True if it came back from the bin (so it counts as new)."""
         if photo.sha256 == sha and not self.path_of(photo).exists():
@@ -505,7 +505,7 @@ class PhotoService:
 
     def purge_recycle_bin(self, older_than_days: int | None = None) -> int:
         """Permanently remove photos deleted more than N days ago, files and all.
-        The only time WildLife ever deletes a photo file."""
+        The only time Thicket ever deletes a photo file."""
         days = older_than_days
         if days is None:
             days = self._settings.current.recycle_bin_days if self._settings else 30
@@ -539,7 +539,7 @@ class PhotoService:
 
     # ---- missing files -------------------------------------------------------------
     def missing(self) -> list[Photo]:
-        """Photos whose library file has gone (e.g. deleted outside WildLife)."""
+        """Photos whose library file has gone (e.g. deleted outside Thicket)."""
         with self._db.connection() as conn:
             photos = repo.live(conn)
         return [p for p in photos if not self.path_of(p).exists()]
