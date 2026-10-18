@@ -1,0 +1,47 @@
+# One-off (docs/17-website-plan.md): give an already-published release its installer
+# under the name Thicket-Setup.exe too, which releases after 1.2.1 get automatically
+# (release.yml). The website's download buttons link to
+# releases/latest/download/Thicket-Setup.exe, so the latest release must have it.
+#
+# It copies the installer that's already on the release, after checking it against the
+# checksum published with it, so the new file is identical. SHA256SUMS.txt is rewritten
+# to list both names, with Unix line endings.
+#
+# Run it from the Actions tab: "Add Thicket-Setup.exe to a release" › Run workflow.
+
+name: Add Thicket-Setup.exe to a release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The release's tag"
+        required: true
+        default: v1.2.1
+
+permissions:
+  contents: write # to add files to the release; nothing else
+
+jobs:
+  add:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }} # through the environment, never pasted into the script
+    steps:
+      - name: Copy the published installer (checked against its checksum)
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::'$TAG' isn't a tag like v1.2.1"; exit 1; }
+          name="Thicket-Setup-${TAG#v}.exe"
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$name" --pattern SHA256SUMS.txt
+          # The download must match the checksum published with the release
+          tr -d '\r' < SHA256SUMS.txt | grep -F "  $name" | sha256sum -c -
+          cp "$name" Thicket-Setup.exe
+          sha=$(sha256sum "$name" | cut -d' ' -f1)
+          printf '%s  %s\n%s  %s\n' "$sha" "$name" "$sha" Thicket-Setup.exe > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - name: Add it to the release
+        run: gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" Thicket-Setup.exe SHA256SUMS.txt --clobber
