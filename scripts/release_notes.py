@@ -30,7 +30,7 @@ def notes(version: str, sha256: str) -> str:
 
 ## Installing
 
-1. Download **Thicket-Setup-{version}.exe** below.
+1. Download **Thicket-Setup-{version}.exe** below. (**Thicket-Setup.exe** is the same file, under a name that never changes.)
 2. Run it. It installs for your Windows account only, with no administrator password, and adds Thicket to the Start menu.
 3. Already have Thicket? Running it upgrades your copy. Your sightings, photos and settings are kept.
 

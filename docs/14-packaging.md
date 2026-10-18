@@ -207,7 +207,7 @@ GitHub then does, in order (if any step fails, nothing is published):
 3. Installs Inno Setup 7.1.0 after checking its checksum and signature.
 4. Builds the app and runs its smoke test.
 5. Builds the installer and runs the install, upgrade and uninstall check.
-6. Publishes the release, with the installer, a `SHA256SUMS.txt` file and the changelog notes for that version.
+6. Publishes the release, with the installer (also as `Thicket-Setup.exe`, a name that never changes, for the website's download button; added 18 Oct 2026), a `SHA256SUMS.txt` file (Unix line endings, so `sha256sum -c` works) and the changelog notes for that version.
 
 The progress is on the repository's **Actions** tab, and the result on its **Releases** page.
 

@@ -90,7 +90,12 @@ jobs:
         run: |
           $name = "Thicket-Setup-$env:VERSION.exe"
           $setup = "build/installer/$name"
+          # The same installer under a name that never changes, so the website can link
+          # straight to the newest: releases/latest/download/Thicket-Setup.exe
+          $stable = "build/installer/Thicket-Setup.exe"
+          Copy-Item $setup $stable
           $sha = (Get-FileHash $setup -Algorithm SHA256).Hash.ToLower()
-          "$sha  $name" | Out-File SHA256SUMS.txt -Encoding ascii
+          # Unix line endings (Out-File would add Windows ones), so `sha256sum -c` works too
+          [IO.File]::WriteAllText((Join-Path $PWD "SHA256SUMS.txt"), "$sha  $name`n$sha  Thicket-Setup.exe`n")
           uv run python scripts/release_notes.py $env:VERSION $sha notes.md
-          gh release create $env:TAG $setup SHA256SUMS.txt --title "Thicket $env:VERSION" --notes-file notes.md
+          gh release create $env:TAG $setup $stable SHA256SUMS.txt --title "Thicket $env:VERSION" --notes-file notes.md
