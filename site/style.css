@@ -493,6 +493,140 @@ p {
   list-style: none;
 }
 
+/* ---------- Text pages (help, privacy, changelog): contents on the left, text on the right ---------- */
+
+.prose-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  align-items: start;
+  gap: 56px;
+  padding-bottom: 88px;
+}
+
+.prose-only {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.toc {
+  position: sticky;
+  top: 88px;
+  font-size: 0.9375rem;
+}
+
+.toc h2 {
+  margin-bottom: 8px;
+  color: var(--text-3);
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.toc ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.toc a {
+  display: block;
+  padding: 4px 0;
+  color: var(--text-2);
+  text-decoration: none;
+}
+
+.toc a:hover {
+  color: var(--accent);
+}
+
+.prose {
+  max-width: 44rem;
+}
+
+.prose section {
+  /* Leaves room for the sticky header when jumping to a section */
+  scroll-margin-top: 88px;
+}
+
+.prose section + section {
+  margin-top: 40px;
+  padding-top: 40px;
+  border-top: 1px solid var(--border);
+}
+
+.prose h2 {
+  font-size: 1.5rem;
+}
+
+.prose ul,
+.prose ol {
+  margin: 0 0 1em;
+  padding-left: 1.4em;
+}
+
+.prose li + li {
+  margin-top: 6px;
+}
+
+.prose code {
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-family: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  font-size: 0.875em;
+  overflow-wrap: anywhere;
+}
+
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 6px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 0.8125em;
+  font-weight: 600;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.prose table {
+  width: 100%;
+  margin: 0 0 1em;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+}
+
+.prose th,
+.prose td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.prose th {
+  color: var(--text-2);
+  font-weight: 600;
+}
+
+/* The changelog: each version is a section with its number as the heading */
+.version-tag {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--accent-subtle);
+  color: var(--accent-subtle-text);
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
 /* ---------- Footer ---------- */
 
 .site-footer {
@@ -610,6 +744,45 @@ p {
 
   .more {
     padding: 40px 0 56px;
+  }
+
+  /* The contents list goes above the text and stops sticking. */
+  .prose-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+    padding-bottom: 56px;
+  }
+
+  .toc {
+    position: static;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+  }
+
+  /* A three-column table is too tight on a phone: each row becomes a small block. */
+  .prose thead {
+    display: none;
+  }
+
+  .prose tr,
+  .prose td {
+    display: block;
+  }
+
+  .prose tr {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .prose td {
+    padding: 2px 0;
+    border: 0;
+  }
+
+  .prose td:first-child {
+    font-weight: 600;
   }
 
   .screenshot {

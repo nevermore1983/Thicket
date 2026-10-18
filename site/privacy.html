@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy: Thicket</title>
+  <meta name="description" content="Thicket keeps your sightings and photos on your own PC. What it connects to, when, and how to turn that off. This website has no cookies or tracking.">
+  <link rel="icon" href="images/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="images/logo.svg" alt="" width="32" height="32">
+        Thicket
+      </a>
+      <nav class="site-nav" aria-label="Pages">
+        <ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="help.html">Help</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+          <li><a href="privacy.html" aria-current="page">Privacy</a></li>
+        </ul>
+      </nav>
+      <a class="button button-primary" href="https://github.com/nevermore1983/Thicket/releases/latest">Download</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="page-intro">
+      <div class="wrap">
+        <h1>Privacy</h1>
+        <p class="lede">Short version: your sightings are yours, and they stay on your PC. No account, no tracking, no adverts.</p>
+      </div>
+    </section>
+
+    <div class="wrap prose-layout prose-only">
+      <div class="prose">
+        <section id="on-your-pc">
+          <h2>What stays on your PC</h2>
+          <p>Everything you put into Thicket: sightings, photos, places, outings, notes and backups. It's kept in a folder on your own computer, and Thicket never uploads it anywhere. There's no Thicket account and no Thicket server.</p>
+        </section>
+
+        <section id="online">
+          <h2>When Thicket goes online</h2>
+          <p>Only for these three things, only over a secure connection, and only to these services:</p>
+          <table>
+            <thead>
+              <tr><th scope="col">What</th><th scope="col">Service</th><th scope="col">What it's told</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>The map's background</td>
+                <td>OpenFreeMap</td>
+                <td>Which map areas you're looking at, as with any web map. Not your sightings: those are drawn on your PC.</td>
+              </tr>
+              <tr>
+                <td>US species packs</td>
+                <td>GitHub</td>
+                <td>Nothing about you: Thicket fetches the list of packs and the pack you pick, only when you add a state.</td>
+              </tr>
+              <tr>
+                <td>iNaturalist photos</td>
+                <td>iNaturalist</td>
+                <td>The numbers of your iNaturalist observations, only when you import an export and tick <strong>Also download the photos</strong>.</td>
+              </tr>
+            </tbody>
+          </table>
+          <p>Like any website you visit, these services see your internet (IP) address. Thicket sends nothing else: no usage statistics, no crash reports, and no update checks.</p>
+          <p><strong>To turn all of it off,</strong> untick <strong>Settings › Online features › Allow</strong>. Thicket then works fully offline, with a plain outline map.</p>
+        </section>
+
+        <section id="sharing">
+          <h2>When you share your records</h2>
+          <p>Exports only happen when you make one, and you choose what's in it. When exporting to share, Thicket can blur exact locations, and it removes where photos were taken (their GPS) unless you say otherwise.</p>
+        </section>
+
+        <section id="website">
+          <h2>This website</h2>
+          <p>This site has no cookies, no analytics and no adverts, and it doesn't load fonts or scripts from anywhere else. It's hosted by GitHub Pages, and GitHub may keep standard server logs, such as IP addresses; see the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub privacy statement</a>.</p>
+          <p>The download button takes you to GitHub, where Thicket's installer is published.</p>
+        </section>
+
+        <section id="questions">
+          <h2>Questions</h2>
+          <p>Ask on <a href="https://github.com/nevermore1983/Thicket/issues">GitHub</a>. Thicket's source code is public there too, so anyone can check what it does.</p>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Thicket, a wildlife journal for Windows.</p>
+      <p><a href="https://github.com/nevermore1983/Thicket">Source on GitHub</a> · <a href="privacy.html">Privacy</a></p>
+    </div>
+  </footer>
+</body>
+</html>

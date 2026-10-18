@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Help: Thicket</title>
+  <meta name="description" content="Installing Thicket, the 'Windows protected your PC' message, upgrading, where your data lives, backups, restoring, regions and uninstalling.">
+  <link rel="icon" href="images/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="images/logo.svg" alt="" width="32" height="32">
+        Thicket
+      </a>
+      <nav class="site-nav" aria-label="Pages">
+        <ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="help.html" aria-current="page">Help</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+        </ul>
+      </nav>
+      <a class="button button-primary" href="https://github.com/nevermore1983/Thicket/releases/latest">Download</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="page-intro">
+      <div class="wrap">
+        <h1>Help</h1>
+        <p class="lede">Installing, backing up and finding your way around. Short answers first.</p>
+      </div>
+    </section>
+
+    <div class="wrap prose-layout">
+      <nav class="toc" aria-label="On this page">
+        <h2>On this page</h2>
+        <ol>
+          <li><a href="#install">Installing</a></li>
+          <li><a href="#windows-warning">"Windows protected your PC"</a></li>
+          <li><a href="#first-start">The first start</a></li>
+          <li><a href="#upgrade">Upgrading</a></li>
+          <li><a href="#data">Where your data lives</a></li>
+          <li><a href="#backups">Backups</a></li>
+          <li><a href="#restore">Restoring a backup</a></li>
+          <li><a href="#import">Importing from iNaturalist</a></li>
+          <li><a href="#region">Changing region</a></li>
+          <li><a href="#uninstall">Uninstalling</a></li>
+          <li><a href="#problems">Something's wrong</a></li>
+        </ol>
+      </nav>
+
+      <div class="prose">
+        <section id="install">
+          <h2>Installing</h2>
+          <ol>
+            <li>Go to the <a href="https://github.com/nevermore1983/Thicket/releases/latest">latest release</a> and download the file called <code>Thicket-Setup-<var>version</var>.exe</code>.</li>
+            <li>Run it, and follow the steps.</li>
+          </ol>
+          <p>Thicket installs for your Windows account only, so it doesn't need an administrator password. It's added to the Start menu; a desktop icon is optional. It needs 64-bit Windows 10 or 11.</p>
+        </section>
+
+        <section id="windows-warning">
+          <h2>"Windows protected your PC"</h2>
+          <p>Windows shows this blue box the first time you run a downloaded program that isn't signed with a paid certificate. Thicket isn't signed (certificates cost hundreds of pounds a year), so you'll see it once.</p>
+          <p>Click <strong>More info</strong>, then <strong>Run anyway</strong>.</p>
+          <p>Every release lists the checksum of each file (<code>SHA256SUMS.txt</code>), if you'd like to check your download is the real one.</p>
+        </section>
+
+        <section id="first-start">
+          <h2>The first start</h2>
+          <p>Thicket asks where you record:</p>
+          <ul>
+            <li><strong>United Kingdom:</strong> the UK species list is built in, so there's nothing to download.</li>
+            <li><strong>A US state:</strong> that state's species pack downloads in a few seconds and is checked before it's installed.</li>
+          </ul>
+          <p>Then add your first sighting with the <strong>Add sighting</strong> button, or press <kbd>Ctrl</kbd>+<kbd>N</kbd>.</p>
+        </section>
+
+        <section id="upgrade">
+          <h2>Upgrading</h2>
+          <p>Download the newer installer and run it. It replaces the program and keeps everything else: sightings, photos, settings and backups. If Thicket is open, the installer asks you to close it first.</p>
+          <p>Thicket used to be called WildLife. Installing Thicket over WildLife upgrades it the same way.</p>
+        </section>
+
+        <section id="data">
+          <h2>Where your data lives</h2>
+          <p>In the folder <code>%LOCALAPPDATA%\WildLife</code> on your PC. (It keeps the app's first name, so nothing went missing in the rename.) To open it, press <kbd>Win</kbd>+<kbd>R</kbd>, paste that name and press <kbd>Enter</kbd>. Thicket also shows the full path in <strong>Settings › Data</strong>.</p>
+          <p>Installing, upgrading and uninstalling never touch this folder.</p>
+        </section>
+
+        <section id="backups">
+          <h2>Backups</h2>
+          <p>Thicket backs up by itself once a day and when you close it, and checks each backup can be read back. It keeps the last 7 days, 4 weeks and 12 months.</p>
+          <p><strong>Do one thing:</strong> choose a backup folder on another drive, such as a USB drive or a second disk. Until you do, backups sit next to your data, so they wouldn't survive that drive failing. Go to <strong>Settings › Backup › Backup folder</strong>. <strong>Back up now</strong> is there too.</p>
+        </section>
+
+        <section id="restore">
+          <h2>Restoring a backup</h2>
+          <p>Go to <strong>Settings › Backup › Restore…</strong> and pick a backup. Your data goes back to how it was then. Your current data is kept as a safety copy first, and Thicket restarts to finish.</p>
+          <p>If Thicket ever can't open your data when it starts, it offers to restore the latest backup.</p>
+          <p>Deleted something by mistake? Deleted sightings and photos wait in the recycle bin for 30 days (<strong>Settings › Data</strong>), and most changes can be undone straight away.</p>
+        </section>
+
+        <section id="import">
+          <h2>Importing from iNaturalist</h2>
+          <ol>
+            <li>On the iNaturalist website, use <a href="https://www.inaturalist.org/observations/export">Export observations</a> to download your observations as a CSV file.</li>
+            <li>In Thicket, go to <strong>Settings › Import &amp; export › From iNaturalist</strong> and choose the file.</li>
+            <li>Check what Thicket found, and tick <strong>Also download the photos</strong> if you'd like them.</li>
+          </ol>
+          <p>Importing a newer export later only adds what's new or changed. Spreadsheets import the same way, from <strong>From a spreadsheet</strong>.</p>
+        </section>
+
+        <section id="region">
+          <h2>Changing region</h2>
+          <p>Go to <strong>Settings › Region</strong>. You can switch between the UK and US states, or add another state's pack for a trip. Packs only add species: your sightings never change.</p>
+        </section>
+
+        <section id="uninstall">
+          <h2>Uninstalling</h2>
+          <p>Open Windows <strong>Settings › Apps › Installed apps</strong>, find Thicket and choose <strong>Uninstall</strong>. Your data is kept, and the uninstaller tells you where. To remove it as well, delete the <code>%LOCALAPPDATA%\WildLife</code> folder afterwards (and your backup folder, if you chose one).</p>
+        </section>
+
+        <section id="problems">
+          <h2>Something's wrong</h2>
+          <ul>
+            <li><strong>Settings › Data › Health check</strong> checks your data file, every photo, your backups and the species list, and explains anything it finds.</li>
+            <li>Still stuck? <a href="https://github.com/nevermore1983/Thicket/issues">Report it on GitHub</a>. Say what you did and what happened. <strong>Settings › About › Open log folder</strong> has Thicket's log files, which help. Have a look at them before attaching one: they can include folder and place names.</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Thicket, a wildlife journal for Windows.</p>
+      <p><a href="https://github.com/nevermore1983/Thicket">Source on GitHub</a> · <a href="privacy.html">Privacy</a></p>
+    </div>
+  </footer>
+</body>
+</html>

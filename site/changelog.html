@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Changelog: Thicket</title>
+  <meta name="description" content="What changed in each version of Thicket.">
+  <link rel="icon" href="images/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="images/logo.svg" alt="" width="32" height="32">
+        Thicket
+      </a>
+      <nav class="site-nav" aria-label="Pages">
+        <ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="help.html">Help</a></li>
+          <li><a href="changelog.html" aria-current="page">Changelog</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+        </ul>
+      </nav>
+      <a class="button button-primary" href="https://github.com/nevermore1983/Thicket/releases/latest">Download</a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="page-intro">
+      <div class="wrap">
+        <h1>Changelog</h1>
+        <p class="lede">What changed in each version. To upgrade, <a href="help.html#upgrade">run the newest installer</a>: your sightings and photos are kept.</p>
+      </div>
+    </section>
+
+    <div class="wrap prose-layout prose-only">
+      <div class="prose">
+        <!-- changelog:start -->
+        <section id="v1-2-0">
+          <h2>1.2.0 <span class="version-tag">Latest</span></h2>
+          <p>WildLife is now called <strong>Thicket</strong>.</p>
+          <ul>
+            <li>The new name is on the window, the Start menu, the installer and exports. Nothing else changes.</li>
+            <li>Installing Thicket over WildLife upgrades it in place. Your sightings, photos, settings and backups carry straight on, and the old Start-menu and desktop shortcuts are replaced by Thicket ones. A taskbar pin keeps working.</li>
+            <li>Exports made by WildLife import into Thicket as usual.</li>
+            <li>Behind the scenes some names stay as they were, so nothing goes missing: the data folder is still <code>%LOCALAPPDATA%\WildLife</code>, and a backup folder you chose keeps its "WildLife Backups" folder. New backup folders are called "Thicket Backups".</li>
+          </ul>
+        </section>
+        <section id="v1-1-0">
+          <h2>1.1.0</h2>
+          <p>WildLife now works outside the UK, starting with the United States.</p>
+          <ul>
+            <li><strong>Where you record:</strong> choose the UK or a US state, when WildLife first starts or in Settings › Region.</li>
+            <li><strong>Species packs for every US state</strong> (and DC), downloaded in the app: species recorded in that state from GBIF, with the common names US birders and naturalists use, most-recorded first in suggestions. Each pack is checked against its published checksum before it's installed. Packs only add species: a species already in your list is never copied, so your life list counts it once.</li>
+            <li>Species suggestions and common names follow your region ("robin" suggests American Robin in Ohio, Robin in the UK). Either name finds a species.</li>
+            <li>The map opens on your region. Grid squares, which use the British grid, are offered in the UK only.</li>
+            <li>Positions outside Great Britain are shown as latitude and longitude.</li>
+            <li>Spreadsheet dates are read month/day in the US and day/month in the UK, with a switch on the import page.</li>
+            <li>iNaturalist times in UTC are converted with your PC's time zone outside the UK.</li>
+            <li>Exports say where each species name comes from: the UK Species Inventory or GBIF.</li>
+          </ul>
+        </section>
+        <section id="v1-0-3">
+          <h2>1.0.3</h2>
+          <p>The first version available to download from GitHub.</p>
+          <ul>
+            <li>If another program (such as antivirus or a sync app) is briefly using the data file when WildLife starts, WildLife now waits a few seconds and tries again. It used to call this "damaged" and offer an older backup. If the file still can't be read, the message says so plainly. "Damaged" is kept for files that really are damaged.</li>
+            <li>The third-party notices now state that WildLife's terms don't restrict modifying the Qt libraries it includes, as Qt's licence (the LGPL) requires for a public download.</li>
+          </ul>
+        </section>
+        <section id="v1-0-2">
+          <h2>1.0.2</h2>
+          <ul>
+            <li>Rotating a photo removes its old thumbnails.</li>
+            <li>Backups tidy their photo folder. A photo copy is removed only when neither your library nor any backup still kept needs it.</li>
+            <li>Spreadsheet exports are safe to open in Excel: text starting with <code>=</code>, <code>+</code>, <code>-</code> or <code>@</code> is kept as text, not run as a formula.</li>
+            <li>Pages showing "today" are redrawn just after midnight.</li>
+            <li>Fixed: a backup folder with <code>#</code> or <code>%</code> in its name showed its backups as empty in the restore list.</li>
+          </ul>
+        </section>
+        <section id="v1-0-1">
+          <h2>1.0.1</h2>
+          <p>Fixes from a full code audit (see <code>docs/15-code-audit.md</code>).</p>
+          <ul>
+            <li>Importing a photo that's in the recycle bin brings it back, instead of leaving it hidden there.</li>
+            <li>Deleting a place that an outing uses explains why it can't be deleted.</li>
+            <li>One backup runs at a time, so two can't spoil each other.</li>
+            <li>Saving a sighting waits for photos still being added.</li>
+            <li>Undoing an edit also brings back the photos it had.</li>
+            <li>"Empty now" empties photos too.</li>
+            <li><code>_</code> and <code>%</code> in a search match only themselves. Bulk changes work on any number of sightings.</li>
+          </ul>
+        </section>
+        <section id="v1-0-0">
+          <h2>1.0.0</h2>
+          <p>The first release: recording sightings, photos (including RAW and HEIC), calendar, map, statistics, outings, places, iNaturalist and spreadsheet import, exports, automatic verified backups, restore and a health check.</p>
+        </section>
+        <!-- changelog:end -->
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Thicket, a wildlife journal for Windows.</p>
+      <p><a href="https://github.com/nevermore1983/Thicket">Source on GitHub</a> · <a href="privacy.html">Privacy</a></p>
+    </div>
+  </footer>
+</body>
+</html>
