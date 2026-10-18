@@ -2,6 +2,11 @@
 
 Each version's notes are used for its download page on GitHub (`scripts/release_notes.py`).
 
+## 1.2.1
+
+- Fixed: switching between light and dark while Thicket was open (in Settings, or when Windows switches by itself) turned the map's clusters black and hid their numbers until Thicket was restarted.
+- Thicket has a website: [nevermore1983.github.io/Thicket](https://nevermore1983.github.io/Thicket/), with a tour of the features, help with installing and backing up, and exactly what Thicket connects to.
+
 ## 1.2.0
 
 WildLife is now called **Thicket**.

@@ -22,7 +22,7 @@ What changed in each version: [CHANGELOG.md](CHANGELOG.md). How the installer wo
 
 ## Status
 
-Version 1.2.0. See `docs/` for the research, specification, architecture, UI design and
+Version 1.2.1. See `docs/` for the research, specification, architecture, UI design and
 each phase's record, and `prototype/index.html` for the clickable design prototype.
 
 ## Developer setup
