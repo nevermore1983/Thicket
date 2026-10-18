@@ -8,7 +8,7 @@ Thicket was called **WildLife** up to version 1.1.0. Installing Thicket over Wil
 
 ## Download
 
-**[Download the latest Thicket installer](https://github.com/nevermore1983/WildlifeTracker/releases/latest)**: the file called `Thicket-Setup-<version>.exe`.
+**[Download the latest Thicket installer](https://github.com/nevermore1983/Thicket/releases/latest)**: the file called `Thicket-Setup-<version>.exe`.
 
 Run it. It installs for your Windows account only, with no administrator password, and adds Thicket to the Start menu. Running a newer installer upgrades your copy.
 

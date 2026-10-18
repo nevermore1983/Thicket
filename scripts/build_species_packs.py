@@ -40,9 +40,9 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from wildlife.domain.regions import POSTAL_CODES  # noqa: E402  (one list of states, shared with the app)
 
-DOWNLOADS = "https://github.com/nevermore1983/WildlifeTracker/releases/download"
+DOWNLOADS = "https://github.com/nevermore1983/Thicket/releases/download"
 API = "https://api.gbif.org/v1"
-USER_AGENT = "Thicket species pack builder (https://github.com/nevermore1983/WildlifeTracker)"
+USER_AGENT = "Thicket species pack builder (https://github.com/nevermore1983/Thicket)"
 COUNTED = (  # kinds of record that show a species lives there
     "HUMAN_OBSERVATION",
     "OBSERVATION",

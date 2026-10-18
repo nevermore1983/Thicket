@@ -11,7 +11,7 @@ from helpers import US_PACK
 from wildlife.domain.errors import OnlineServiceError
 from wildlife.services.species_packs import MANIFEST_URL, PackError
 
-PACK_URL = "https://github.com/nevermore1983/WildlifeTracker/releases/download/packs-2026-10/us-ca.jsonl.gz"
+PACK_URL = "https://github.com/nevermore1983/Thicket/releases/download/packs-2026-10/us-ca.jsonl.gz"
 
 
 def pack_bytes(records=US_PACK) -> bytes:
@@ -135,5 +135,5 @@ def test_only_wildlifes_github_releases_are_approved():
     assert is_allowed(
         "https://release-assets.githubusercontent.com/github-production-release-asset/1"
     )
-    assert not is_allowed("http://github.com/nevermore1983/WildlifeTracker")  # https only
+    assert not is_allowed("http://github.com/nevermore1983/Thicket")  # https only
     assert not is_allowed("https://raw.githubusercontent.com/someone/else/main/pack.gz")

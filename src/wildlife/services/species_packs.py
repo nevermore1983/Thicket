@@ -23,7 +23,7 @@ from wildlife.services.species_catalogue import SpeciesCatalogue
 
 log = logging.getLogger(__name__)
 MANIFEST_URL = (
-    "https://github.com/nevermore1983/WildlifeTracker/releases/download/species-packs/manifest.json"
+    "https://github.com/nevermore1983/Thicket/releases/download/species-packs/manifest.json"
 )
 FORMAT = 1  # the newest manifest format this version understands
 MAX_PACK = 30 * 1024 * 1024  # the biggest state's pack is ~2 MB

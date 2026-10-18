@@ -397,7 +397,7 @@ def serve_us_pack(ctx, records=None) -> list[str]:
     from wildlife.services.species_packs import MANIFEST_URL
 
     data = gzip.compress("".join(json.dumps(r) + "\n" for r in records or US_PACK).encode("utf-8"))
-    pack_url = "https://github.com/nevermore1983/WildlifeTracker/releases/download/packs-test/us-ca.jsonl.gz"
+    pack_url = "https://github.com/nevermore1983/Thicket/releases/download/packs-test/us-ca.jsonl.gz"
     manifest = {
         "format": 1,
         "created": "2026-10-18",

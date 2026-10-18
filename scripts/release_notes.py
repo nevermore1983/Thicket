@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-REPO = "https://github.com/nevermore1983/WildlifeTracker"
+REPO = "https://github.com/nevermore1983/Thicket"
 
 
 def changes(version: str, changelog: Path = ROOT / "CHANGELOG.md") -> str:
