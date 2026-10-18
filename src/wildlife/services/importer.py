@@ -29,6 +29,7 @@ from wildlife.data.repositories import imports as repo
 from wildlife.data.repositories import photos as photos_repo
 from wildlife.data.repositories import places as places_repo
 from wildlife.data.repositories import sightings as sightings_repo
+from wildlife.data.repositories import taxa as taxa_repo
 from wildlife.domain.codes import LocationMethod
 from wildlife.domain.geo import distance_m
 from wildlife.domain.import_records import ImportRecord
@@ -158,6 +159,11 @@ class RecordImporter:
     ) -> None:
         self._paths, self._db, self._events = paths, db, events
         self._settings, self._photos, self._today = settings, photos, today
+
+    def region(self) -> str:
+        """Where you record ('uk', 'us-oh'...): how dates and times in files are read."""
+        with self._db.connection() as conn:
+            return taxa_repo.current_region(conn)
 
     # ---- step 1: preview -------------------------------------------------------------
     def preview_records(

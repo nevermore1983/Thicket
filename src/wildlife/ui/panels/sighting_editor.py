@@ -587,13 +587,12 @@ class SightingEditor(PanelView):
                 "error",
             )
         else:
+            # Show the position the other way round from how it was typed: a grid reference
+            # for coordinates in Great Britain, coordinates otherwise (anywhere else: the US)
             ref = geo.grid_ref_for(parsed.latitude, parsed.longitude, parsed.uncertainty_m)
-            where = (
-                ref
-                if parsed.method != "grid_ref"
-                else f"{parsed.latitude:.5f}, {parsed.longitude:.5f}"
-            )
-            note = f"{where or 'Outside the GB grid'} · ±{parsed.uncertainty_m:,} m"
+            coords = f"{parsed.latitude:.5f}, {parsed.longitude:.5f}"
+            where = ref if ref and parsed.method != "grid_ref" else coords
+            note = f"{where} · ±{parsed.uncertainty_m:,} m"
             if self._place_id is None and (
                 near := self.ctx.places.nearest(parsed.latitude, parsed.longitude)
             ):

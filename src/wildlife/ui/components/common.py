@@ -93,6 +93,10 @@ class Segmented(QFrame):
     def set_current(self, key: str) -> None:
         self._buttons[key].setChecked(True)
 
+    def current(self) -> str | None:
+        """The key of the option chosen."""
+        return next((k for k, b in self._buttons.items() if b.isChecked()), None)
+
     def _tab_to_checked(self) -> None:
         """Tab reaches the row through its selected option; the arrow keys move between
         options (like radio buttons)."""

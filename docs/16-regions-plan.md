@@ -143,3 +143,36 @@ Packs only ever **add** species. Your sightings, and species already in your lis
 - **Crosses between two species** ("Anas rubripes x platyrhynchos") are left out. Named hybrid species, such as peppermint, are kept.
 
 **The GBIF Backbone file:** version of 28 Aug 2023, SHA-256 `2897887c…5770`. GBIF publishes no checksum, so this one was recorded on download, after the zip's own integrity check passed. The workflow refuses any other file.
+
+---
+
+## Step 3 results (18 Oct 2026)
+
+**What's built:**
+- **Settings › Region** has two rows:
+  - "Where you record" switches the species names and suggestions;
+  - "Add a US state…" opens a filterable list of the 51 states, then downloads, checks (size and SHA-256) and installs the chosen pack, with progress, and makes it your region if you like.
+- **The first-run welcome** asks "Where do you record?". The UK list always installs first; a chosen state's pack follows. Without internet, it carries on with the UK.
+- **Downloads** go only through the approved hosts, now including `github.com` and `release-assets.githubusercontent.com`, and only while online features are on.
+
+**The packs** are published on GitHub: release `packs-2026-10-2`, with 51 packs (North Dakota 3,836 species to California 34,886). The `species-packs` release holds the manifest the app reads.
+
+**A real end-to-end test** went through WildLife's own code: it fetched the list, then downloaded, checked and installed Ohio in 3.6 s.
+
+**Found while publishing:**
+- **GBIF's 1 GB file download dropped** (an HTTP/2 stream error). The workflow now downloads over HTTP/1.1, with retries that resume where they stopped.
+- **The "Other" check failed North Dakota and Hawaii.** Their diatoms, bacteria and seaweeds belong in "Other". The check now only fails on animals, plants or fungi landing there.
+- **Rhode Island was silently missing.** GBIF's data has no "RI" for it. State codes now come from WildLife's own table (`domain/regions.py`), and a full build refuses to finish without all 51.
+
+## Step 4 results (18 Oct 2026)
+
+| What | Now |
+|---|---|
+| Map start | Opens on your region (`domain/regions.py`: Britain, or each state's approximate centre and zoom). Changing region forgets the map's remembered view. |
+| Grid squares | Offered only in the UK (they're the British National Grid). Outside the UK the map switches to pins. |
+| Positions | Shown as a grid reference only inside Great Britain, as latitude/longitude anywhere else. The editors no longer say "Outside the GB grid". |
+| Times in iNaturalist files | Used only when the time the observer typed can't be read. UTC is then converted with UK rules in the UK and with the PC's time zone elsewhere (`dates.local_clock`). Photo file names already used the PC's time zone. |
+| Spreadsheet dates | Read day/month in the UK and month/day in the US. The import page has a switch, and warns when a date only makes sense the other way round. |
+| Wording | "your species list" instead of "the UK species list"; hours are "clock time". Settings credits GBIF once a state is added (its licence asks for it). |
+
+Also fixed: choosing the grid-squares mode before the map had loaded started a squares load for a map that wasn't there yet.

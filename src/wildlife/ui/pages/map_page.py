@@ -29,6 +29,7 @@ from wildlife.context import AppContext
 from wildlife.domain import geo
 from wildlife.domain.filters import SightingFilter
 from wildlife.domain.models import Category
+from wildlife.domain.regions import region
 from wildlife.services.map import SQUARE_SIZES, Bounds
 from wildlife.ui.components.common import Callout, EmptyState, Segmented, button
 from wildlife.ui.components.filter_bar import FilterBar
@@ -48,7 +49,6 @@ BASEMAPS = (
     ("dark", "Dark"),
     ("plain", "Plain outline"),
 )
-UK = {"lat": 54.4, "lon": -3.2, "zoom": 4.6}
 PIN = 22  # pin diameter in logical pixels
 
 
@@ -143,6 +143,7 @@ class MapPage(QWidget):
         self.modes = Segmented(MODES, self.mode if self.mode in dict(MODES) else "pins")
         self.modes.changed.connect(self.set_mode)
         top.addWidget(self.modes)
+        self._region: str | None = None  # the region the map last followed
         self.weight_box = QComboBox()
         self.weight_box.addItem("Weight: sightings", "sightings")
         self.weight_box.addItem("Weight: individuals counted", "animals")
@@ -204,6 +205,7 @@ class MapPage(QWidget):
         self.squares_note.setWordWrap(True)
         v.addWidget(self.squares_note)
         self._sync_controls()
+        self._follow_region()  # the options and start view for where you record
         theme.changed.connect(self._theme_changed)
 
     # ---- the web view, made on first visit -------------------------------------------
@@ -251,7 +253,7 @@ class MapPage(QWidget):
 
     def _page_ready(self, info: dict) -> None:
         log.info("Map ready: MapLibre %s", info.get("maplibre"))
-        camera = QSettings().value("map/camera") or UK
+        camera = QSettings().value("map/camera") or region(self.ctx.catalogue.region()).start_view
         self._send(
             "init",
             theme=theme_payload(self.ctx, self.theme.tokens),
@@ -299,6 +301,7 @@ class MapPage(QWidget):
     # ---- data ------------------------------------------------------------------------
     def refresh(self) -> None:
         """Re-read the sightings (and squares, if shown) for the current filter."""
+        self._follow_region()
         self._update_banner()
         if not self.ready:
             return
@@ -391,7 +394,7 @@ class MapPage(QWidget):
         self.modes.set_current(mode)
         self._sync_controls()
         self._send_layers()
-        if mode == "squares":
+        if mode == "squares" and self.ready:  # before the map has loaded, refresh() does it
             self._load_squares()
 
     def _weight_changed(self, _index: int) -> None:
@@ -469,6 +472,23 @@ class MapPage(QWidget):
             return
         self.banner.set_text(text)
         self.banner.show()
+
+    def _follow_region(self) -> None:
+        """The map follows where you record (docs/16-regions-plan.md): it opens on that
+        region, and grid squares (the British National Grid) are offered only in the UK."""
+        current = region(self.ctx.catalogue.region())
+        if self._region == current.code:
+            return
+        changed = self._region is not None  # changed while WildLife is open
+        self._region = current.code
+        self.modes.button_for("squares").setVisible(current.is_uk)
+        if not current.is_uk and self.mode == "squares":
+            self.set_mode("pins")
+        if changed:
+            QSettings().remove("map/camera")
+            if self.ready:
+                self._fit_after_load = False
+                self._send("flyTo", **current.start_view)
 
     def fit(self) -> None:
         if self.ready and self._bounds:

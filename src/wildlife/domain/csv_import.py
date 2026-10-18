@@ -231,21 +231,24 @@ _MONTHS = {
     )
 }
 _ISO = re.compile(r"^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](.*))?$")
-_UK = re.compile(r"^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})(?:\s+(.*))?$")
+_NUMERIC = re.compile(r"^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})(?:\s+(.*))?$")
 _WORDS = re.compile(r"^(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\.?,?\s+(\d{4})(?:\s+(.*))?$")
 _TIME = re.compile(r"^(\d{1,2})[:.](\d{2})(?::\d{2}(?:\.\d+)?)?\s*([AaPp][Mm])?")
 
 
-def parse_date(text: str) -> tuple[date | None, str | None]:
-    """A date (and a time, if one is written with it). UK order for numbers."""
+def parse_date(text: str, month_first: bool = False) -> tuple[date | None, str | None]:
+    """A date (and a time, if one is written with it). Numbers are read day first
+    (UK: 3/5/2026 is 3 May), or month first (US: 5 March) if month_first."""
     text = text.strip()
     rest = None
     try:
         if m := _ISO.match(text):
             day, rest = date(int(m[1]), int(m[2]), int(m[3])), m[4]
-        elif m := _UK.match(text):
+        elif m := _NUMERIC.match(text):
             year = int(m[3]) + (2000 if len(m[3]) == 2 else 0)
-            day, rest = date(year, int(m[2]), int(m[1])), m[4]
+            first, second = int(m[1]), int(m[2])
+            month, day_of_month = (first, second) if month_first else (second, first)
+            day, rest = date(year, month, day_of_month), m[4]
         elif (m := _WORDS.match(text)) and m[2][:3].lower() in _MONTHS:
             day, rest = date(int(m[3]), _MONTHS[m[2][:3].lower()], int(m[1])), m[4]
         else:
@@ -302,7 +305,9 @@ def unguard(text: str) -> str:
     return text
 
 
-def to_records(table: Table, mapping: dict[str, int]) -> list[ImportRecord]:
+def to_records(
+    table: Table, mapping: dict[str, int], month_first: bool = False
+) -> list[ImportRecord]:
     def cell(row: list[str], key: str) -> str:
         i = mapping.get(key)
         return unguard(row[i].strip()) if i is not None and i < len(row) else ""
@@ -311,7 +316,7 @@ def to_records(table: Table, mapping: dict[str, int]) -> list[ImportRecord]:
     for n, row in enumerate(table.rows):
         line = n + 2
         problem = None
-        day, clock = parse_date(cell(row, "date"))
+        day, clock = parse_date(cell(row, "date"), month_first)
         if (t := cell(row, "time")) and (parsed := parse_time(t)):
             clock = parsed
         if day is None:
@@ -366,16 +371,25 @@ def to_records(table: Table, mapping: dict[str, int]) -> list[ImportRecord]:
     return records
 
 
-def describe_date_columns(table: Table, mapping: dict[str, int]) -> str | None:
-    """A warning if the date column looks American (month first), else None."""
+def describe_date_columns(
+    table: Table, mapping: dict[str, int], month_first: bool = False
+) -> str | None:
+    """A warning if the date column looks written the other way round, else None."""
     i = mapping.get("date")
     if i is None:
         return None
     for row in table.rows[:500]:
-        if i < len(row) and (m := _UK.match(row[i].strip())) and int(m[2]) > 12:
+        if i >= len(row) or not (m := _NUMERIC.match(row[i].strip())):
+            continue
+        if not month_first and int(m[2]) > 12:
             return (
-                "Some dates look like month/day/year (American order). WildLife reads "
-                "dates as day/month/year, so please check them, or change them in the "
-                "spreadsheet first."
+                "Some dates look like month/day/year (American order), but they're being read "
+                "as day/month/year. Choose month/day above if that's how they're written."
+            )
+        if month_first and int(m[1]) > 12:
+            return (
+                "Some dates look like day/month/year, but they're being read as "
+                "month/day/year (American order). Choose day/month above if that's how "
+                "they're written."
             )
     return None

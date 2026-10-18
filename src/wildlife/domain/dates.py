@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import calendar
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Literal
@@ -95,6 +96,21 @@ def uk_local(moment: datetime) -> datetime:
     summer_starts = datetime.combine(_last_sunday(moment.year, 3), time(1))
     summer_ends = datetime.combine(_last_sunday(moment.year, 10), time(1))
     return moment + timedelta(hours=1) if summer_starts <= moment < summer_ends else moment
+
+
+def pc_local(moment: datetime) -> datetime:
+    """This computer's wall-clock time of a moment (aware, or naive in UTC), using the
+    time zone Windows is set to. For regions other than the UK (a US state can span
+    two time zones; your PC knows which one you're in)."""
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=UTC)
+    return moment.astimezone().replace(tzinfo=None)
+
+
+def local_clock(region: str) -> Callable[[datetime], datetime]:
+    """How to turn a UTC moment into the clock time you saw, for a region: UK rules in
+    the UK (exact whatever the PC's setting), the PC's own time zone elsewhere."""
+    return uk_local if region == "uk" else pc_local
 
 
 # ---- search ------------------------------------------------------------------

@@ -39,9 +39,10 @@ from wildlife.context import AppContext
 from wildlife.domain.csv_import import FIELDS, Table, describe_date_columns, guess_mapping
 from wildlife.domain.errors import WildlifeError
 from wildlife.domain.filters import SightingFilter
+from wildlife.domain.regions import region
 from wildlife.services.importer import ADD, SAME, SKIP, UPDATE, ImportPlan
 from wildlife.services.wildlife_import import WildlifePlan
-from wildlife.ui.components.common import Callout, button, clear_layout
+from wildlife.ui.components.common import Callout, Segmented, button, clear_layout
 from wildlife.ui.components.species_picker import SpeciesPicker
 from wildlife.ui.components.visuals import plural
 from wildlife.ui.theme.manager import ThemeManager
@@ -68,7 +69,7 @@ KINDS = {
             "inaturalist",
             "Import from iNaturalist",
             "Bring in your iNaturalist observations",
-            "Your observations become WildLife sightings, matched to the UK species list. "
+            "Your observations become WildLife sightings, matched to your species list. "
             "Research-grade IDs are marked <b>certain</b>; the rest <b>probable</b>. "
             "Importing the same export again later only adds what's new or changed.",
             "1. On <b>inaturalist.org</b>, open <b>Your observations › Export</b>.<br>"
@@ -87,7 +88,8 @@ KINDS = {
             "a WildLife or Darwin Core export. Before anything is imported, you'll check which "
             "column is which, and see what will happen to every row.",
             "In Excel, choose <b>File › Save As › CSV UTF-8</b>. Each row should be one sighting "
-            "with at least a species and a date. Dates are read the UK way (day/month/year).",
+            "with at least a species and a date. Next, you can say how its dates are written "
+            "(day/month or month/day).",
             "Spreadsheet (*.csv *.txt)",
             "Choose spreadsheet…",
         ),
@@ -209,6 +211,19 @@ class ImportDialog(QDialog):
                 "scientific name)."
             )
         )
+        # How numeric dates are written: the region's way to start with (US month/day)
+        order = QHBoxLayout()
+        order.addWidget(self._text("Dates like 3/5/2026 are", role=None))
+        month_first = region(self.ctx.catalogue.region()).month_first
+        self.date_order = Segmented(
+            [("dmy", "day/month (3 May)"), ("mdy", "month/day (March 5)")],
+            "mdy" if month_first else "dmy",
+        )
+        self.date_order.setAccessibleName("Date order")
+        self.date_order.changed.connect(lambda _key: self._update_map())
+        order.addWidget(self.date_order)
+        order.addStretch(1)
+        v.addLayout(order)
         self.map_warning = Callout(self.theme, "alert", "", tone="warning")
         self.map_warning.hide()
         v.addWidget(self.map_warning)
@@ -364,14 +379,17 @@ class ImportDialog(QDialog):
             return
         mapping = self.mapping()
         ready = "date" in mapping and bool({"species", "scientific", "uksi_key"} & set(mapping))
-        warning = describe_date_columns(self.table, mapping)
+        warning = describe_date_columns(self.table, mapping, self.month_first())
         self.map_warning.setVisible(bool(warning))
         if warning:
             self.map_warning.set_text(warning)
         self.go_btn.setEnabled(ready and not self._busy)
 
+    def month_first(self) -> bool:
+        return self.date_order.current() == "mdy"
+
     def _preview_table(self) -> None:
-        table, mapping = self.table, self.mapping()
+        table, mapping, month_first = self.table, self.mapping(), self.month_first()
         self._busy = True
         self.go_btn.setEnabled(False)
 
@@ -392,7 +410,11 @@ class ImportDialog(QDialog):
             )
             self._update_map()
 
-        run_in_background(lambda: self.ctx.spreadsheet.preview(table, mapping), done, failed)
+        run_in_background(
+            lambda: self.ctx.spreadsheet.preview(table, mapping, month_first=month_first),
+            done,
+            failed,
+        )
 
     # ---- step 3: check -------------------------------------------------------------------
     def _fill_check(self, plan) -> None:
@@ -458,7 +480,7 @@ class ImportDialog(QDialog):
                 Callout(
                     self.theme,
                     "info",
-                    f"{plural(n, 'name')} {'isn' if n == 1 else 'aren'}'t in the UK species list "
+                    f"{plural(n, 'name')} {'isn' if n == 1 else 'aren'}'t in your species list "
                     "as written. Choose the species (or a broader group) for each, and WildLife "
                     "will remember it next time. Anything left empty isn't imported.",
                 )

@@ -95,3 +95,55 @@ def test_the_welcome_carries_on_with_the_uk_without_internet(ctx, monkeypatch, q
     dialog._next()
     qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
     assert ctx.catalogue.region() == "uk"
+
+
+# ---- step 4: the rest of WildLife follows the region ----------------------------------
+def test_the_map_follows_the_region(window):
+    from PySide6.QtCore import QSettings
+
+    page = window.map_page
+    page.set_mode("squares")
+    QSettings().setValue("map/camera", {"lat": 51.5, "lon": -0.1, "zoom": 9})
+    window.ctx.catalogue.set_region("us-oh")
+    page.refresh()
+    assert page.modes.button_for("squares").isHidden()  # the British National Grid: UK only
+    assert page.mode == "pins"
+    assert QSettings().value("map/camera") is None  # it opens on Ohio next time
+    window.ctx.catalogue.set_region("uk")
+    page.refresh()
+    assert not page.modes.button_for("squares").isHidden()
+
+
+def test_a_us_position_is_shown_as_coordinates(window):
+    window.add_sighting()
+    editor = window.panel.current()
+    editor.location.setText("40.10000, -83.00000")  # Ohio
+    editor._on_location_edited("")
+    editor._update_location_note()
+    note = editor.f_location.note.text()
+    assert "40.10000, -83.00000" in note and "GB grid" not in note
+    editor._dirty = False
+    window.panel.close_panel()
+
+
+def test_spreadsheet_import_starts_with_the_regions_date_order(window):
+    window.ctx.catalogue.set_region("us-oh")
+    dialog = window.import_data("csv")
+    assert dialog.month_first()
+    dialog.reject()
+    window.ctx.catalogue.set_region("uk")
+    dialog = window.import_data("csv")
+    assert not dialog.month_first()
+    dialog.reject()
+
+
+def test_gbif_is_credited_once_a_state_is_added(window, qtbot):
+    from PySide6.QtWidgets import QLabel
+
+    def credits() -> str:
+        window.settings_page.refresh()
+        return " ".join(label.text() for label in window.settings_page.findChildren(QLabel))
+
+    assert "GBIF.org" not in credits()
+    add_california(window, qtbot)
+    assert "US states (1): GBIF.org" in credits()

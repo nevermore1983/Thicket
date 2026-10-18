@@ -251,7 +251,7 @@ class SettingsPage(QWidget):
             _row(
                 "Species list",
                 f"UK Species Inventory, version {ctx.catalogue.installed_version() or 'not installed'}"
-                " · Natural History Museum, CC BY 4.0",
+                " · Natural History Museum, CC BY 4.0" + self._pack_credit(),
                 QLabel(""),
             ),
         ]
@@ -265,7 +265,7 @@ class SettingsPage(QWidget):
                     _row(
                         f"WildLife {__version__}",
                         f"Data format version {ctx.schema_version}. Species names: UK Species Inventory, Natural History "
-                        "Museum (CC BY 4.0). Map data © OpenStreetMap contributors.",
+                        f"Museum (CC BY 4.0){self._pack_credit()}. Map data © OpenStreetMap contributors.",
                         _pair(
                             button(
                                 "Keyboard shortcuts",
@@ -463,6 +463,13 @@ class SettingsPage(QWidget):
         if dialog.restored:
             self.toast.emit(f"Restored {plural(dialog.restored, 'sighting')}", None)
         self.refresh()
+
+    def _pack_credit(self) -> str:
+        """GBIF's credit, once a US state's species pack is added (its licence asks for it)."""
+        states = [p for p in self.ctx.catalogue.packs() if p["source"] == "gbif"]
+        if not states:
+            return ""
+        return f". US states ({len(states)}): GBIF.org and the GBIF Backbone Taxonomy, CC BY 4.0"
 
     # ---- region (docs/16-regions-plan.md) ---------------------------------------
     def _region_rows(self) -> list[QWidget]:

@@ -24,6 +24,7 @@ from wildlife.config.paths import DataPaths
 from wildlife.data.db import Database
 from wildlife.data.repositories import imports as repo
 from wildlife.data.repositories import photos as photos_repo
+from wildlife.domain.dates import local_clock
 from wildlife.domain.errors import OnlineServiceError
 from wildlife.domain.inaturalist import SOURCE, read_file
 from wildlife.services import online
@@ -84,7 +85,8 @@ class InaturalistImporter(RecordImporter):
     def preview(
         self, path: Path, progress: Callable[[int, int], None] = lambda d, t: None
     ) -> ImportPlan:
-        return self.preview_records(read_file(path), path.name, SOURCE, progress)
+        records = read_file(path, local_clock(self.region()))  # UTC times: the region's clock
+        return self.preview_records(records, path.name, SOURCE, progress)
 
     # ---- photos (optional, online) ---------------------------------------------------
     def fetch_photos(

@@ -69,7 +69,8 @@ def encounter_heading(ctx: AppContext, e: Encounter) -> str:
     if located:
         near = ctx.places.nearest(located.gps_latitude, located.gps_longitude)
         ref = geo.grid_ref_for(located.gps_latitude, located.gps_longitude, 100)
-        parts.append(f"near {near.name}" if near else (ref or "has GPS"))
+        lat, lon = located.gps_latitude, located.gps_longitude
+        parts.append(f"near {near.name}" if near else (ref or f"{lat:.3f}, {lon:.3f}"))
     parts.append(plural(len(e.photos), "photo"))
     return " · ".join(parts)
 

@@ -25,6 +25,7 @@ import hashlib
 import io
 import json
 import re
+import sys
 import time
 import urllib.parse
 import urllib.request
@@ -35,6 +36,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+from wildlife.domain.regions import POSTAL_CODES  # noqa: E402  (one list of states, shared with the app)
+
 DOWNLOADS = "https://github.com/nevermore1983/WildlifeTracker/releases/download"
 API = "https://api.gbif.org/v1"
 USER_AGENT = "WildLife species pack builder (https://github.com/nevermore1983/WildlifeTracker)"
@@ -163,63 +168,6 @@ class State:
     @property
     def region(self) -> str:
         return f"us-{self.code.lower()}"
-
-
-# The 50 states and DC, with their postal codes (pack names: us-oh). A fixed list: GBIF's
-# own data lacks some codes (Rhode Island's was missing, and that state was skipped).
-POSTAL_CODES = {
-    "Alabama": "AL",
-    "Alaska": "AK",
-    "Arizona": "AZ",
-    "Arkansas": "AR",
-    "California": "CA",
-    "Colorado": "CO",
-    "Connecticut": "CT",
-    "Delaware": "DE",
-    "District of Columbia": "DC",
-    "Florida": "FL",
-    "Georgia": "GA",
-    "Hawaii": "HI",
-    "Idaho": "ID",
-    "Illinois": "IL",
-    "Indiana": "IN",
-    "Iowa": "IA",
-    "Kansas": "KS",
-    "Kentucky": "KY",
-    "Louisiana": "LA",
-    "Maine": "ME",
-    "Maryland": "MD",
-    "Massachusetts": "MA",
-    "Michigan": "MI",
-    "Minnesota": "MN",
-    "Mississippi": "MS",
-    "Missouri": "MO",
-    "Montana": "MT",
-    "Nebraska": "NE",
-    "Nevada": "NV",
-    "New Hampshire": "NH",
-    "New Jersey": "NJ",
-    "New Mexico": "NM",
-    "New York": "NY",
-    "North Carolina": "NC",
-    "North Dakota": "ND",
-    "Ohio": "OH",
-    "Oklahoma": "OK",
-    "Oregon": "OR",
-    "Pennsylvania": "PA",
-    "Rhode Island": "RI",
-    "South Carolina": "SC",
-    "South Dakota": "SD",
-    "Tennessee": "TN",
-    "Texas": "TX",
-    "Utah": "UT",
-    "Vermont": "VT",
-    "Virginia": "VA",
-    "Washington": "WA",
-    "West Virginia": "WV",
-    "Wisconsin": "WI",
-    "Wyoming": "WY",
-}
 
 
 def us_states() -> list[State]:

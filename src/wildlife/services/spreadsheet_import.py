@@ -11,6 +11,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from wildlife.domain.csv_import import SOURCE, Table, read_table, to_records
+from wildlife.domain.regions import region
 from wildlife.services.importer import ImportPlan, RecordImporter
 
 
@@ -23,5 +24,11 @@ class SpreadsheetImporter(RecordImporter):
         table: Table,
         mapping: dict[str, int],
         progress: Callable[[int, int], None] = lambda d, t: None,
+        month_first: bool | None = None,
     ) -> ImportPlan:
-        return self.preview_records(to_records(table, mapping), table.name, SOURCE, progress)
+        """month_first: how numeric dates are written (None: the region's way; US
+        month/day, UK day/month)."""
+        if month_first is None:
+            month_first = region(self.region()).month_first
+        records = to_records(table, mapping, month_first)
+        return self.preview_records(records, table.name, SOURCE, progress)

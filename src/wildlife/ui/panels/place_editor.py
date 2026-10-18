@@ -141,10 +141,8 @@ class PlaceEditor(PanelView):
             )
         else:
             ref = geo.grid_ref_for(parsed.latitude, parsed.longitude, 100)
-            self.f_position.set_note(
-                f"{ref or 'Outside the GB grid'} · {parsed.latitude:.5f}, {parsed.longitude:.5f}",
-                "ok",
-            )
+            coords = f"{parsed.latitude:.5f}, {parsed.longitude:.5f}"
+            self.f_position.set_note(f"{ref} · {coords}" if ref else coords, "ok")
 
     def save(self) -> None:
         parsed = geo.parse_location(self.position.text())

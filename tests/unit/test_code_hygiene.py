@@ -47,3 +47,17 @@ def test_no_dead_conditions():
         if rx.search(line)
     ]
     assert found == []
+
+
+def test_no_dunder_imports():
+    """`__import__("x").y` inside an expression: a plain import says the same, readably."""
+    root = SRC.parents[1]
+    files = FILES + sorted((root / "tests").rglob("*.py")) + sorted((root / "scripts").glob("*.py"))
+    found = [
+        f"{f.name}:{n}"
+        for f in files
+        if f.name != "test_code_hygiene.py"
+        for n, line in enumerate(f.read_text(encoding="utf-8").splitlines(), 1)
+        if "__import__(" in line
+    ]
+    assert found == []

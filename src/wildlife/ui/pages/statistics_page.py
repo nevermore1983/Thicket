@@ -270,7 +270,7 @@ class StatisticsPage(QWidget):
         self.hours.clicked.connect(lambda h: self._open(hours=frozenset({h})))
         self.hours_card = StatsCard(
             "What time of day are my sightings?",
-            "Sightings with a recorded time, by hour (UK clock time)",
+            "Sightings with a recorded time, by hour (clock time)",
             self.hours,
             self.hours,
         )

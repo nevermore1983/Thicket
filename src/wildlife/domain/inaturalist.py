@@ -12,6 +12,7 @@ import csv
 import io
 import re
 import zipfile
+from collections.abc import Callable
 from datetime import date, datetime
 from pathlib import Path
 
@@ -38,6 +39,9 @@ _ENTERED = re.compile(
 )
 
 
+Clock = Callable[[datetime], datetime]  # UTC moment -> local clock time (dates.local_clock)
+
+
 def is_inaturalist(header: list[str]) -> bool:
     """Does this CSV header look like an iNaturalist export?"""
     return all(col in header for col in NEEDED) and (
@@ -45,7 +49,7 @@ def is_inaturalist(header: list[str]) -> bool:
     )
 
 
-def read_file(path: Path) -> list[ImportRecord]:
+def read_file(path: Path, local: Clock = uk_local) -> list[ImportRecord]:
     """Read an export: the .csv, or the .zip iNaturalist downloads it in.
     Raises ImportFileError if it isn't an iNaturalist export."""
     try:
@@ -56,7 +60,7 @@ def read_file(path: Path) -> list[ImportRecord]:
         text = raw.decode("utf-8-sig")
     except UnicodeDecodeError:
         text = raw.decode("cp1252", errors="replace")  # re-saved by Excel
-    return read_text(text)
+    return read_text(text, local)
 
 
 def _zipped_csv(path: Path) -> bytes:
@@ -69,7 +73,7 @@ def _zipped_csv(path: Path) -> bytes:
         return archive.read(csvs[0])
 
 
-def read_text(text: str) -> list[ImportRecord]:
+def read_text(text: str, local: Clock = uk_local) -> list[ImportRecord]:
     reader = csv.DictReader(io.StringIO(text, newline=""))
     header = [h.strip() for h in reader.fieldnames or []]
     if not is_inaturalist(header):
@@ -78,7 +82,7 @@ def read_text(text: str) -> list[ImportRecord]:
             "Your observations › Export, then pick the CSV file it gives you."
         )
     reader.fieldnames = header
-    return [parse_row(i + 2, row) for i, row in enumerate(reader)]
+    return [parse_row(i + 2, row, local) for i, row in enumerate(reader)]
 
 
 def _text(row: dict, key: str) -> str | None:
@@ -93,10 +97,10 @@ def _float(row: dict, key: str) -> float | None:
         return None
 
 
-def _when(row: dict) -> tuple[date | None, str | None]:
-    """The date and UK clock time. The time as the observer entered it is used when
-    it can be read (it's the clock they saw); otherwise iNaturalist's UTC time is
-    turned into UK time."""
+def _when(row: dict, local: Clock = uk_local) -> tuple[date | None, str | None]:
+    """The date and clock time. The time as the observer entered it is used when it
+    can be read (it's the clock they saw); otherwise iNaturalist's UTC time is turned
+    into local time with `local` (UK rules, or the PC's time zone: dates.local_clock)."""
     entered = _text(row, "observed_on_string") or ""
     if m := _ENTERED.match(entered):
         y, mo, d, h, mi, ampm = m.groups()
@@ -114,7 +118,7 @@ def _when(row: dict) -> tuple[date | None, str | None]:
     utc = _text(row, "time_observed_at")
     if utc:
         try:
-            moment = uk_local(datetime.fromisoformat(utc.removesuffix(" UTC")))
+            moment = local(datetime.fromisoformat(utc.removesuffix(" UTC")))
             return moment.date(), moment.strftime("%H:%M")
         except ValueError:
             pass
@@ -151,9 +155,9 @@ def _notes(row: dict) -> str | None:
     return notes[:MAX_NOTES] or None
 
 
-def parse_row(line: int, row: dict) -> ImportRecord:
+def parse_row(line: int, row: dict, local: Clock = uk_local) -> ImportRecord:
     source_id = _text(row, "id") or ""
-    day, clock = _when(row)
+    day, clock = _when(row, local)
     lat, lon, uncertainty = _position(row)
     iconic = _text(row, "iconic_taxon_name") or ""
     kingdom = _PLANT_FUNGUS.get(iconic) or (None if iconic in _NOT_ANIMAL else "Animalia")
