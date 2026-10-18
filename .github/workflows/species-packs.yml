@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   packs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # pinned: the 'latest' label moves to a new Ubuntu on 19 Oct 2026
     timeout-minutes: 120
     env:
       TAG: ${{ github.ref_name }}

@@ -335,3 +335,90 @@ def jpeg_with_gps(path, colour=(30, 120, 60), lat=(51, 30, 0), lon=(0, 7, 0), ta
     gps.update({1: "N", 2: tuple(float(x) for x in lat), 3: "W", 4: tuple(float(x) for x in lon)})
     Image.new("RGB", (64, 48), colour).save(path, "JPEG", exif=exif, quality=90)
     return path
+
+
+# A made-up species pack for California, in GBIF pack format (tests of regions and packs).
+# Some species are in MINI_CATALOGUE too (linked, not copied); some only here.
+_BIRD = ["Animalia", "Chordata", "Aves", "Passeriformes"]
+US_PACK = [
+    # In the UK list too, under another key: linked, not copied
+    {
+        "k": "gbif:5219243",
+        "r": "species",
+        "s": "Vulpes vulpes",
+        "c": "Red Fox",
+        "l": ["Animalia", "Chordata", "Mammalia", "Carnivora", "Canidae"],
+        "pr": 500,
+    },
+    {
+        "k": "gbif:9504470",
+        "r": "species",
+        "s": "Turdus migratorius",
+        "c": "American Robin",
+        "l": [*_BIRD, "Turdidae"],
+        "pr": 9000,
+    },
+    {
+        "k": "gbif:2481139",
+        "r": "species",
+        "s": "Larus argentatus",
+        "c": "American Herring Gull",
+        "l": ["Animalia", "Chordata", "Aves", "Charadriiformes", "Laridae"],
+        "pr": 300,
+    },
+    # Only in the US
+    {
+        "k": "gbif:2490384",
+        "r": "species",
+        "s": "Cardinalis cardinalis",
+        "c": "Northern Cardinal",
+        "en": ["Redbird"],
+        "l": [*_BIRD, "Cardinalidae"],
+        "pr": 8000,
+    },
+    {
+        "k": "gbif:5133088",
+        "r": "species",
+        "s": "Danaus plexippus",
+        "c": "Monarch",
+        "l": ["Animalia", "Arthropoda", "Insecta", "Lepidoptera", "Nymphalidae"],
+        "pr": 4000,
+    },
+]
+
+
+def serve_us_pack(ctx, records=None) -> list[str]:
+    """Make ctx.species_packs fetch from a pretend internet offering one pack, California,
+    built from US_PACK (never the real internet). Returns the list of urls asked for."""
+    import gzip
+    import hashlib
+    import json
+
+    from wildlife.services.species_packs import MANIFEST_URL
+
+    data = gzip.compress("".join(json.dumps(r) + "\n" for r in records or US_PACK).encode("utf-8"))
+    pack_url = "https://github.com/nevermore1983/WildlifeTracker/releases/download/packs-test/us-ca.jsonl.gz"
+    manifest = {
+        "format": 1,
+        "created": "2026-10-18",
+        "packs": [
+            {
+                "region": "us-ca",
+                "name": "California",
+                "file": "us-ca.jsonl.gz",
+                "species": len(records or US_PACK),
+                "bytes": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+                "url": pack_url,
+            }
+        ],
+    }
+    served = {MANIFEST_URL: json.dumps(manifest).encode("utf-8"), pack_url: data}
+    asked: list[str] = []
+
+    def fetch(url: str) -> bytes:
+        asked.append(url)
+        return served[url]
+
+    ctx.species_packs._fetch = fetch
+    return asked

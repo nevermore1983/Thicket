@@ -23,6 +23,8 @@ ALLOWED_HOSTS = frozenset(
         "api.inaturalist.org",  # which photos an observation has
         "inaturalist-open-data.s3.amazonaws.com",  # openly licensed photos
         "static.inaturalist.org",  # other photos
+        "github.com",  # species packs: WildLife's own GitHub releases (services/species_packs.py)
+        "release-assets.githubusercontent.com",  # ...where GitHub keeps release files
     }
 )
 USER_AGENT = f"WildLife/{__version__} (UK wildlife recording desktop app)"

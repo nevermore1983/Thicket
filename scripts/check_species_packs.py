@@ -31,7 +31,10 @@ from wildlife.data.migrate import migrate  # noqa: E402
 from wildlife.data.repositories import taxa  # noqa: E402
 from wildlife.services.species_catalogue import bundled_catalogue, read_records  # noqa: E402
 
-MAX_OTHER = 0.05  # at most 5% of a pack's species in "Other"
+# "Other" is expected for algae, protists and bacteria (WildLife has no category for them,
+# in the UK list too). An animal, plant or fungus there means a sorting rule is missing.
+SORTABLE = ("Animalia", "Plantae", "Fungi")
+MAX_UNSORTED = 0.02  # at most 2% of a pack's species
 MIN_SPECIES = 500  # a state with fewer is suspicious (an API or boundary problem)
 
 
@@ -63,11 +66,12 @@ def check(folder: Path) -> list[str]:
             seconds = time.perf_counter() - started
             conn.execute("COMMIT")
             added = conn.execute("SELECT COUNT(*) FROM taxon").fetchone()[0] - before
-            other = conn.execute(
-                "SELECT COUNT(*) FROM taxon_region r JOIN taxon t ON t.id = r.taxon_id "
-                "JOIN category c ON c.id = t.category_id WHERE r.region = ? AND c.is_fallback = 1",
-                (pack["region"],),
-            ).fetchone()[0]
+            other, unsorted = conn.execute(
+                "SELECT COUNT(*), COALESCE(SUM(t.tax_kingdom IN (?, ?, ?)), 0) FROM taxon_region r "
+                "JOIN taxon t ON t.id = r.taxon_id JOIN category c ON c.id = t.category_id "
+                "WHERE r.region = ? AND c.is_fallback = 1",
+                (*SORTABLE, pack["region"]),
+            ).fetchone()
         finally:
             conn.close()
         library.unlink()
@@ -75,10 +79,12 @@ def check(folder: Path) -> list[str]:
         n = len(records)
         print(
             f"{pack['name']:<22} {n:>7,} species  {added:>7,} new, {n - added:>6,} linked to UK ones  "
-            f"other {other / n:5.1%}  no English name {unnamed / n:5.1%}  installed in {seconds:4.1f} s"
+            f"other {other / n:5.1%} (animals, plants, fungi {unsorted / n:4.1%})  no English name {unnamed / n:5.1%}  installed in {seconds:4.1f} s"
         )
-        if other / n > MAX_OTHER:
-            problems.append(f"{pack['file']}: {other / n:.1%} of species in 'Other'")
+        if unsorted / n > MAX_UNSORTED:
+            problems.append(
+                f"{pack['file']}: {unsorted / n:.1%} of its animals, plants and fungi in 'Other'"
+            )
     shutil.rmtree(work, ignore_errors=True)
     return problems
 

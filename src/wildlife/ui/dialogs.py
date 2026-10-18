@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
+    QComboBox,
     QDialog,
     QFrame,
     QHBoxLayout,
@@ -13,6 +14,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QProgressBar,
     QPushButton,
+    QRadioButton,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -22,6 +24,7 @@ from wildlife.context import AppContext
 from wildlife.domain.dates import DateQuery, parse_date_query
 from wildlife.domain.filters import SightingFilter
 from wildlife.ui.components.visuals import fmt_date, plural, swatch
+from wildlife.ui.regions import describe, problem_text
 from wildlife.ui.theme.icons import pixmap
 from wildlife.ui.theme.manager import ThemeManager
 from wildlife.ui.workers import run_in_background
@@ -51,6 +54,8 @@ class FirstRunDialog(QDialog):
         foot.addWidget(self.next_btn)
         v.addLayout(foot)
         self._installed = False
+        self.region_index = -1
+        self._states_asked = False
 
         if not updating:
             self.pages.addWidget(
@@ -70,6 +75,7 @@ class FirstRunDialog(QDialog):
             self.name.setPlaceholderText("e.g. Sam Recorder")
             name_page.layout().addWidget(self.name)
             self.pages.addWidget(name_page)
+            self.region_index = self.pages.addWidget(self._region_page())
         install = self._page(
             "Installing the UK species list",
             "About 106,000 names of UK animals, plants and fungi from the UK Species Inventory "
@@ -115,6 +121,8 @@ class FirstRunDialog(QDialog):
         i, n = self.pages.currentIndex(), self.pages.count()
         self.step_label.setText(f"Step {i + 1} of {n}" if n > 1 else "")
         self.next_btn.setText("Finish" if i == n - 1 else "Continue")
+        if i == self.region_index:
+            self._ask_for_states()
         if i == self.install_index and not self._installed:
             self.next_btn.setEnabled(False)
             self._install()
@@ -134,12 +142,11 @@ class FirstRunDialog(QDialog):
             self.progress_text.setText(step + "…")
 
         def done(count: int) -> None:
-            self._installed = True
-            self.progress.setValue(100)
-            self.progress_text.setText(f"Done: {count:,} names installed.")
-            self.next_btn.setEnabled(True)
-            if self.pages.currentIndex() == self.pages.count() - 1:
-                self.next_btn.setText("Finish")
+            pack = self.chosen_pack()
+            if pack is not None:  # the UK list is in: now the state's pack
+                self._install_pack(pack, count)
+                return
+            self._finished(f"Done: {count:,} names installed.")
 
         def failed(exc: BaseException) -> None:
             self.progress_text.setText(
@@ -153,6 +160,92 @@ class FirstRunDialog(QDialog):
 
         run_in_background(
             lambda report: self.ctx.catalogue.install(report),
+            on_done=done,
+            on_error=failed,
+            on_progress=progress,
+        )
+
+    def _finished(self, text: str, problem: bool = False) -> None:
+        self._installed = True
+        self.progress.setValue(100)
+        self.progress_text.setText(text)
+        if problem:
+            self.progress_text.setProperty("role", "error")
+            self.progress_text.style().polish(self.progress_text)
+        self.next_btn.setEnabled(True)
+        if self.pages.currentIndex() == self.pages.count() - 1:
+            self.next_btn.setText("Finish")
+
+    # ---- where you record (docs/16-regions-plan.md) ------------------------------------
+    def _region_page(self) -> QWidget:
+        page = self._page(
+            "Where do you record?",
+            "WildLife's species list and suggestions follow it. You can change it, or add "
+            "another region, in Settings › Region.",
+        )
+        layout = page.layout()
+        layout.takeAt(layout.count() - 1)  # the stretch: the choices go above it
+        self.in_uk = QRadioButton("United Kingdom")
+        self.in_uk.setChecked(True)
+        self.in_us = QRadioButton("United States: a state's species from GBIF (downloaded once)")
+        self.state = QComboBox()
+        self.state.setAccessibleName("US state")
+        self.state.setEnabled(False)
+        self.state_note = QLabel()
+        self.state_note.setWordWrap(True)
+        self.state_note.setProperty("role", "muted")
+        self.in_us.toggled.connect(lambda on: self.state.setEnabled(on and self.state.count() > 0))
+        for w in (self.in_uk, self.in_us, self.state, self.state_note):
+            layout.addWidget(w)
+        layout.addStretch(1)
+        return page
+
+    def _ask_for_states(self) -> None:
+        """Fetch the states offered, once, when the region page is first shown."""
+        if self._states_asked:
+            return
+        self._states_asked = True
+        self.state_note.setText("Getting the list of states…")
+
+        def show(packs) -> None:
+            for pack in packs:
+                self.state.addItem(describe(pack), pack)
+            self.state_note.setText("")
+            self.state.setEnabled(self.in_us.isChecked())
+
+        def failed(exc: BaseException) -> None:
+            self.in_us.setEnabled(False)
+            self.state_note.setText(
+                f"{problem_text(exc)} You can carry on with the UK list and add a state later "
+                "in Settings › Region."
+            )
+
+        run_in_background(self.ctx.species_packs.offered, on_done=show, on_error=failed)
+
+    def chosen_pack(self):
+        """The state chosen on the region page, or None (the UK)."""
+        if self.region_index < 0 or not self.in_us.isChecked():
+            return None
+        return self.state.currentData()
+
+    def _install_pack(self, pack, uk_count: int) -> None:
+        def progress(step: str, fraction: float) -> None:
+            self.progress.setValue(int(fraction * 100))
+            self.progress_text.setText(step + "…")
+
+        def done(count: int) -> None:
+            self.ctx.catalogue.set_region(pack.region)
+            self._finished(f"Done: the UK list and {count:,} species for {pack.name}.")
+
+        def failed(exc: BaseException) -> None:
+            self._finished(
+                f"The UK list is in, but {pack.name} couldn't be added: {problem_text(exc)} "
+                "You can add it later in Settings › Region.",
+                problem=True,
+            )
+
+        run_in_background(
+            lambda report: self.ctx.species_packs.install(pack, report),
             on_done=done,
             on_error=failed,
             on_progress=progress,

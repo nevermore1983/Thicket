@@ -8,58 +8,12 @@ import sqlite3
 
 import pytest
 
-from helpers import MINI_CATALOGUE, TODAY, taxon_id
+from helpers import MINI_CATALOGUE, TODAY, US_PACK, taxon_id
 from wildlife.data.migrate import available_migrations, migrate
 from wildlife.data.repositories import taxa as taxa_repo
 from wildlife.domain.filters import SightingFilter
 from wildlife.domain.models import SightingDraft
 
-_BIRD = ["Animalia", "Chordata", "Aves", "Passeriformes"]
-US_PACK = [
-    # In the UK list too, under another key: linked, not copied
-    {
-        "k": "gbif:5219243",
-        "r": "species",
-        "s": "Vulpes vulpes",
-        "c": "Red Fox",
-        "l": ["Animalia", "Chordata", "Mammalia", "Carnivora", "Canidae"],
-        "pr": 500,
-    },
-    {
-        "k": "gbif:9504470",
-        "r": "species",
-        "s": "Turdus migratorius",
-        "c": "American Robin",
-        "l": [*_BIRD, "Turdidae"],
-        "pr": 9000,
-    },
-    {
-        "k": "gbif:2481139",
-        "r": "species",
-        "s": "Larus argentatus",
-        "c": "American Herring Gull",
-        "l": ["Animalia", "Chordata", "Aves", "Charadriiformes", "Laridae"],
-        "pr": 300,
-    },
-    # Only in the US
-    {
-        "k": "gbif:2490384",
-        "r": "species",
-        "s": "Cardinalis cardinalis",
-        "c": "Northern Cardinal",
-        "en": ["Redbird"],
-        "l": [*_BIRD, "Cardinalidae"],
-        "pr": 8000,
-    },
-    {
-        "k": "gbif:5133088",
-        "r": "species",
-        "s": "Danaus plexippus",
-        "c": "Monarch",
-        "l": ["Animalia", "Arthropoda", "Insecta", "Lepidoptera", "Nymphalidae"],
-        "pr": 4000,
-    },
-]
 CA = dict(region="us-ca", name="California", version="2026-10")
 
 

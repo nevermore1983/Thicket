@@ -32,6 +32,7 @@ from wildlife.domain.filters import SightingFilter
 from wildlife.services.import_history import SOURCE_NAMES
 from wildlife.ui.components.common import Callout, Page, Segmented, button
 from wildlife.ui.components.visuals import fmt_date, plural
+from wildlife.ui.regions import AddPackDialog, region_name
 from wildlife.ui.theme.manager import ThemeManager
 
 
@@ -131,6 +132,7 @@ class SettingsPage(QWidget):
                 "General", [_row("Your name", "Added to exports as the recorder. Optional.", name)]
             )
         )
+        page.add(_section("Region", self._region_rows()))
 
         # appearance
         self.theme_choice = Segmented(
@@ -461,6 +463,49 @@ class SettingsPage(QWidget):
         if dialog.restored:
             self.toast.emit(f"Restored {plural(dialog.restored, 'sighting')}", None)
         self.refresh()
+
+    # ---- region (docs/16-regions-plan.md) ---------------------------------------
+    def _region_rows(self) -> list[QWidget]:
+        region = QComboBox()
+        current = self.ctx.catalogue.region()
+        for pack in self.ctx.catalogue.packs():
+            region.addItem(pack["name"], pack["region"])
+        region.setCurrentIndex(max(0, region.findData(current)))
+        region.activated.connect(lambda i: self._choose_region(region.itemData(i)))
+        add = button("Add a US state…", "secondary", "plus", self.theme, self._add_pack)
+        packs = len(self.ctx.catalogue.packs())
+        return [
+            _row(
+                "Where you record",
+                "Species suggestions and common names follow it. Your sightings stay as they are.",
+                region,
+            ),
+            _row(
+                "Species packs",
+                f"{plural(packs, 'region')} added. A US state's species come from GBIF; "
+                "adding one needs the internet once.",
+                add,
+            ),
+        ]
+
+    def _choose_region(self, region: str) -> None:
+        if region == self.ctx.catalogue.region():
+            return
+        self.ctx.catalogue.set_region(region)
+        self.toast.emit(
+            f"Showing {region_name(self.ctx, region)}'s species names and suggestions", None
+        )
+        self.refresh()
+
+    def _add_pack(self) -> None:
+        dialog = AddPackDialog(self.ctx, self)
+        if dialog.exec() and dialog.installed_region:
+            name = region_name(self.ctx, dialog.installed_region)
+            shown = self.ctx.catalogue.region() == dialog.installed_region
+            self.toast.emit(
+                f"{name} added" + (": its names and suggestions are shown" if shown else ""), None
+            )
+            self.refresh()
 
     def _bin_contents(self) -> tuple[int, int]:
         """(sightings, photos deleted on their own) in the recycle bin. Photos of deleted

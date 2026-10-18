@@ -30,6 +30,7 @@ from wildlife.services.saved_filters import SavedFilters, SpeciesNotes
 from wildlife.services.settings import SettingsService
 from wildlife.services.sightings import SightingService
 from wildlife.services.species_catalogue import SpeciesCatalogue
+from wildlife.services.species_packs import SpeciesPacks
 from wildlife.services.spreadsheet_import import SpreadsheetImporter
 from wildlife.services.statistics import StatisticsService
 from wildlife.services.stats import StatsService
@@ -52,6 +53,7 @@ class AppContext:
     settings: SettingsService
     schema_version: int
     catalogue: SpeciesCatalogue = field(init=False)
+    species_packs: SpeciesPacks = field(init=False)
     sightings: SightingService = field(init=False)
     places: PlaceService = field(init=False)
     outings: OutingService = field(init=False)
@@ -72,6 +74,7 @@ class AppContext:
 
     def __post_init__(self) -> None:
         self.catalogue = SpeciesCatalogue(self.db, self.events)
+        self.species_packs = SpeciesPacks(self.catalogue, self.settings)
         self.sightings = SightingService(self.db, self.events, self.settings)
         self.places = PlaceService(self.db, self.events)
         self.outings = OutingService(self.db, self.events, self.settings)
