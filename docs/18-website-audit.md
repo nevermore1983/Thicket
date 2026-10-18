@@ -107,8 +107,8 @@ Contrast notes (no action needed):
   - Every page has link-preview tags with a 1200×630 picture.
   - The two long descriptions are trimmed.
 - **Downloading (B3, B4):**
-  - The home page says which file to pick, and links to the warnings help. Help now covers the browser's warning as well as Windows'.
-  - From the next release, each release also carries `Thicket-Setup.exe`. Once that release is out, point the buttons straight at it (docs/17 section 4 says how).
+  - The home page links to the warnings help. Help now covers the browser's warning as well as Windows'.
+  - **Every Download button downloads `Thicket-Setup.exe` directly**, always the newest version. Releases carry it automatically (`release.yml`). 1.2.1 got its copy from the new "Add Thicket-Setup.exe to a release" workflow: byte-identical to the original installer, checked on 18 Oct.
 - **Pages (B7, B9, B11):**
   - A Thicket "page not found" page.
   - Tapping a screenshot opens it full size, in the visitor's theme.

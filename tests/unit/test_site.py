@@ -175,15 +175,18 @@ def test_every_page_has_the_same_footer(pages):
     assert len({page.block("footer") for page in pages.values()}) == 1, "the footers differ"
 
 
-def test_download_buttons_all_go_to_the_same_place(pages):
-    """So pointing them somewhere new (docs/17-website-plan.md) is one find-and-replace."""
+def test_download_buttons_download_the_newest_installer(pages):
+    """Every Download button fetches the installer itself: release.yml publishes it under
+    this unchanging name on every release, so the link never needs updating."""
     targets = {
         a["href"]
         for page in pages.values()
         for a in page.all("a")
         if "button-primary" in a.get("class", "") and is_external(a["href"])
     }
-    assert len(targets) == 1, targets
+    assert targets == {
+        "https://github.com/nevermore1983/Thicket/releases/latest/download/Thicket-Setup.exe"
+    }
 
 
 @pytest.mark.parametrize("path", [p for p in PAGES if p.name != NOT_FOUND], ids=lambda p: p.name)

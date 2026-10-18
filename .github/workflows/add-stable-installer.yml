@@ -1,7 +1,8 @@
-# One-off (docs/17-website-plan.md): give an already-published release its installer
-# under the name Thicket-Setup.exe too, which releases after 1.2.1 get automatically
-# (release.yml). The website's download buttons link to
-# releases/latest/download/Thicket-Setup.exe, so the latest release must have it.
+# Repair (docs/17-website-plan.md): give an already-published release its installer
+# under the name Thicket-Setup.exe too. Releases after 1.2.1 get it automatically
+# (release.yml); this gave 1.2.1 its copy, and fixes any release that ever lacks it.
+# The website's download buttons link to releases/latest/download/Thicket-Setup.exe,
+# so the latest release must have it.
 #
 # It copies the installer that's already on the release, after checking it against the
 # checksum published with it, so the new file is identical. SHA256SUMS.txt is rewritten
