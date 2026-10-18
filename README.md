@@ -4,6 +4,8 @@ A personal wildlife sighting journal for Windows: record what you see in seconds
 your sightings on a calendar, a map and in statistics. Everything stays on your PC and works
 offline.
 
+**Website:** https://nevermore1983.github.io/Thicket/
+
 Thicket was called **WildLife** up to version 1.1.0. Installing Thicket over WildLife upgrades it in place: your sightings, photos, settings and backups carry straight on.
 
 ## Download
@@ -56,3 +58,4 @@ uv run python scripts/build_installer.py                        # installer + in
 | `packaging/` | Installer script and licence texts |
 | `spikes/` | Throwaway experiments that answered a risky question |
 | `docs/` | Design documents |
+| `site/` | The website: plain HTML and CSS, published by `.github/workflows/pages.yml` |

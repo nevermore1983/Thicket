@@ -1,7 +1,7 @@
 # Thicket — website (plan)
 
 **Date:** 18 October 2026
-**Status:** Plan for your approval. No code yet.
+**Status:** Steps 1–3 built and committed; step 4 (publishing) ready, waiting for the first push.
 
 A small public website for Thicket while testers try the app: what it is, what it looks like, and a big download button.
 
@@ -63,7 +63,24 @@ Each step ends with a short report and waits for your OK.
 
 ---
 
-## 4. Not in this version
+## 4. Keeping the site up to date
+
+| When | Do this |
+|---|---|
+| You release a new version | Add its notes to `CHANGELOG.md` as usual, then run `uv run python scripts/build_site_changelog.py`. The test fails until you do. The Download button needs nothing: it always points at the latest release. |
+| A screen in the app changes | Re-take its screenshots: `uv run python scripts/screenshot.py --data-dir local_data/demo9 --pages <name> --out site/images` (light and dark). |
+| You edit a page | Preview with the `website` launch entry, run `uv run pytest tests/unit/test_site.py`, commit and push. |
+
+Every push to `main` that changes `site/` (or `CHANGELOG.md`) runs `.github/workflows/pages.yml`: it runs the site test, then publishes. If the test fails, the live site stays as it was.
+
+**Things found while building:**
+- Switching theme while Thicket was open turned the map black (fixed in commit 3bac5f1, with a test). It belongs in the next version's changelog.
+- The demo photos are drawings, so there's no Photos screenshot yet.
+- The header and footer are copied into each page (plain HTML has no "include"); the site test fails if the copies differ.
+
+---
+
+## 5. Not in this version
 
 - A custom domain (can be added later without changing the pages).
 - Analytics, newsletter or contact form.
