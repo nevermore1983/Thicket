@@ -159,7 +159,7 @@ def test_category_rules_match_anywhere_in_lineage(db):
     with db.transaction() as conn:
         for tid, cls, order, _ in rows:
             conn.execute(
-                "INSERT INTO taxon (id, uksi_key, scientific_name, rank, tax_kingdom, tax_phylum, tax_class, "
+                "INSERT INTO taxon (id, catalogue_key, scientific_name, rank, tax_kingdom, tax_phylum, tax_class, "
                 "tax_order, category_id) VALUES (?, ?, 'x', 'species', 'Animalia', 'Phylum', ?, ?, 9)",
                 (tid, f"T{tid}", cls, order),
             )

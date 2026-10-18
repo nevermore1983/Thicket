@@ -167,8 +167,9 @@ def sightings_without_photos(conn: sqlite3.Connection, source: str) -> dict[str,
     return dict(rows.fetchall())
 
 
-def taxon_by_key(conn: sqlite3.Connection, uksi_key: str) -> int | None:
-    row = conn.execute("SELECT id FROM taxon WHERE uksi_key = ?", (uksi_key.strip(),)).fetchone()
+def taxon_by_key(conn: sqlite3.Connection, key: str) -> int | None:
+    """The species with this key from any pack (a UKSI key, or 'gbif:2490384')."""
+    row = conn.execute("SELECT taxon_id FROM taxon_key WHERE key = ?", (key.strip(),)).fetchone()
     return row[0] if row else None
 
 

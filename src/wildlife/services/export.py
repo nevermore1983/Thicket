@@ -233,6 +233,28 @@ def _label(enum, value) -> str:
     return enum(value).label if value else ""
 
 
+GBIF_KEY = "gbif:"  # species from a GBIF species pack (data/migrations/0007_…)
+
+
+def uksi_key(key: str | None) -> str | None:
+    """A UK Species Inventory key, or None (a species from a GBIF pack, or your own)."""
+    return key if key and not key.startswith(GBIF_KEY) else None
+
+
+def taxon_id_of(key: str | None) -> str:
+    """Darwin Core taxonID: the UKSI key, or the species' page on GBIF."""
+    if key and key.startswith(GBIF_KEY):
+        return f"https://www.gbif.org/species/{key.removeprefix(GBIF_KEY)}"
+    return key or ""
+
+
+def name_source(key: str | None) -> str:
+    """Darwin Core nameAccordingTo: where the species' name comes from."""
+    if not key:
+        return ""
+    return "GBIF Backbone Taxonomy" if key.startswith(GBIF_KEY) else "UK Species Inventory"
+
+
 def csv_row(row: sqlite3.Row, spot: Spot, photos: list[str], photo_count: int) -> list:
     exact = not spot.blurred
     return [
@@ -261,7 +283,7 @@ def csv_row(row: sqlite3.Row, spot: Spot, photos: list[str], photo_count: int) -
         "; ".join(photos) if photos else (photo_count or ""),
         SOURCE_LABELS.get(row["source"] or "", row["source"] or ""),
         row["source_id"] or "",
-        row["uksi_key"] or "",
+        uksi_key(row["catalogue_key"]) or "",
         row["uuid"],
     ]
 
@@ -284,8 +306,8 @@ def dwc_row(row: sqlite3.Row, spot: Spot, photos: list[str], recorder: str) -> l
         row["authority"] or "",
         row["common_name"] or "",
         row["rank"] if row["rank"] in ("species", "subspecies", "genus", "family") else "",
-        row["uksi_key"] or "",
-        "UK Species Inventory" if row["uksi_key"] else "",
+        taxon_id_of(row["catalogue_key"]),
+        name_source(row["catalogue_key"]),
         row["tax_kingdom"] or "",
         "" if identification == "certain" else "cf.",
         row["count"] if row["count"] is not None else "",
@@ -512,7 +534,7 @@ class ExportService:
             ],
             "species_notes": [
                 {
-                    "taxon": {"uksi_key": n["uksi_key"], "scientific_name": n["scientific_name"]},
+                    "taxon": _keys(n["catalogue_key"]) | {"scientific_name": n["scientific_name"]},
                     "notes": n["notes"],
                 }
                 for n in repo.species_notes(conn, None if everything else taxon_ids)
@@ -558,25 +580,34 @@ def _zip_time(photo) -> tuple:
         return (1980, 1, 1, 0, 0, 0)
 
 
+def _keys(key: str | None) -> dict:
+    """A species' keys in WildLife's own export: `catalogue_key` (any pack's) and, for
+    older versions of WildLife reading it, `uksi_key` (UK species only)."""
+    return {"catalogue_key": key, "uksi_key": uksi_key(key)}
+
+
 def _pick(row: sqlite3.Row, *keys: str) -> dict:
     return {k: row[k] for k in keys}
 
 
 def _taxon_json(t) -> dict:
-    return _pick(
-        t,
-        "uksi_key",
-        "scientific_name",
-        "authority",
-        "common_name",
-        "rank",
-        "is_custom",
-        "tax_kingdom",
-        "tax_phylum",
-        "tax_class",
-        "tax_order",
-        "tax_family",
-    ) | {"category": t["category_name"]}
+    return (
+        _keys(t["catalogue_key"])
+        | _pick(
+            t,
+            "scientific_name",
+            "authority",
+            "common_name",
+            "rank",
+            "is_custom",
+            "tax_kingdom",
+            "tax_phylum",
+            "tax_class",
+            "tax_order",
+            "tax_family",
+        )
+        | {"category": t["category_name"]}
+    )
 
 
 def _place_json(p) -> dict:
@@ -661,8 +692,8 @@ def _sighting_json(r, photo_uuids: list[str]) -> dict:
         "created_at",
         "updated_at",
     ) | {
-        "taxon": {
-            "uksi_key": r["uksi_key"],
+        "taxon": _keys(r["catalogue_key"])
+        | {
             "scientific_name": r["scientific_name"],
             "common_name": r["common_name"],
         },

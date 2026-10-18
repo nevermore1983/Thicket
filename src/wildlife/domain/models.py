@@ -40,7 +40,7 @@ class Taxon:
     category_id: int
     species_id: int | None  # None = broader than a species (doesn't count in lists)
     is_custom: bool = False
-    uksi_key: str | None = None
+    catalogue_key: str | None = None  # a UKSI key, or 'gbif:2490384' from a species pack
 
     @property
     def display_name(self) -> str:

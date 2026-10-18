@@ -10,7 +10,7 @@ from wildlife.domain.models import Category, Taxon, TaxonMatch
 
 # "Deraeocoris (Deraeocoris) flavilinea": the subgenus in brackets, which most people leave out
 SUBGENUS = re.compile(r" \([A-Z][a-z]+\)")
-_TAXON_COLS = "t.id, t.scientific_name, t.common_name, t.rank, t.category_id, t.species_id, t.is_custom, t.uksi_key"
+_TAXON_COLS = "t.id, t.scientific_name, t.common_name, t.rank, t.category_id, t.species_id, t.is_custom, t.catalogue_key"
 
 
 def _taxon(row: sqlite3.Row) -> Taxon:
@@ -22,7 +22,7 @@ def _taxon(row: sqlite3.Row) -> Taxon:
         category_id=row["category_id"],
         species_id=row["species_id"],
         is_custom=bool(row["is_custom"]),
-        uksi_key=row["uksi_key"],
+        catalogue_key=row["catalogue_key"],
     )
 
 
@@ -113,23 +113,51 @@ def resolve_categories(conn: sqlite3.Connection) -> None:
     conn.execute(_RESOLVE_CATEGORIES)
 
 
+UK = "uk"
+
+
 def install_catalogue(
     conn: sqlite3.Connection,
     records: Iterable[dict],
     progress: Callable[[str, float], None] = lambda step, fraction: None,
+    version: str = "",
 ) -> int:
-    """Insert or update catalogue taxa (keyed by UKSI key). Custom species and the
-    user's choices (hidden, manual category) are kept. Returns taxa written.
-    Runs inside the caller's transaction."""
+    """Install or update the built-in UK list (the UK Species Inventory)."""
+    return install_pack(conn, records, UK, "United Kingdom", "uksi", version, progress)
+
+
+def install_pack(
+    conn: sqlite3.Connection,
+    records: Iterable[dict],
+    region: str,
+    name: str,
+    source: str,
+    version: str,
+    progress: Callable[[str, float], None] = lambda step, fraction: None,
+) -> int:
+    """Install or update a species pack: the UK list, or a region's pack from GBIF.
+
+    Packs only ever add. For each species in the pack:
+    - its key is known: it's that species (its details are updated only if this pack
+      added it in the first place);
+    - else the same scientific name, rank and kingdom is already in the list (Red Fox in
+      the UK list and in a US pack): the pack links to it, never makes a copy;
+    - else it's new, and added.
+    The pack's common names and suggestion order are kept for its region (see
+    apply_region). Custom species and your choices (hidden, a category you set) are
+    kept. Runs inside the caller's transaction. Returns the number of species in it."""
     fallback = conn.execute("SELECT id FROM category WHERE is_fallback = 1").fetchone()[0]
-    existing = dict(conn.execute("SELECT uksi_key, id FROM taxon WHERE uksi_key IS NOT NULL"))
+    key_to_id: dict[str, int] = dict(conn.execute("SELECT key, taxon_id FROM taxon_key"))
+    added_by = dict(conn.execute("SELECT id, catalogue_key FROM taxon"))
+    same_name = _name_index(conn)
     records = list(records)
     total = len(records) or 1
-    key_to_id: dict[str, int] = dict(existing)
+    owned: set[str] = set()  # keys of species this pack added (its family tree is used)
     parent_of: dict[str, str | None] = {}
     rank_of: dict[str, str] = {}
     progress("Adding species", 0.0)
     for i, rec in enumerate(records):
+        key = rec["k"]
         lineage = (rec.get("l") or [None] * 5) + [None] * 5
         values = (
             rec["s"],
@@ -139,32 +167,51 @@ def install_catalogue(
             *lineage[:5],
             rec.get("g"),
             int(rec.get("nn", False)),
-            rec.get("pr", 0),
         )
-        if rec["k"] in existing:
+        taxon_id = key_to_id.get(key)
+        if taxon_id is None:
+            taxon_id = same_name.get(_name_key(rec["s"], rec["r"], lineage[0]))
+            if taxon_id is None:
+                cur = conn.execute(
+                    "INSERT INTO taxon (scientific_name, authority, common_name, rank, tax_kingdom, "
+                    "tax_phylum, tax_class, tax_order, tax_family, informal_group, is_non_native, "
+                    "catalogue_key, category_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (*values, key, fallback),
+                )
+                taxon_id = cur.lastrowid
+                added_by[taxon_id] = key
+                same_name[_name_key(rec["s"], rec["r"], lineage[0])] = taxon_id
+            conn.execute("INSERT INTO taxon_key (key, taxon_id) VALUES (?, ?)", (key, taxon_id))
+            key_to_id[key] = taxon_id
+        elif added_by.get(taxon_id) == key:
             conn.execute(
                 "UPDATE taxon SET scientific_name=?, authority=?, common_name=?, rank=?, tax_kingdom=?, "
-                "tax_phylum=?, tax_class=?, tax_order=?, tax_family=?, informal_group=?, is_non_native=?, "
-                "priority=?, updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id=?",
-                (*values, existing[rec["k"]]),
+                "tax_phylum=?, tax_class=?, tax_order=?, tax_family=?, informal_group=?, "
+                "is_non_native=?, updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now') WHERE id=?",
+                (*values, taxon_id),
             )
-        else:
-            cur = conn.execute(
-                "INSERT INTO taxon (scientific_name, authority, common_name, rank, tax_kingdom, tax_phylum, "
-                "tax_class, tax_order, tax_family, informal_group, is_non_native, priority, uksi_key, "
-                "category_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (*values, rec["k"], fallback),
-            )
-            key_to_id[rec["k"]] = cur.lastrowid
-        parent_of[rec["k"]] = rec.get("p")
-        rank_of[rec["k"]] = rec["r"]
+        if added_by.get(taxon_id) == key:
+            owned.add(key)
+        conn.execute(
+            "INSERT INTO taxon_region (region, taxon_id, priority, common_name) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT (region, taxon_id) DO UPDATE SET priority = excluded.priority, "
+            "common_name = excluded.common_name",
+            (region, taxon_id, rec.get("pr", 0), rec.get("c")),
+        )
+        parent_of[key] = rec.get("p")
+        rank_of[key] = rec["r"]
         if i % 5000 == 0:
             progress("Adding species", 0.5 * i / total)
 
     progress("Linking the family tree", 0.5)
+    # Only for species this pack added: a linked species keeps the tree it came with
     conn.executemany(
         "UPDATE taxon SET parent_id = ? WHERE id = ?",
-        [(key_to_id.get(p) if p else None, key_to_id[k]) for k, p in parent_of.items()],
+        [
+            (key_to_id.get(p) if p else None, key_to_id[k])
+            for k, p in parent_of.items()
+            if k in owned
+        ],
     )
 
     def species_key(key: str) -> str | None:
@@ -185,35 +232,94 @@ def install_catalogue(
         [
             (key_to_id.get(species_key(k)) if species_key(k) else None, key_to_id[k])
             for k in parent_of
+            if k in owned
         ],
     )
     progress("Sorting into categories", 0.6)
     resolve_categories(conn)
 
     progress("Indexing names for search", 0.65)
-    ids = [key_to_id[r["k"]] for r in records]
-    conn.executemany(
-        "DELETE FROM taxon_name WHERE taxon_id = ?", [(i,) for i in ids if i in existing.values()]
-    )
-    names: list[tuple[int, str, str]] = []
+    conn.execute("DELETE FROM taxon_name WHERE pack = ?", (region,))  # this pack's old names
+    names: list[tuple[int, str, str, str]] = []
     for rec in records:
         tid = key_to_id[rec["k"]]
-        names.append((tid, rec["s"], "scientific"))
+        names.append((tid, rec["s"], "scientific", region))
         if rec.get("c"):
-            names.append((tid, rec["c"], "common"))
-        names.extend((tid, n, "common") for n in rec.get("en", ()))
-        names.extend((tid, n, "synonym") for n in rec.get("sy", ()))
+            names.append((tid, rec["c"], "common", region))
+        names.extend((tid, n, "common", region) for n in rec.get("en", ()))
+        names.extend((tid, n, "synonym", region) for n in rec.get("sy", ()))
         if (bare := SUBGENUS.sub("", rec["s"])) != rec["s"]:
-            names.append((tid, bare, "synonym"))
+            names.append((tid, bare, "synonym", region))
     batch = 20_000
     for start in range(0, len(names), batch):
         conn.executemany(
-            "INSERT OR IGNORE INTO taxon_name (taxon_id, name, kind) VALUES (?, ?, ?)",
+            "INSERT OR IGNORE INTO taxon_name (taxon_id, name, kind, pack) VALUES (?, ?, ?, ?)",
             names[start : start + batch],
         )
-        progress("Indexing names for search", 0.65 + 0.35 * min(1.0, (start + batch) / len(names)))
+        progress("Indexing names for search", 0.65 + 0.3 * min(1.0, (start + batch) / len(names)))
+    conn.execute(
+        "INSERT INTO species_pack (region, name, source, version, taxa) VALUES (?, ?, ?, ?, ?) "
+        "ON CONFLICT (region) DO UPDATE SET name = excluded.name, source = excluded.source, "
+        "version = excluded.version, taxa = excluded.taxa, "
+        "installed_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
+        (region, name, source, version, len(records)),
+    )
+    progress("Showing your region's names", 0.95)
+    apply_region(conn, current_region(conn))
     progress("Done", 1.0)
     return len(records)
+
+
+def _name_key(scientific_name: str, rank: str, kingdom: str | None) -> tuple[str, str, str]:
+    """What makes two packs' species the same: name (without a subgenus), rank, kingdom."""
+    return (SUBGENUS.sub("", scientific_name).lower(), rank, (kingdom or "").lower())
+
+
+def _name_index(conn: sqlite3.Connection) -> dict[tuple[str, str, str], int]:
+    """Species already in the list, by _name_key. A catalogue species wins over one you
+    added yourself, and the oldest wins over later ones."""
+    index: dict[tuple[str, str, str], int] = {}
+    for taxon_id, name, rank, kingdom in conn.execute(
+        "SELECT id, scientific_name, rank, tax_kingdom FROM taxon ORDER BY is_custom DESC, id DESC"
+    ):
+        index[_name_key(name, rank, kingdom)] = taxon_id  # the last one written wins
+    return index
+
+
+# --- regions --------------------------------------------------------------------------
+def current_region(conn: sqlite3.Connection) -> str:
+    return get_meta(conn, "region") or UK
+
+
+def apply_region(conn: sqlite3.Connection, region: str) -> None:
+    """Show a region's common names and suggestion order: copy them into `taxon`, so
+    every screen (lists, exports, search ranking) uses them without changing.
+
+    A species with no name in that region keeps one from another region (the UK's
+    first); species not recorded in the region drop down the suggestions (order 0).
+    Species you added yourself keep their own name, unless a pack has the same species
+    (it was linked to it, and the pack's name is shown)."""
+    conn.execute(
+        """UPDATE taxon SET
+               common_name = COALESCE(
+                   (SELECT r.common_name FROM taxon_region r
+                    WHERE r.region = :region AND r.taxon_id = taxon.id),
+                   (SELECT r.common_name FROM taxon_region r
+                    WHERE r.taxon_id = taxon.id AND r.common_name IS NOT NULL
+                    ORDER BY r.region != 'uk', r.region LIMIT 1),
+                   common_name),
+               priority = COALESCE(
+                   (SELECT r.priority FROM taxon_region r
+                    WHERE r.region = :region AND r.taxon_id = taxon.id), 0)
+           WHERE EXISTS (SELECT 1 FROM taxon_region r WHERE r.taxon_id = taxon.id)""",
+        {"region": region},
+    )
+    set_meta(conn, "region", region)
+
+
+def packs(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    """The species packs installed, the UK first."""
+    return conn.execute("SELECT * FROM species_pack ORDER BY region != 'uk', name").fetchall()
 
 
 def get_meta(conn: sqlite3.Connection, key: str) -> str | None:

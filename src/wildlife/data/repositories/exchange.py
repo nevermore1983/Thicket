@@ -13,7 +13,7 @@ def sightings(conn: sqlite3.Connection, flt: SightingFilter) -> list[sqlite3.Row
     where, params = sql_filters.where(flt)
     return conn.execute(
         f"""SELECT v.*, s.source_updated_at,
-                   t.uksi_key, t.authority, t.is_custom, t.tax_kingdom, t.tax_phylum,
+                   t.catalogue_key, t.authority, t.is_custom, t.tax_kingdom, t.tax_phylum,
                    t.tax_class, t.tax_order, t.tax_family,
                    c.name AS category_name,
                    p.uuid AS place_uuid,
@@ -73,7 +73,7 @@ def taxa(conn: sqlite3.Connection, ids: set[int], all_custom: bool) -> list[sqli
 
 def species_notes(conn: sqlite3.Connection, taxon_ids: set[int] | None) -> list[sqlite3.Row]:
     rows = conn.execute(
-        "SELECT n.taxon_id, n.notes, t.uksi_key, t.scientific_name FROM species_note n "
+        "SELECT n.taxon_id, n.notes, t.catalogue_key, t.scientific_name FROM species_note n "
         "JOIN taxon t ON t.id = n.taxon_id"
     ).fetchall()
     return [r for r in rows if taxon_ids is None or r["taxon_id"] in taxon_ids]
@@ -96,8 +96,9 @@ def ids_by_uuid(conn: sqlite3.Connection, table: str) -> dict[str, int]:
 
 
 def taxon_lookup(conn: sqlite3.Connection) -> tuple[dict[str, int], dict[str, int]]:
-    """(UKSI key -> id, scientific name (lower case) -> id) for matching species."""
-    by_key = dict(conn.execute("SELECT uksi_key, id FROM taxon WHERE uksi_key IS NOT NULL"))
+    """(species key -> id, scientific name (lower case) -> id) for matching species.
+    Keys are every pack's: UKSI keys and GBIF ones ('gbif:2490384')."""
+    by_key = dict(conn.execute("SELECT key, taxon_id FROM taxon_key"))
     by_name: dict[str, int] = {}
     rows = conn.execute(
         "SELECT lower(scientific_name), id FROM taxon ORDER BY is_custom, "

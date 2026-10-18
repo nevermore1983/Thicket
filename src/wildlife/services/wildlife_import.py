@@ -156,7 +156,7 @@ class WildlifeImporter:
             for s in new:
                 t = s.get("taxon") or {}
                 if not (
-                    by_key.get(t.get("uksi_key"))
+                    by_key.get(t.get("catalogue_key") or t.get("uksi_key"))
                     or by_name.get((t.get("scientific_name") or "").lower())
                 ):
                     unknown.add(t.get("common_name") or t.get("scientific_name") or "?")
@@ -226,10 +226,10 @@ class WildlifeImporter:
         by_key, by_name = repo.taxon_lookup(conn)
         categories = repo.category_ids(conn)
         fallback = conn.execute("SELECT id FROM category WHERE is_fallback = 1").fetchone()[0]
-        details = {(t.get("uksi_key"), t.get("scientific_name")): t for t in data.get("taxa", [])}
+        details = {(_key_of(t), t.get("scientific_name")): t for t in data.get("taxa", [])}
 
         def resolve(t: dict) -> int:
-            key, name = t.get("uksi_key"), t.get("scientific_name")
+            key, name = _key_of(t), t.get("scientific_name")
             found = by_key.get(key) or by_name.get((name or "").lower())
             if found:
                 return found
@@ -354,6 +354,11 @@ class WildlifeImporter:
             imports_repo.delete_batch(conn, result.batch_id)
         for topic in ("sightings", "places", "outings", "photos"):
             self._events.publish(topic, ())
+
+
+def _key_of(t: dict) -> str | None:
+    """A species' key in an export: any pack's (newer exports) or a UKSI key (older ones)."""
+    return t.get("catalogue_key") or t.get("uksi_key")
 
 
 def _why(exc: Exception) -> str:
