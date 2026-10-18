@@ -279,7 +279,7 @@ function onError(e) {
 // ---- commands from Python ---------------------------------------------------------------
 const commands = {
   async init(a) {
-    await commands.setTheme(a.theme, true);
+    await commands.setTheme(a, true);
     state.online = a.online;
     state.basemap = a.basemap;
     Object.assign(state, a.layers);
@@ -312,7 +312,8 @@ const commands = {
     map.once('idle', () => bridge.note('first draw finished'));
   },
 
-  async setTheme(theme, first) {
+  async setTheme({ theme }, first) {
+    // Like every command, takes Python's arguments ({theme}); init passes its own, which has one too
     state.theme = theme;
     state.pins = await decodePins(theme.pins);
     const root = document.documentElement.style;

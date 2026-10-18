@@ -167,6 +167,24 @@ def test_maplibre_draws_the_pins_and_squares(window, map_page, qtbot):
     qtbot.waitUntil(lambda: drawn(map_page, qtbot, ["pins", "clusters"]) >= 2, timeout=10_000)
 
 
+def test_switching_theme_recolours_the_map(window, map_page, qtbot):
+    """Changing theme while the map is open (Settings, or Windows going dark) must recolour it."""
+    from wildlife.config.settings import Theme
+    from wildlife.ui.theme.tokens import DARK, LIGHT
+
+    def accent() -> str:
+        return js(map_page, qtbot, "window.__map.getPaintProperty('highlight', 'circle-stroke-color')")
+
+    qtbot.waitUntil(lambda: accent() == window.theme.tokens.accent, timeout=10_000)
+    try:
+        window.theme.set_theme(Theme.DARK)
+        qtbot.waitUntil(lambda: accent() == DARK.accent, timeout=10_000)
+        window.theme.set_theme(Theme.LIGHT)
+        qtbot.waitUntil(lambda: accent() == LIGHT.accent, timeout=10_000)
+    finally:
+        window.theme.set_theme(Theme.SYSTEM)
+
+
 def test_late_results_after_the_map_closed_are_ignored(window, map_page, qtbot):
     """Background work can finish after the window closed; that must not raise."""
     layer = window.ctx.map.sightings(map_page.filter)
