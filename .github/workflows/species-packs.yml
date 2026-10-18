@@ -45,8 +45,12 @@ jobs:
       - name: Get the GBIF Backbone (checksum checked)
         run: |
           mkdir -p local_data/gbif
-          test -f local_data/gbif/backbone.zip || curl -sSfL -o local_data/gbif/backbone.zip "$BACKBONE_URL"
-          echo "$BACKBONE_SHA256  local_data/gbif/backbone.zip" | sha256sum --check
+          # HTTP/1.1 and resumable retries: HTTP/2 streams of this size can drop (curl error 92)
+          test -f local_data/gbif/backbone.zip || curl -sSfL --http1.1 --retry 5 --retry-all-errors \
+            --retry-delay 10 -C - -o local_data/gbif/backbone.zip "$BACKBONE_URL" \
+            || { echo "::error title=GBIF Backbone download failed::curl exit $?"; exit 1; }
+          echo "$BACKBONE_SHA256  local_data/gbif/backbone.zip" | sha256sum --check \
+            || { echo "::error title=GBIF Backbone checksum::The file isn't the expected version"; exit 1; }
 
       - name: Build a pack for every state
         run: uv run python scripts/build_species_packs.py --backbone local_data/gbif/backbone.zip --release "$TAG"

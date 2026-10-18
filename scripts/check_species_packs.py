@@ -25,6 +25,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from ci_report import note, report_failures  # noqa: E402
+
 from wildlife.data.migrate import migrate  # noqa: E402
 from wildlife.data.repositories import taxa  # noqa: E402
 from wildlife.services.species_catalogue import bundled_catalogue, read_records  # noqa: E402
@@ -98,9 +100,10 @@ def main() -> int:
     problems = check(Path(sys.argv[1]))
     for p in problems:
         print(f"PROBLEM: {p}")
+        note("Species pack check", f"E {p}")  # a public note on GitHub's run page
     print("Species packs: " + ("FAILED" if problems else "OK"))
     return 1 if problems else 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    report_failures(lambda: sys.exit(main()), "Checking the species packs failed")

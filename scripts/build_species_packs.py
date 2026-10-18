@@ -25,7 +25,6 @@ import hashlib
 import io
 import json
 import re
-import sys
 import time
 import urllib.parse
 import urllib.request
@@ -379,4 +378,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    from ci_report import report_failures
+
+    report_failures(main, "Building the species packs failed")
