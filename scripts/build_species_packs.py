@@ -165,6 +165,63 @@ class State:
         return f"us-{self.code.lower()}"
 
 
+# The 50 states and DC, with their postal codes (pack names: us-oh). A fixed list: GBIF's
+# own data lacks some codes (Rhode Island's was missing, and that state was skipped).
+POSTAL_CODES = {
+    "Alabama": "AL",
+    "Alaska": "AK",
+    "Arizona": "AZ",
+    "Arkansas": "AR",
+    "California": "CA",
+    "Colorado": "CO",
+    "Connecticut": "CT",
+    "Delaware": "DE",
+    "District of Columbia": "DC",
+    "Florida": "FL",
+    "Georgia": "GA",
+    "Hawaii": "HI",
+    "Idaho": "ID",
+    "Illinois": "IL",
+    "Indiana": "IN",
+    "Iowa": "IA",
+    "Kansas": "KS",
+    "Kentucky": "KY",
+    "Louisiana": "LA",
+    "Maine": "ME",
+    "Maryland": "MD",
+    "Massachusetts": "MA",
+    "Michigan": "MI",
+    "Minnesota": "MN",
+    "Mississippi": "MS",
+    "Missouri": "MO",
+    "Montana": "MT",
+    "Nebraska": "NE",
+    "Nevada": "NV",
+    "New Hampshire": "NH",
+    "New Jersey": "NJ",
+    "New Mexico": "NM",
+    "New York": "NY",
+    "North Carolina": "NC",
+    "North Dakota": "ND",
+    "Ohio": "OH",
+    "Oklahoma": "OK",
+    "Oregon": "OR",
+    "Pennsylvania": "PA",
+    "Rhode Island": "RI",
+    "South Carolina": "SC",
+    "South Dakota": "SD",
+    "Tennessee": "TN",
+    "Texas": "TX",
+    "Utah": "UT",
+    "Vermont": "VT",
+    "Virginia": "VA",
+    "Washington": "WA",
+    "West Virginia": "WV",
+    "Wisconsin": "WI",
+    "Wyoming": "WY",
+}
+
+
 def us_states() -> list[State]:
     """The 50 states and DC, as GBIF knows them (GADM boundaries)."""
     facets = get_json(
@@ -173,12 +230,15 @@ def us_states() -> list[State]:
     )["facets"][0]["counts"]
     states = []
     for gid in sorted({f["name"] for f in facets if f["name"].startswith("USA.")}):
-        info = get_json(f"geocode/gadm/{gid}")
-        code = next((v for v in info.get("variantName", []) if len(v) == 2 and v.isupper()), None)
-        if code is None and info["name"] == "District of Columbia":
-            code = "DC"
-        if code:
-            states.append(State(gid, info["name"], code))
+        name = get_json(f"geocode/gadm/{gid}")["name"]
+        if name not in POSTAL_CODES:
+            raise SystemExit(f"GBIF knows a US area WildLife doesn't: {name} ({gid})")
+        states.append(State(gid, name, POSTAL_CODES[name]))
+    if len(states) != len(POSTAL_CODES):
+        missing = sorted(set(POSTAL_CODES) - {s.name for s in states})
+        raise SystemExit(
+            f"Expected {len(POSTAL_CODES)} states, GBIF gave {len(states)}; missing {missing}"
+        )
     return states
 
 
