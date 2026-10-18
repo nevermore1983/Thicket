@@ -32,9 +32,13 @@ def test_no_dataclass_on_qt_classes():
 
 
 def test_no_dead_conditions():
-    """`x if False else y` or `assert ... or True` never test anything."""
-    everything = FILES + sorted((SRC.parents[1] / "tests").rglob("*.py"))
-    rx = re.compile(r"\bif False\b|\bor True\b")
+    """`x if False else y` or `assert ... or True` never test anything, and `if True:`
+    is a leftover from keeping code indented (it nearly reached a script once)."""
+    root = SRC.parents[1]
+    everything = (
+        FILES + sorted((root / "tests").rglob("*.py")) + sorted((root / "scripts").glob("*.py"))
+    )
+    rx = re.compile(r"\bif False\b|\bor True\b|^\s*if True:")
     found = [
         f"{f.name}:{n}"
         for f in everything

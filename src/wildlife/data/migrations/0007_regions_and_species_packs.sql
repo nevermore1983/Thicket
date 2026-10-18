@@ -58,3 +58,8 @@ UPDATE taxon_name SET pack = 'uk'
 
 -- The region whose names and suggestion order `taxon` shows now
 INSERT OR IGNORE INTO app_meta (key, value) VALUES ('region', 'uk');
+
+-- GBIF's family tree has no "Reptilia": lizards and snakes (Squamata), turtles and
+-- crocodiles are classes of their own there. Same category as the UK's reptiles.
+INSERT OR IGNORE INTO category_rule (category_id, taxon_name) VALUES
+    (3, 'Squamata'), (3, 'Testudines'), (3, 'Crocodylia'), (3, 'Rhynchocephalia');

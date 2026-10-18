@@ -1,0 +1,72 @@
+# Building WildLife's species packs (docs/16-regions-plan.md, step 2).
+#
+# Pushing a tag such as packs-2026-10 builds a species pack for every US state (and DC)
+# from GBIF, checks each one installs properly with WildLife's own code, and publishes
+# them as a release (never marked "latest", so the app's download page is unchanged).
+# Only then is WildLife pointed at them: manifest.json in the "species-packs" release is
+# replaced, in one step. If anything fails, nothing is published or changed.
+#
+# The GBIF Backbone file is pinned by its SHA-256: if GBIF replaces it, this stops
+# instead of quietly building from different data (update the checksum on purpose).
+
+name: Species packs
+
+on:
+  push:
+    tags: ["packs-*"]
+
+permissions:
+  contents: write # to publish the release; nothing else
+
+jobs:
+  packs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      TAG: ${{ github.ref_name }}
+      BACKBONE_URL: https://hosted-datasets.gbif.org/datasets/backbone/current/backbone.zip
+      BACKBONE_SHA256: 2897887cc7fb6fe27188c5b0fa5ce2b14762b43c61ceecd1e3dfad25083f5770
+    steps:
+      - name: Get the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+
+      - name: Install Python and WildLife's libraries (exactly as locked)
+        run: uv sync --locked
+
+      - name: Keep the GBIF Backbone between runs (about 1 GB)
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: local_data/gbif/backbone.zip
+          key: gbif-backbone-${{ env.BACKBONE_SHA256 }}
+
+      - name: Get the GBIF Backbone (checksum checked)
+        run: |
+          mkdir -p local_data/gbif
+          test -f local_data/gbif/backbone.zip || curl -sSfL -o local_data/gbif/backbone.zip "$BACKBONE_URL"
+          echo "$BACKBONE_SHA256  local_data/gbif/backbone.zip" | sha256sum --check
+
+      - name: Build a pack for every state
+        run: uv run python scripts/build_species_packs.py --backbone local_data/gbif/backbone.zip --release "$TAG"
+
+      - name: Check every pack installs properly
+        run: uv run python scripts/check_species_packs.py build/packs
+
+      - name: Publish the packs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$TAG" build/packs/*.jsonl.gz build/packs/manifest.json \
+            --title "Species packs ($TAG)" --latest=false \
+            --notes "Species packs for WildLife: one per US state, from GBIF. WildLife downloads them itself (Settings › Region); there's nothing to download here by hand. $(uv run python -c 'import json; print(json.load(open("build/packs/manifest.json"))["citation"])')"
+
+      - name: Point WildLife at the new packs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view species-packs > /dev/null 2>&1 || gh release create species-packs \
+            --title "Species packs (current)" --latest=false \
+            --notes "Holds manifest.json: which species packs WildLife offers, with each pack's address and SHA-256. Updated by the Species packs workflow."
+          gh release upload species-packs build/packs/manifest.json --clobber

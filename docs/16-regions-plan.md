@@ -117,3 +117,29 @@ Packs only ever **add** species. Your sightings, and species already in your lis
 - °F and miles for US users (you chose "basics" for now).
 - Other countries: the same builder works for any country or province GBIF covers.
 - Removing a pack you no longer need. Not in 1.1.0: species your sightings use must stay.
+
+---
+
+## Step 2 results (18 Oct 2026)
+
+`scripts/build_species_packs.py` builds the packs, `scripts/check_species_packs.py` checks them, and `.github/workflows/species-packs.yml` does both on GitHub for all 51 states. It runs when a `packs-YYYY-MM` tag is pushed.
+
+**Trial on three states (built on this PC):**
+
+| State | Species | Linked to UK species | In "Other" | English name | Pack | Install |
+|---|---|---|---|---|---|---|
+| Ohio | 12,632 | 3,158 | 1.0% | 60% | 0.8 MB | 3.3 s |
+| Texas | 22,597 | 2,630 | 1.7% | 40% | 1.3 MB | 4.8 s |
+| California | 34,886 | 6,694 | 2.9% | 34% | 2.1 MB | 7.3 s |
+
+**Names:**
+- English names are near-complete where people expect them: 99% of birds and mammals, and over 90% of reptiles, amphibians, fish and dragonflies.
+- Most insects, fungi and the like have no English name anywhere, so their scientific name is shown, as in the UK list.
+- Ohio's 463 birds carry the names US birders use (Clements/eBird): Northern Cardinal, Gray Catbird, European Starling. The one bird without a name is American Goshawk (*Falco atricapillus*), which has no English name in GBIF.
+
+**Found and fixed while trying it:**
+- **GBIF's family tree has no "Reptilia", and gives ray-finned fish no class.** Lizards, snakes, turtles and fish were landing in "Other". Migration 7 now has rules for Squamata, Testudines, Crocodylia and Rhynchocephalia, and the builder files classless fish orders under Actinopterygii.
+- **Name rules:** combined names ("Herring/Iceland Gull") are skipped, and US birders' names come first. A name with a bracketed note is used only as a last resort ("Muscovy Duck (Domestic type)" becomes "Muscovy Duck"). A vertebrate or dragonfly with no name in GBIF's file is looked up on GBIF's live species page.
+- **Crosses between two species** ("Anas rubripes x platyrhynchos") are left out. Named hybrid species, such as peppermint, are kept.
+
+**The GBIF Backbone file:** version of 28 Aug 2023, SHA-256 `2897887c…5770`. GBIF publishes no checksum, so this one was recorded on download, after the zip's own integrity check passed. The workflow refuses any other file.
