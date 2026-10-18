@@ -1,6 +1,6 @@
 [project]
 name = "wildlife"
-version = "1.0.3"
+version = "1.1.0"
 description = "A personal wildlife sighting journal for Windows"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"

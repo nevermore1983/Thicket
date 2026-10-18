@@ -156,6 +156,16 @@ def components() -> list[Component]:
             "changes. Licence: https://creativecommons.org/licenses/by/4.0/",
         ),
         Component(
+            "US species packs (downloaded in the app, not included here)",
+            "CC BY 4.0 (names); record counts from GBIF-mediated data",
+            "https://www.gbif.org/",
+            [],
+            "",
+            "Species packs for US states are built from GBIF: species and record counts from "
+            "GBIF.org's occurrence search, names from GBIF Secretariat, GBIF Backbone Taxonomy, "
+            "https://doi.org/10.15468/39omei. Each pack's manifest carries the full citation.",
+        ),
+        Component(
             "PyInstaller bootloader",
             "GPL-2.0 with the PyInstaller bootloader exception",
             "https://pyinstaller.org/",
