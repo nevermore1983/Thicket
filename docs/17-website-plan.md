@@ -1,7 +1,7 @@
 # Thicket — website (plan)
 
 **Date:** 18 October 2026
-**Status:** Steps 1–3 built and committed; step 4 (publishing) ready, waiting for the first push.
+**Status:** Done. Live at https://nevermore1983.github.io/Thicket/ since 18 October 2026 (first published by the Website workflow, run 39148807393).
 
 A small public website for Thicket while testers try the app: what it is, what it looks like, and a big download button.
 
