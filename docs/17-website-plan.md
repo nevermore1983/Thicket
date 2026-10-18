@@ -25,7 +25,7 @@ A small public website for Thicket while testers try the app: what it is, what i
 
 Every page shares one header (logo, page links, Download button) and one footer (GitHub link, version, credits).
 
-- **Download button** links to `releases/latest`, so it is always right after a new release with no site update needed.
+- **Download button** links to `releases/latest`, so it is always right after a new release with no site update needed. From the next release, each one also carries the installer as `Thicket-Setup.exe`, a name that never changes, so the button can then download it directly (section 4).
 - **Light and dark** follow the visitor's Windows/phone setting, like the app.
 - **Works on phones** too, even though Thicket is a Windows app (people find links on their phone).
 
@@ -43,9 +43,10 @@ site/
 
 - **Plain files.** You can open `site/index.html` straight in a browser to see it. No Node, no npm, nothing to install.
 - **Colours** come from the app's own theme (`src/wildlife/ui/theme/tokens.py`), written once as CSS variables at the top of `style.css`.
-- **Fonts match the app.** Text uses Segoe UI Variable, the app's own font, which every Windows PC already has (phones and Macs use their system font). Scientific names use Source Serif 4 italic, as in the app: a small Latin-only copy (165 KB, made from the app's bundled file with `pyftsubset`) sits in `site/fonts/` with its OFL licence. Nothing loads from Google Fonts or any other website, which keeps the privacy page honest.
+- **Fonts match the app.** Text uses Segoe UI Variable, the app's own font, which every Windows PC already has (phones and Macs use their system font). Scientific names use Source Serif 4 italic, as in the app: a 10 KB copy (one weight, basic Latin letters, made from the app's bundled file by `scripts/site_assets.py font`) sits in `site/fonts/` with its OFL licence. Nothing loads from Google Fonts or any other website, which keeps the privacy page honest.
 - **Preview** with the `website` entry in `.claude/launch.json` (a local web server on port 8090). Opening the file directly also works, but only a server shows dark mode.
-- **Screenshots** come from `scripts/screenshot.py` on the demo library (`local_data/demo9`), never your real sightings. Light and dark versions; the page shows the one matching the visitor's setting.
+- **Screenshots** come from `scripts/screenshot.py` on the demo library (`local_data/demo9`), never your real sightings, turned into small WebP files by `scripts/site_assets.py`. Light and dark versions; the page shows the one matching the visitor's setting, and tapping one opens it full size.
+- **Icons** (header logo, browser tab, phone home screen) are drawn by `scripts/make_icon.py --site` from the same recipe as the app icon.
 - **Changelog:** a small script (`scripts/build_site_changelog.py`) turns `CHANGELOG.md` into `changelog.html`, and a test fails if they drift apart. This is the one generated page, so you only ever edit `CHANGELOG.md`.
 - **Publishing:** a GitHub Actions workflow (`.github/workflows/pages.yml`) uploads `site/` to GitHub Pages whenever a push to `main` changes it. You switch Pages on once in the repo settings (Settings › Pages › Source: GitHub Actions); I'll walk you through it.
 - **A test** checks every page: links between pages and to images work, every image has alt text, and nothing loads from another website.
@@ -68,8 +69,10 @@ Each step ends with a short report and waits for your OK.
 | When | Do this |
 |---|---|
 | You release a new version | Add its notes to `CHANGELOG.md` as usual, then run `uv run python scripts/build_site_changelog.py`. The test fails until you do. The Download button needs nothing: it always points at the latest release. |
-| A screen in the app changes | Re-take its screenshots: `uv run python scripts/screenshot.py --data-dir local_data/demo9 --pages <name> --out site/images` (light and dark). |
-| You edit a page | Preview with the `website` launch entry, run `uv run pytest tests/unit/test_site.py`, commit and push. |
+| A screen in the app changes | Re-take its screenshots, then make them small: `uv run python scripts/screenshot.py --data-dir local_data/demo9 --pages <name> --out local_data/shots`, then `uv run python scripts/site_assets.py screenshots local_data/shots/<name>-light.png local_data/shots/<name>-dark.png`. Re-doing `dashboard` also remakes the link-preview picture. |
+| The app icon's design changes | `uv run python scripts/make_icon.py` (app and website icons together). |
+| The first release with `Thicket-Setup.exe` is out (the one after 1.2.1) | Point the download buttons straight at the installer: in `site/*.html`, replace `https://github.com/nevermore1983/Thicket/releases/latest` with `https://github.com/nevermore1983/Thicket/releases/latest/download/Thicket-Setup.exe` (the test checks every button changed). Then the line under the home page's button can just say "Downloads Thicket-Setup.exe", and Help's "download the file called…" step can go. Do this only once that release is published, or the buttons lead nowhere. |
+| You edit a page | Preview with the `website` launch entry, run `uv run pytest tests/unit/test_site.py`, commit and push. (`404.html` shows unstyled in the preview: it uses the live site's `/Thicket/` address so it works for any missing page.) |
 
 Every push to `main` that changes `site/` (or `CHANGELOG.md`) runs `.github/workflows/pages.yml`: it runs the site test, then publishes. If the test fails, the live site stays as it was.
 

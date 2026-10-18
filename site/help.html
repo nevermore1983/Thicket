@@ -5,7 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Help: Thicket</title>
   <meta name="description" content="Installing Thicket, the 'Windows protected your PC' message, upgrading, where your data lives, backups, restoring, regions and uninstalling.">
-  <link rel="icon" href="images/logo.svg" type="image/svg+xml">
+  <link rel="canonical" href="https://nevermore1983.github.io/Thicket/help.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Thicket">
+  <meta property="og:title" content="Help: Thicket">
+  <meta property="og:description" content="Installing Thicket, the 'Windows protected your PC' message, upgrading, where your data lives, backups, restoring, regions and uninstalling.">
+  <meta property="og:url" content="https://nevermore1983.github.io/Thicket/help.html">
+  <meta property="og:image" content="https://nevermore1983.github.io/Thicket/images/social-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Thicket's dashboard: totals for sightings and species, a calendar of the year so far, and recent sightings.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#f3f5f1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1210" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="images/favicon.ico" sizes="32x32">
+  <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -48,9 +63,11 @@
           <li><a href="#data">Where your data lives</a></li>
           <li><a href="#backups">Backups</a></li>
           <li><a href="#restore">Restoring a backup</a></li>
+          <li><a href="#new-pc">Moving to a new PC</a></li>
           <li><a href="#import">Importing from iNaturalist</a></li>
           <li><a href="#region">Changing region</a></li>
           <li><a href="#uninstall">Uninstalling</a></li>
+          <li><a href="#other-devices">Mac or phone version?</a></li>
           <li><a href="#problems">Something's wrong</a></li>
         </ol>
       </nav>
@@ -62,14 +79,18 @@
             <li>Go to the <a href="https://github.com/nevermore1983/Thicket/releases/latest">latest release</a> and download the file called <code>Thicket-Setup-<var>version</var>.exe</code>.</li>
             <li>Run it, and follow the steps.</li>
           </ol>
-          <p>Thicket installs for your Windows account only, so it doesn't need an administrator password. It's added to the Start menu; a desktop icon is optional. It needs 64-bit Windows 10 or 11.</p>
+          <p>Thicket installs for your Windows account only, so it doesn't need an administrator password. It's added to the Start menu; a desktop icon is optional. It needs 64-bit Windows 10 or 11 (it's tested on Windows 11).</p>
         </section>
 
         <section id="windows-warning">
-          <h2>"Windows protected your PC"</h2>
-          <p>Windows shows this blue box the first time you run a downloaded program that isn't signed with a paid certificate. Thicket isn't signed (certificates cost hundreds of pounds a year), so you'll see it once.</p>
-          <p>Click <strong>More info</strong>, then <strong>Run anyway</strong>.</p>
-          <p>Every release lists the checksum of each file (<code>SHA256SUMS.txt</code>), if you'd like to check your download is the real one.</p>
+          <h2>"Windows protected your PC" and other warnings</h2>
+          <p>Thicket isn't signed with a paid certificate (one costs over £100 a year), so the first time you download and run it you may see two warnings. Both are normal for a new program:</p>
+          <ul>
+            <li><strong>Your browser</strong> may say the file "isn't commonly downloaded". Choose <strong>Keep</strong>. In Edge: click <strong>…</strong> next to the download, then <strong>Keep</strong>, then <strong>Show more</strong> › <strong>Keep anyway</strong>.</li>
+            <li><strong>Windows</strong> may show a blue box, "Windows protected your PC". Click <strong>More info</strong>, then <strong>Run anyway</strong>.</li>
+          </ul>
+          <p>Want to check your download is the real one? Every release gives the installer's checksum: a long code that changes if even one byte of the file does. It's in the release notes and in <code>SHA256SUMS.txt</code>. Run this in PowerShell and compare the code it shows:</p>
+          <p><code>Get-FileHash "$HOME\Downloads\Thicket-Setup*.exe"</code></p>
         </section>
 
         <section id="first-start">
@@ -107,12 +128,22 @@
           <p>Deleted something by mistake? Deleted sightings and photos wait in the recycle bin for 30 days (<strong>Settings › Data</strong>), and most changes can be undone straight away.</p>
         </section>
 
+        <section id="new-pc">
+          <h2>Moving to a new PC</h2>
+          <ol>
+            <li>On your old PC, set your backup folder to a drive you can move, such as a USB drive (<strong>Settings › Backup › Backup folder</strong>), and click <strong>Back up now</strong>.</li>
+            <li>On the new PC, install Thicket and plug in that drive. Or copy its whole backup folder across: it's called <strong>Thicket Backups</strong> (or <strong>WildLife Backups</strong>, if you set it up before the rename).</li>
+            <li>Go to <strong>Settings › Backup › Restore…</strong> › <strong>Choose a backup file…</strong>, open the <strong>snapshots</strong> folder inside the backup folder, and pick the newest backup.</li>
+          </ol>
+          <p>Thicket restarts with your sightings, places, outings and photos. Use the whole backup folder, not just one file: the photos are kept beside the backups.</p>
+        </section>
+
         <section id="import">
           <h2>Importing from iNaturalist</h2>
           <ol>
             <li>On the iNaturalist website, use <a href="https://www.inaturalist.org/observations/export">Export observations</a> to download your observations as a CSV file.</li>
             <li>In Thicket, go to <strong>Settings › Import &amp; export › From iNaturalist</strong> and choose the file.</li>
-            <li>Check what Thicket found, and tick <strong>Also download the photos</strong> if you'd like them.</li>
+            <li>Check what Thicket found, then import. <strong>Also download the photos</strong> is ticked whenever online features are allowed, so the photos come too. Untick it if you'd rather not.</li>
           </ol>
           <p>Importing a newer export later only adds what's new or changed. Spreadsheets import the same way, from <strong>From a spreadsheet</strong>.</p>
         </section>
@@ -124,14 +155,19 @@
 
         <section id="uninstall">
           <h2>Uninstalling</h2>
-          <p>Open Windows <strong>Settings › Apps › Installed apps</strong>, find Thicket and choose <strong>Uninstall</strong>. Your data is kept, and the uninstaller tells you where. To remove it as well, delete the <code>%LOCALAPPDATA%\WildLife</code> folder afterwards (and your backup folder, if you chose one).</p>
+          <p>Open Windows <strong>Settings › Apps › Installed apps</strong> (<strong>Apps &amp; features</strong> on Windows 10), find Thicket and choose <strong>Uninstall</strong>. Your data is kept, and the uninstaller tells you where. To remove it as well, delete the <code>%LOCALAPPDATA%\WildLife</code> folder afterwards (and your backup folder, if you chose one).</p>
+        </section>
+
+        <section id="other-devices">
+          <h2>Is there a Mac or phone version?</h2>
+          <p>No: Thicket is for Windows only. Out and about, take photos with your phone. Back home, add them to Thicket's Photo Inbox, and it reads when and where each one was taken. If you record with the iNaturalist app, you can <a href="#import">import those records</a> too.</p>
         </section>
 
         <section id="problems">
           <h2>Something's wrong</h2>
           <ul>
             <li><strong>Settings › Data › Health check</strong> checks your data file, every photo, your backups and the species list, and explains anything it finds.</li>
-            <li>Still stuck? <a href="https://github.com/nevermore1983/Thicket/issues">Report it on GitHub</a>. Say what you did and what happened. <strong>Settings › About › Open log folder</strong> has Thicket's log files, which help. Have a look at them before attaching one: they can include folder and place names.</li>
+            <li>Still stuck? <a href="https://github.com/nevermore1983/Thicket/issues">Report it on GitHub</a> (you'll need a free GitHub account). Say what you did and what happened. <strong>Settings › About › Open log folder</strong> has Thicket's log files, which help. Have a look at them before attaching one: they can include folder and place names.</li>
           </ul>
         </section>
       </div>

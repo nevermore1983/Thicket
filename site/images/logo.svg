@@ -1,8 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <!-- The app icon (src/wildlife/resources/icons/wildlife-256.png), redrawn so it stays sharp at any size -->
-  <rect width="256" height="256" rx="44" fill="#2e7d4f"/>
-  <g fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M92 174C70 140 80 98 116 80C140 68 164 66 186 66C190 104 182 140 160 160C140 178 112 184 92 174Z"/>
-    <path d="M74 190L148 116"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <rect width="24" height="24" rx="5.28" fill="#2e7d4f"/>
+  <g transform="translate(3.36 3.36) scale(0.72)"><g fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 4 13c0-6 6-9 16-10-1 10-4 16-9 17z"/><path d="M4 21c3-5 6-8 11-11"/></g></g>
 </svg>

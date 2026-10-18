@@ -14,6 +14,8 @@ import build_site_changelog
 
 SITE = build_site_changelog.ROOT / "site"
 PAGES = sorted(SITE.glob("*.html"))
+BASE = "https://nevermore1983.github.io/Thicket/"
+NOT_FOUND = "404.html"  # shown by GitHub Pages for missing addresses: no previews, no index
 
 
 class Page(HTMLParser):
@@ -22,11 +24,12 @@ class Page(HTMLParser):
     def __init__(self, path: Path) -> None:
         super().__init__()
         self.path = path
+        self.text = path.read_text(encoding="utf-8")
         self.tags: list[tuple[str, dict[str, str]]] = []
         self.ids: set[str] = set()
         self.title = ""
         self._in_title = False
-        self.feed(path.read_text(encoding="utf-8"))
+        self.feed(self.text)
 
     def handle_starttag(self, tag, attrs):
         a = {k: v or "" for k, v in attrs}
@@ -45,11 +48,17 @@ class Page(HTMLParser):
     def all(self, tag: str) -> list[dict[str, str]]:
         return [a for t, a in self.tags if t == tag]
 
-    def header(self) -> str:
-        """The shared header's markup, without the 'this page' marker."""
-        text = self.path.read_text(encoding="utf-8")
-        found = re.search(r'<header class="site-header">.*?</header>', text, re.S)
-        assert found, f"{self.path.name} has no site header"
+    def meta(self, key: str) -> str | None:
+        """The content of <meta name=key> or <meta property=key>."""
+        found = [
+            a.get("content") for a in self.all("meta") if key in (a.get("name"), a.get("property"))
+        ]
+        return found[0] if found else None
+
+    def block(self, tag: str) -> str:
+        """The shared header's or footer's markup, without the 'this page' marker."""
+        found = re.search(rf'<{tag} class="site-{tag}">.*?</{tag}>', self.text, re.S)
+        assert found, f"{self.path.name} has no site {tag}"
         return found.group(0).replace(' aria-current="page"', "")
 
 
@@ -59,10 +68,17 @@ def is_external(url: str) -> bool:
 
 def loaded_urls(page: Page) -> list[str]:
     """Everything the browser fetches by itself when the page opens (not links you click)."""
-    urls = [a["href"] for a in page.all("link")]
+    urls = [a["href"] for a in page.all("link") if a.get("rel") not in ("canonical", "alternate")]
     urls += [a["src"] for t in ("img", "script", "iframe") for a in page.all(t) if "src" in a]
     urls += [a["srcset"].split()[0] for a in page.all("source")]
     return urls
+
+
+def png_size(path: Path) -> tuple[int, int]:
+    """Width and height from a PNG's header (no image library needed)."""
+    head = path.read_bytes()[:24]
+    assert head[:8] == b"\x89PNG\r\n\x1a\n", f"{path.name} isn't a PNG"
+    return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
 
 
 @pytest.fixture(scope="module")
@@ -72,7 +88,8 @@ def pages() -> dict[str, Page]:
 
 def test_the_site_has_its_pages():
     names = {p.name for p in PAGES}
-    assert {"index.html", "features.html", "help.html", "changelog.html", "privacy.html"} <= names
+    pages = {"index.html", "features.html", "help.html", "changelog.html", "privacy.html"}
+    assert pages | {NOT_FOUND} <= names
 
 
 def test_changelog_page_is_up_to_date():
@@ -100,9 +117,8 @@ def test_page_basics(path, pages):
     page = pages[path.name]
     assert page.all("html")[0].get("lang") == "en-GB"
     assert page.title.strip()
-    metas = {a.get("name"): a.get("content", "") for a in page.all("meta")}
-    assert "width=device-width" in metas.get("viewport", "")
-    assert metas.get("description")
+    assert "width=device-width" in (page.meta("viewport") or "")
+    assert 0 < len(page.meta("description") or "") <= 160  # longer gets cut off in search results
     assert len(page.all("h1")) == 1
     assert page.all("main") and "main" in page.ids  # the skip link's target
 
@@ -129,7 +145,7 @@ def test_images_have_alt_text_and_a_size(path, pages):
     for img in pages[path.name].all("img"):
         assert "alt" in img, f"{path.name}: {img['src']} has no alt"
         assert img.get("width") and img.get("height"), f"{path.name}: {img['src']} has no size"
-        if img["src"].endswith(".png"):
+        if not img["src"].endswith(".svg"):
             assert len(img["alt"]) > 20, f"{path.name}: {img['src']} needs a real description"
 
 
@@ -149,22 +165,78 @@ def test_the_stylesheet_loads_nothing_from_another_website():
 
 
 def test_every_page_has_the_same_header_and_marks_itself(pages):
-    headers = {name: page.header() for name, page in pages.items()}
-    assert len(set(headers.values())) == 1, "the pages' headers differ"
+    assert len({page.block("header") for page in pages.values()}) == 1, "the headers differ"
     for name, page in pages.items():
         current = [a["href"] for a in page.all("a") if a.get("aria-current") == "page"]
-        assert current == ([] if name == "index.html" else [name])
+        assert current == ([] if name in ("index.html", NOT_FOUND) else [name])
+
+
+def test_every_page_has_the_same_footer(pages):
+    assert len({page.block("footer") for page in pages.values()}) == 1, "the footers differ"
+
+
+def test_download_buttons_all_go_to_the_same_place(pages):
+    """So pointing them somewhere new (docs/17-website-plan.md) is one find-and-replace."""
+    targets = {
+        a["href"]
+        for page in pages.values()
+        for a in page.all("a")
+        if "button-primary" in a.get("class", "") and is_external(a["href"])
+    }
+    assert len(targets) == 1, targets
+
+
+@pytest.mark.parametrize("path", [p for p in PAGES if p.name != NOT_FOUND], ids=lambda p: p.name)
+def test_link_previews(path, pages):
+    """What WhatsApp, Discord and the like show when someone shares a link to the page."""
+    page = pages[path.name]
+    url = BASE + ("" if path.name == "index.html" else path.name)
+    canonical = [a["href"] for a in page.all("link") if a.get("rel") == "canonical"]
+    assert canonical == [url]
+    assert page.meta("og:url") == url
+    assert page.meta("og:title") == page.title
+    assert page.meta("og:description") == page.meta("description")
+    assert page.meta("twitter:card") == "summary_large_image"
+    image = page.meta("og:image") or ""
+    assert image.startswith(BASE), image
+    file = SITE / image.removeprefix(BASE)
+    assert png_size(file) == (1200, 630)
+    assert (page.meta("og:image:width"), page.meta("og:image:height")) == ("1200", "630")
+    assert len(page.meta("og:image:alt") or "") > 20
+
+
+def test_the_not_found_page_works_at_any_depth(pages):
+    page = pages[NOT_FOUND]
+    assert [a["href"] for a in page.all("base")] == ["/Thicket/"]  # links resolve from the root
+    assert page.meta("robots") == "noindex"
+
+
+def test_full_size_links_match_their_screenshot(pages):
+    """Each screenshot opens, full size, the picture shown in the visitor's theme."""
+    count = 0
+    for page in pages.values():
+        for picture, links in re.findall(
+            r"(<picture>.*?</picture>)(\s*<a class=\"zoom.*?</a>\s*<a.*?</a>)", page.text, re.S
+        ):
+            dark = re.search(r'<source srcset="([^"]+)"', picture).group(1)
+            light = re.search(r'<img src="([^"]+)"', picture).group(1)
+            assert f'class="zoom only-light" href="{light}"' in links
+            assert f'class="zoom only-dark" href="{dark}"' in links
+            count += 1
+    assert count == sum(page.text.count("<picture>") for page in pages.values())
 
 
 def test_every_image_file_is_used(pages):
     """No forgotten screenshots: each file in site/images appears on some page."""
     used = {Path(u).name for page in pages.values() for u in loaded_urls(page)}
+    used |= {Path(page.meta("og:image") or "").name for page in pages.values()}
     unused = [p.name for p in (SITE / "images").iterdir() if p.name not in used]
     assert unused == []
 
 
 def test_screenshots_come_in_light_and_dark():
-    names = {p.name for p in (SITE / "images").glob("*.png")}
+    names = {p.name for p in (SITE / "images").glob("*.webp")}
+    assert names
     for name in names:
         other = (
             name.replace("-light", "-dark") if "-light" in name else name.replace("-dark", "-light")

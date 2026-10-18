@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # a fixed version, so an update can't change the run
     timeout-minutes: 10
     steps:
       - name: Get the source
@@ -35,8 +35,9 @@ jobs:
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
 
       - name: Check the site (links, alt text, nothing loaded from elsewhere, changelog up to date)
-        # The site test needs only pytest, not the app, so this skips the app's setup
-        run: uv run --no-project --with pytest pytest --noconftest -p no:cacheprovider tests/unit/test_site.py
+        # The site test needs only pytest (at uv.lock's version), not the app, so this
+        # skips the app's setup
+        run: uv run --no-project --with pytest==9.1.1 pytest --noconftest -p no:cacheprovider tests/unit/test_site.py
 
       - name: Set up GitHub Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
@@ -48,7 +49,7 @@ jobs:
 
   deploy:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # a fixed version, so an update can't change the run
     timeout-minutes: 10
     permissions:
       pages: write # to publish

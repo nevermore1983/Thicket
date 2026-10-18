@@ -5,7 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Privacy: Thicket</title>
   <meta name="description" content="Thicket keeps your sightings and photos on your own PC. What it connects to, when, and how to turn that off. This website has no cookies or tracking.">
-  <link rel="icon" href="images/logo.svg" type="image/svg+xml">
+  <link rel="canonical" href="https://nevermore1983.github.io/Thicket/privacy.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Thicket">
+  <meta property="og:title" content="Privacy: Thicket">
+  <meta property="og:description" content="Thicket keeps your sightings and photos on your own PC. What it connects to, when, and how to turn that off. This website has no cookies or tracking.">
+  <meta property="og:url" content="https://nevermore1983.github.io/Thicket/privacy.html">
+  <meta property="og:image" content="https://nevermore1983.github.io/Thicket/images/social-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Thicket's dashboard: totals for sightings and species, a calendar of the year so far, and recent sightings.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#f3f5f1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1210" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="images/favicon.ico" sizes="32x32">
+  <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -54,23 +69,23 @@
             <tbody>
               <tr>
                 <td>The map's background</td>
-                <td>OpenFreeMap</td>
-                <td>Which map areas you're looking at, as with any web map. Not your sightings: those are drawn on your PC.</td>
+                <td data-label="Service">OpenFreeMap</td>
+                <td data-label="What it's told">Which map areas you're looking at, as with any web map. Not your sightings: those are drawn on your PC.</td>
               </tr>
               <tr>
                 <td>US species packs</td>
-                <td>GitHub</td>
-                <td>Nothing about you: Thicket fetches the list of packs and the pack you pick, only when you add a state.</td>
+                <td data-label="Service">GitHub</td>
+                <td data-label="What it's told">Nothing about you: Thicket fetches the list of packs and the pack you pick, only when you add a state.</td>
               </tr>
               <tr>
                 <td>iNaturalist photos</td>
-                <td>iNaturalist</td>
-                <td>The numbers of your iNaturalist observations, only when you import an export and tick <strong>Also download the photos</strong>.</td>
+                <td data-label="Service">iNaturalist (its photos are stored with Amazon Web Services)</td>
+                <td data-label="What it's told">The numbers of your iNaturalist observations, only while importing an export with <strong>Also download the photos</strong> ticked.</td>
               </tr>
             </tbody>
           </table>
           <p>Like any website you visit, these services see your internet (IP) address. Thicket sends nothing else: no usage statistics, no crash reports, and no update checks.</p>
-          <p><strong>To turn all of it off,</strong> untick <strong>Settings › Online features › Allow</strong>. Thicket then works fully offline, with a plain outline map.</p>
+          <p><strong>To turn all of it off,</strong> untick <strong>Settings › Online features › Allow</strong>. Thicket then works fully offline, and the map shows your sightings on a plain background.</p>
         </section>
 
         <section id="sharing">

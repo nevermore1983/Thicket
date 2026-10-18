@@ -4,8 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Features: Thicket</title>
-  <meta name="description" content="What Thicket does: quick recording, a calendar, a map, statistics, species lists, photos, iNaturalist and spreadsheet import, automatic backups, and UK and US species.">
-  <link rel="icon" href="images/logo.svg" type="image/svg+xml">
+  <meta name="description" content="What Thicket does: quick recording, a calendar, a map, statistics, species lists, photos, imports, backups, and UK and US species.">
+  <link rel="canonical" href="https://nevermore1983.github.io/Thicket/features.html">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Thicket">
+  <meta property="og:title" content="Features: Thicket">
+  <meta property="og:description" content="What Thicket does: quick recording, a calendar, a map, statistics, species lists, photos, imports, backups, and UK and US species.">
+  <meta property="og:url" content="https://nevermore1983.github.io/Thicket/features.html">
+  <meta property="og:image" content="https://nevermore1983.github.io/Thicket/images/social-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Thicket's dashboard: totals for sightings and species, a calendar of the year so far, and recent sightings.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#f3f5f1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0f1210" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="images/favicon.ico" sizes="32x32">
+  <link rel="icon" href="images/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -50,10 +65,12 @@
         </div>
         <figure class="feature-shot">
           <picture>
-            <source srcset="images/add-dark.png" media="(prefers-color-scheme: dark)">
-            <img src="images/add-light.png" width="1280" height="820" loading="lazy"
+            <source srcset="images/add-dark.webp" media="(prefers-color-scheme: dark)">
+            <img src="images/add-light.webp" width="1280" height="820" loading="lazy"
                  alt="The Add sighting panel: typing 'gold' suggests Golden Plover, Goldeneye, Goldfinch and Goldcrest, with date, time and place filled in below.">
           </picture>
+          <a class="zoom only-light" href="images/add-light.webp"><span class="visually-hidden">Full-size screenshot of adding a sighting</span></a>
+          <a class="zoom only-dark" href="images/add-dark.webp"><span class="visually-hidden">Full-size screenshot of adding a sighting</span></a>
         </figure>
       </section>
 
@@ -62,34 +79,38 @@
           <h2 id="calendar">See your year on a calendar</h2>
           <p>Flick through by year, month, week or day. Each day shows how much you saw and what kinds, and a click lists every sighting.</p>
           <ul class="ticks">
-            <li>Group a day out into an <strong>outing</strong>, with its weather.</li>
+            <li>Group a day out into an <strong>outing</strong>, and note the weather.</li>
             <li>A star marks a species new to your life list.</li>
           </ul>
         </div>
         <figure class="feature-shot">
           <picture>
-            <source srcset="images/day-panel-dark.png" media="(prefers-color-scheme: dark)">
-            <img src="images/day-panel-light.png" width="1280" height="820" loading="lazy"
+            <source srcset="images/day-panel-dark.webp" media="(prefers-color-scheme: dark)">
+            <img src="images/day-panel-light.webp" width="1280" height="820" loading="lazy"
                  alt="October on the calendar, with Saturday 10 October open beside it: 57 sightings of 49 species, listed with their times and places.">
           </picture>
+          <a class="zoom only-light" href="images/day-panel-light.webp"><span class="visually-hidden">Full-size screenshot of the calendar</span></a>
+          <a class="zoom only-dark" href="images/day-panel-dark.webp"><span class="visually-hidden">Full-size screenshot of the calendar</span></a>
         </figure>
       </section>
 
       <section class="feature" aria-labelledby="map">
         <div class="feature-text">
           <h2 id="map">Every sighting on a map</h2>
-          <p>Pins for each sighting, a heat map of where you record most, or grid squares coloured by how many species you've found in each.</p>
+          <p>Pins for each sighting, a heat map of where you record most, or (in the UK) grid squares coloured by how many species you've found in each.</p>
           <ul class="ticks">
             <li>Right-click anywhere to add a sighting there.</li>
-            <li>Offline, your sightings still show on a plain outline map.</li>
+            <li>No internet? Your sightings still show, on a plain background.</li>
           </ul>
         </div>
         <figure class="feature-shot">
           <picture>
-            <source srcset="images/map-pins-dark.png" media="(prefers-color-scheme: dark)">
-            <img src="images/map-pins-light.png" width="1280" height="820" loading="lazy"
-                 alt="The map of Great Britain, with numbered clusters of sightings in Norfolk, Kent, Yorkshire, Wales and the Highlands.">
+            <source srcset="images/map-pins-dark.webp" media="(prefers-color-scheme: dark)">
+            <img src="images/map-pins-light.webp" width="1280" height="820" loading="lazy"
+                 alt="The map of Great Britain, with numbered clusters of sightings around London, Norfolk, Kent, Yorkshire, Wales and the Highlands.">
           </picture>
+          <a class="zoom only-light" href="images/map-pins-light.webp"><span class="visually-hidden">Full-size screenshot of the map</span></a>
+          <a class="zoom only-dark" href="images/map-pins-dark.webp"><span class="visually-hidden">Full-size screenshot of the map</span></a>
         </figure>
       </section>
 
@@ -99,15 +120,17 @@
           <p>How is my species list growing? What do I see most? Where are my best places? Every chart answers one question.</p>
           <ul class="ticks">
             <li>Compare this year with last year.</li>
-            <li>Click a bar or a day to see the sightings behind it.</li>
+            <li>Click a bar, square or row to see the sightings behind it.</li>
           </ul>
         </div>
         <figure class="feature-shot">
           <picture>
-            <source srcset="images/statistics-dark.png" media="(prefers-color-scheme: dark)">
-            <img src="images/statistics-light.png" width="1280" height="820" loading="lazy"
+            <source srcset="images/statistics-dark.webp" media="(prefers-color-scheme: dark)">
+            <img src="images/statistics-light.webp" width="1280" height="820" loading="lazy"
                  alt="The Statistics page for this year: totals for sightings, species and outings, and a chart of the species list growing through 2026 compared with 2025.">
           </picture>
+          <a class="zoom only-light" href="images/statistics-light.webp"><span class="visually-hidden">Full-size screenshot of the statistics</span></a>
+          <a class="zoom only-dark" href="images/statistics-dark.webp"><span class="visually-hidden">Full-size screenshot of the statistics</span></a>
         </figure>
       </section>
 
@@ -122,17 +145,19 @@
         </div>
         <figure class="feature-shot">
           <picture>
-            <source srcset="images/species-profile-dark.png" media="(prefers-color-scheme: dark)">
-            <img src="images/species-profile-light.png" width="1280" height="820" loading="lazy"
+            <source srcset="images/species-profile-dark.webp" media="(prefers-color-scheme: dark)">
+            <img src="images/species-profile-light.webp" width="1280" height="820" loading="lazy"
                  alt="The 2026 species list, with Chiffchaff's profile open: 139 sightings, a best count of 40, first seen in 2016, and a chart of the months it was seen.">
           </picture>
+          <a class="zoom only-light" href="images/species-profile-light.webp"><span class="visually-hidden">Full-size screenshot of the species list</span></a>
+          <a class="zoom only-dark" href="images/species-profile-dark.webp"><span class="visually-hidden">Full-size screenshot of the species list</span></a>
         </figure>
       </section>
 
       <section class="feature" aria-labelledby="import">
         <div class="feature-text">
           <h2 id="import">Bring your records with you</h2>
-          <p>Import an iNaturalist export, photos included, or any spreadsheet. You match its columns once, and Thicket checks everything before anything is saved.</p>
+          <p>Import an iNaturalist export, photos included, or any spreadsheet. Thicket works out which column is which (you can correct it), and checks everything with you before anything is saved.</p>
           <ul class="ticks">
             <li>Names it doesn't recognise are asked about once, then remembered.</li>
             <li>Changed your mind? One click undoes the whole import.</li>
@@ -140,10 +165,12 @@
         </div>
         <figure class="feature-shot feature-shot-dialog">
           <picture>
-            <source srcset="images/inat-check-dark.png" media="(prefers-color-scheme: dark)">
-            <img src="images/inat-check-light.png" width="640" height="560" loading="lazy"
+            <source srcset="images/inat-check-dark.webp" media="(prefers-color-scheme: dark)">
+            <img src="images/inat-check-light.webp" width="640" height="560" loading="lazy"
                  alt="Checking an iNaturalist export before importing: 8 new sightings, and two names to match to a species.">
           </picture>
+          <a class="zoom only-light" href="images/inat-check-light.webp"><span class="visually-hidden">Full-size screenshot of the import check</span></a>
+          <a class="zoom only-dark" href="images/inat-check-dark.webp"><span class="visually-hidden">Full-size screenshot of the import check</span></a>
         </figure>
       </section>
     </div>
@@ -158,7 +185,7 @@
           </li>
           <li class="card">
             <h3>Backups</h3>
-            <p>A verified backup every day and when you close Thicket, kept for a year. Restoring one takes a click. Deleted sightings wait in a recycle bin for 30 days.</p>
+            <p>A verified backup every day and when you close Thicket, kept for a year. Restoring one takes a few clicks. Deleted sightings wait in a recycle bin for 30 days.</p>
           </li>
           <li class="card">
             <h3>UK and US species</h3>
@@ -174,7 +201,7 @@
           </li>
           <li class="card">
             <h3>Light and dark</h3>
-            <p>Follows your Windows setting, or choose one. Everything works from the keyboard, and is labelled for screen readers.</p>
+            <p>Follows your Windows setting, or choose one. Screens are labelled for screen readers, and everyday tasks have keyboard shortcuts.</p>
           </li>
         </ul>
       </div>
