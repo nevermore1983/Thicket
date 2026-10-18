@@ -14,7 +14,10 @@ def add_california(window, qtbot, use_it=True) -> AddPackDialog:
     serve_us_pack(window.ctx)
     dialog = AddPackDialog(window.ctx, window)
     qtbot.waitUntil(lambda: dialog.list.count() == 1, timeout=10_000)
-    assert dialog.list.item(0).text().startswith("California  ·  5 species")
+    assert dialog.list.item(0).text().startswith("California  ·  5 species  ·  ")
+    assert dialog.list.item(0).text().endswith(" KB") and dialog.status.text().startswith(
+        "1 state."
+    )
     dialog.use_it.setChecked(use_it)
     dialog.list.setCurrentRow(0)
     dialog._install()

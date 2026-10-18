@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 from wildlife.context import AppContext
 from wildlife.domain.errors import WildlifeError
 from wildlife.services.species_packs import Pack
+from wildlife.ui.components.visuals import plural
 from wildlife.ui.workers import run_in_background
 
 UK_NAME = "United Kingdom"
@@ -36,7 +37,12 @@ def region_name(ctx: AppContext, region: str) -> str:
 
 
 def describe(pack: Pack) -> str:
-    return f"{pack.name}  ·  {pack.species:,} species  ·  {pack.bytes / 1e6:.1f} MB"
+    size = (
+        f"{pack.bytes / 1e6:.1f} MB"
+        if pack.bytes >= 1e6
+        else f"{max(1, round(pack.bytes / 1e3))} KB"
+    )
+    return f"{pack.name}  ·  {pack.species:,} species  ·  {size}"
 
 
 def problem_text(exc: BaseException) -> str:
@@ -110,7 +116,7 @@ class AddPackDialog(QDialog):
             item = QListWidgetItem(text)
             item.setData(Qt.ItemDataRole.UserRole, pack)
             self.list.addItem(item)
-        self.status.setText(f"{len(packs)} states. Choose one, then Download and add.")
+        self.status.setText(f"{plural(len(packs), 'state')}. Choose one, then Download and add.")
         self._update_buttons()
 
     def _failed(self, exc: BaseException) -> None:
