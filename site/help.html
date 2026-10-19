@@ -65,6 +65,7 @@
           <li><a href="#restore">Restoring a backup</a></li>
           <li><a href="#new-pc">Moving to a new PC</a></li>
           <li><a href="#import">Importing from iNaturalist</a></li>
+          <li><a href="#ebird">Importing from eBird</a></li>
           <li><a href="#region">Changing region</a></li>
           <li><a href="#uninstall">Uninstalling</a></li>
           <li><a href="#other-devices">Mac or phone version?</a></li>
@@ -186,6 +187,38 @@
           <h3 id="import-left-out">If some are left out</h3>
           <p>On the check page, <strong>Show the rows left out, and why</strong> lists each one, and <strong>Save this list…</strong> keeps it as a text file. The usual reasons are an observation with no identification yet, or no date. Fix them on iNaturalist, then import a new export.</p>
           <p>Spreadsheets from other apps import in a similar way, from <strong>Settings › Import &amp; export › From a spreadsheet</strong>.</p>
+        </section>
+
+        <section id="ebird">
+          <h2>Importing from eBird</h2>
+          <p>Thicket can bring in your eBird checklists. eBird offers two kinds of file, and Thicket reads either:</p>
+          <ul>
+            <li><strong>Download My Data</strong> (best): every species on every checklist, with its position, time, count and notes.</li>
+            <li><strong>A life or year list</strong>: only the first time you recorded each species, so you get one sighting per species.</li>
+          </ul>
+
+          <h3 id="ebird-download">Part 1: download your data from eBird</h3>
+          <ol>
+            <li>Sign in at <a href="https://ebird.org">ebird.org</a>, then open <a href="https://ebird.org/downloadMyData">Download My Data</a> (it's under <strong>My eBird</strong>).</li>
+            <li>Press <strong>Submit</strong>. eBird prepares the file and emails you a link, usually within a few minutes.</li>
+            <li>Download it from the link. You get a <code>.zip</code> file. Leave it as it is: Thicket opens the <code>.zip</code> itself, or the <code>MyEBirdData.csv</code> inside it.</li>
+          </ol>
+
+          <h3 id="ebird-thicket">Part 2: bring it into Thicket</h3>
+          <ol>
+            <li>Go to <strong>Settings › Import &amp; export › From eBird</strong>, click <strong>Choose eBird file…</strong> and pick the file.</li>
+            <li>Check what Thicket found, matching any names that aren't in your species list (most birds match by their scientific name), then press <strong>Import</strong>. <strong>Undo import</strong> removes it all again if you need to.</li>
+          </ol>
+
+          <h3 id="ebird-what">Good to know</h3>
+          <ul>
+            <li>Each sighting links back to its checklist on eBird, from its details.</li>
+            <li>Import a newer download whenever you like: only new checklists and species are added. A life list first and the full data later doesn't double anything up either.</li>
+            <li>A checklist has one position, where it started, so the precision allows for the distance you walked.</li>
+            <li>In a life list, eBird hotspots come without a position. If you've saved a place with the same name, Thicket uses it.</li>
+            <li>Escaped and domestic birds are marked <em>not wild</em>, so they stay out of your lists. Naturalised species, such as Mandarin Duck, count as usual.</li>
+            <li>Importing from eBird doesn't use the internet: everything is in the file.</li>
+          </ul>
         </section>
 
         <section id="region">

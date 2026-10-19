@@ -180,9 +180,12 @@ def test_unexpected_errors_are_logged_and_shown_gently(qapp, caplog):
     assert shown[-1] == ("Please check the highlighted fields.", True)
 
 
-def test_a_second_launch_finds_the_first(qapp):
+def test_a_second_launch_finds_the_first(qapp, monkeypatch):
     from wildlife.ui import single_instance
 
+    # A name of its own: with the real one, a Thicket open on this PC would answer (and be
+    # asked to come to the front) and the test would think no server had closed
+    monkeypatch.setattr(single_instance, "SERVER_NAME", f"Thicket-test-{id(qapp)}")
     shown = []
     server = single_instance.InstanceServer(lambda: shown.append(True))
     try:

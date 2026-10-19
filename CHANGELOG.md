@@ -2,6 +2,10 @@
 
 Each version's notes are used for its download page on GitHub (`scripts/release_notes.py`).
 
+## 1.4.0
+
+- **Import from eBird** (Settings › Import & export › From eBird). Thicket reads eBird's **Download My Data** file, with every species on every checklist and its position, time, count and notes, or a life or year list. Each sighting links back to its checklist on eBird. Importing a newer download later adds only what's new, and a life list followed by the full data doesn't double anything up. Escaped and domestic birds are marked not wild. The website's Help page has a step-by-step guide.
+
 ## 1.3.0
 
 - **Choose on map:** when adding or editing a sighting, the button beside the position box opens a map. Click where you saw it, drag the pin to adjust, and the grid reference (or coordinates outside Britain) is filled in, with the place it's in. Zoom in for a more precise position. From the keyboard, the arrow keys move the map and Enter picks its centre.
