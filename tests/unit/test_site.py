@@ -252,7 +252,7 @@ def test_screenshots_come_in_light_and_dark():
 
 def test_videos_are_light_and_described(pages):
     """The tour video (scripts/promo_video.py): play controls, never plays by itself, only
-    downloads when played, and says in words what it shows."""
+    downloads when played, says in words what it shows, and has captions for its sound."""
     videos = [(page, video) for page in pages.values() for video in page.all("video")]
     assert videos
     for page, video in videos:
@@ -260,5 +260,12 @@ def test_videos_are_light_and_described(pages):
         assert video.get("preload") == "none"
         assert (SITE / video["poster"]).is_file()
         assert video.get("aria-describedby") in page.ids
+    for page in pages.values():
+        tracks = page.all("track")
+        assert len(tracks) == len(page.all("video")), f"{page.path.name}: a video without captions"
+        for track in tracks:
+            assert track.get("kind") == "captions" and track.get("srclang") and track.get("label")
+            vtt = SITE / track["src"]
+            assert vtt.read_text(encoding="utf-8").startswith("WEBVTT"), track["src"]
     for clip in (SITE / "video").glob("*.mp4"):
         assert clip.stat().st_size < 5_000_000, f"{clip.name} is too big for the home page"

@@ -47,6 +47,7 @@ FADE = round(0.35 * FPS)  # frames of cross-fade between scenes
 WEBSITE = "nevermore1983.github.io/Thicket"
 SITE_VIDEO = ROOT / "site" / "video" / "thicket-tour.mp4"
 SITE_POSTER = ROOT / "site" / "images" / "tour-poster.webp"
+SITE_CAPTIONS = ROOT / "site" / "video" / "thicket-tour.vtt"
 POSTER_FRAME = 200  # "gold" typed, the suggestions showing
 
 
@@ -331,6 +332,64 @@ def button(parent: QWidget, text: str) -> QAbstractButton:
     return next(b for b in parent.findChildren(QAbstractButton) if b.text() == text)
 
 
+def missing_hooks(window) -> list[str]:
+    """The parts of the app the scenes below rely on that no longer exist.
+
+    Several are private (their names start with _), so an app change can rename them
+    without warning. tests/ui/test_promo_video.py runs this on a real window, so such a
+    change fails the tests instead of breaking the next re-film. Keep it in step with the
+    scenes: anything a scene reaches into belongs here."""
+    from wildlife.ui.components.toast import Toast
+
+    calendar, map_page = window.calendar_page, window.map_page
+    stats, species = window.statistics_page, window.species_page
+    checks: list[tuple[str, Callable[[], object]]] = [
+        ("window.add_button", lambda: window.add_button),
+        ("window.go", lambda: window.go),
+        (
+            "window.panel.close_panel / current",
+            lambda: (window.panel.close_panel, window.panel.current),
+        ),
+        ("window.ctx.sightings._today()", lambda: window.ctx.sightings._today()),
+        ("Toast.dismiss", lambda: Toast.dismiss),
+        ("calendar_page.go_to", lambda: calendar.go_to),
+        ("calendar month_view.days", lambda: calendar.month_view.days is not None),
+        ("calendar month_view.first_cell()", lambda: calendar.month_view.first_cell()),
+        ("calendar month_view._cell_rect()", lambda: calendar.month_view._cell_rect(0)),
+        ("map_page.ready / failed", lambda: (map_page.ready, map_page.failed) is not None),
+        ("map_page._bounds", lambda: hasattr(map_page, "_bounds") or None),
+        (
+            "map_page.set_mode / fit / view",
+            lambda: (map_page.set_mode, map_page.fit, map_page.view),
+        ),
+        ("map_page._send", lambda: map_page._send),
+        ("map_page.modes._buttons['heat']", lambda: map_page.modes._buttons["heat"]),
+        ("statistics_page.data", lambda: hasattr(stats, "data") or None),
+        ("statistics_page PageScroll", lambda: stats.findChild(QScrollArea, "PageScroll")),
+        ("species_page._choose", lambda: species._choose),
+        ("species_page.table", lambda: species.table.sortItems),
+    ]
+    missing = []
+    for name, check in checks:
+        try:
+            if check() is None:
+                missing.append(name)
+        except (AttributeError, KeyError, TypeError) as error:
+            missing.append(f"{name} ({error})")
+    # The Add sighting panel only exists while it's open
+    window.add_sighting()
+    editor = window.panel.current()
+    for name in ("picker.edit", "picker.list", "count", "save_btn", "_dirty"):
+        target = editor
+        for part in name.split("."):
+            target = getattr(target, part, None)
+        if target is None:
+            missing.append(f"Add sighting panel: {name}")
+    editor._dirty = False
+    window.panel.close_panel()
+    return missing
+
+
 # ---- scenes --------------------------------------------------------------------------------
 def scene_title(rec: Recorder, window) -> None:
     rec.show_card(rec.card("Thicket", ["Your wildlife journal, right on your PC"]), 3.0)
@@ -458,6 +517,38 @@ SCENES: dict[str, Callable[[Recorder, QWidget], None]] = {
 }
 
 
+def probe(video: Path) -> tuple[float, bool]:
+    """The video's length in seconds, and whether it has sound."""
+    import imageio_ffmpeg
+
+    info = subprocess.run(
+        [imageio_ffmpeg.get_ffmpeg_exe(), "-hide_banner", "-i", str(video)],
+        capture_output=True,
+        text=True,
+    ).stderr  # ffmpeg describes its input on stderr (and complains there's no output)
+    hours, minutes, seconds = info.split("Duration: ")[1].split(",")[0].split(":")
+    return int(hours) * 3600 + int(minutes) * 60 + float(seconds), "Audio:" in info
+
+
+def captions(length: float, has_sound: bool) -> str:
+    """A WebVTT captions file for the video. Its words are already drawn into the picture,
+    so the captions describe the sound, for people who can't hear it."""
+
+    def stamp(seconds: float) -> str:
+        minutes, rest = divmod(seconds, 60)
+        return f"00:{int(minutes):02d}:{rest:06.3f}"
+
+    if not has_sound:
+        return f"WEBVTT\n\n00:00:00.000 --> {stamp(length)}\n[No sound]\n"
+    return (
+        "WEBVTT\n\n"
+        f"00:00:00.000 --> {stamp(min(6.0, length))}\n"
+        "[Gentle forest birdsong plays throughout. No speech.]\n\n"
+        f"{stamp(max(0.0, length - 3.0))} --> {stamp(length)}\n"
+        "[The birdsong fades out]\n"
+    )
+
+
 def add_soundtrack(silent: Path, sound: Path, start: float, out: Path) -> None:
     """Lay `sound` (from `start` seconds in) under the video, fading in and out, at a steady
     background loudness. The sound file itself is never published or committed: only the
@@ -465,11 +556,7 @@ def add_soundtrack(silent: Path, sound: Path, start: float, out: Path) -> None:
     import imageio_ffmpeg
 
     ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
-    probe = subprocess.run(
-        [ffmpeg, "-hide_banner", "-i", str(silent)], capture_output=True, text=True
-    )
-    hours, minutes, seconds = probe.stderr.split("Duration: ")[1].split(",")[0].split(":")
-    length = int(hours) * 3600 + int(minutes) * 60 + float(seconds)
+    length, _ = probe(silent)
     sound_filter = (
         "afade=t=in:d=1.5,"
         f"afade=t=out:st={length - 2.5:.2f}:d=2.5,"
@@ -504,7 +591,15 @@ def main() -> int:
     parser.add_argument(
         "--site", action="store_true", help="also put the video and its poster on the website"
     )
+    parser.add_argument(
+        "--site-from",
+        type=Path,
+        help="don't film: put this existing video (and a fresh poster and captions) on the website",
+    )
     args = parser.parse_args()
+    if args.site_from:
+        to_website(args.site_from)
+        return 0
     if args.sound and not args.sound.is_file():
         raise SystemExit(f"No sound file at {args.sound}")
     final = args.out
@@ -580,12 +675,16 @@ def main() -> int:
 
 
 def to_website(video: Path) -> None:
-    """Put the video on the website: site/video/thicket-tour.mp4, and its poster (the
-    moment 'gold' brings up suggestions) as site/images/tour-poster.webp."""
+    """Put the video on the website: site/video/thicket-tour.mp4, its captions (.vtt) and
+    its poster (the moment 'gold' brings up suggestions) as site/images/tour-poster.webp."""
     import imageio_ffmpeg
     from PIL import Image
 
-    shutil.copy2(video, SITE_VIDEO)
+    written = [SITE_CAPTIONS, SITE_POSTER]
+    if video.resolve() != SITE_VIDEO.resolve():
+        shutil.copy2(video, SITE_VIDEO)
+        written.insert(0, SITE_VIDEO)
+    SITE_CAPTIONS.write_text(captions(*probe(SITE_VIDEO)), encoding="utf-8", newline="\n")
     still = Path(tempfile.mkdtemp(prefix="thicket-poster-")) / "poster.png"
     pick = f"select=eq(n\\,{POSTER_FRAME})"
     subprocess.run(
@@ -593,9 +692,12 @@ def to_website(video: Path) -> None:
          "-i", str(SITE_VIDEO), "-vf", pick, "-frames:v", "1", "-fps_mode", "vfr", str(still)],
         check=True,
     )  # fmt: skip
-    Image.open(still).convert("RGB").save(SITE_POSTER, "WEBP", quality=90, method=6)
+    # Quality 80: no visible difference at the size it's shown, and a third smaller (it
+    # loads with every visit to the home page, even when the video isn't played)
+    Image.open(still).convert("RGB").save(SITE_POSTER, "WEBP", quality=80, method=6)
     shutil.rmtree(still.parent, ignore_errors=True)
-    print(f"{SITE_VIDEO.relative_to(ROOT)} and {SITE_POSTER.relative_to(ROOT)} updated")
+    for path in written:
+        print(f"{path.relative_to(ROOT)} updated")
 
 
 if __name__ == "__main__":

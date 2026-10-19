@@ -70,12 +70,17 @@ Each step ends with a short report and waits for your OK.
 |---|---|
 | You release a new version | Add its notes to `CHANGELOG.md` as usual, then run `uv run python scripts/build_site_changelog.py`. The test fails until you do. The Download buttons need nothing: the release carries `Thicket-Setup.exe`, and the buttons always fetch the latest. |
 | A screen in the app changes | Re-take its screenshots, then make them small: `uv run python scripts/screenshot.py --data-dir local_data/demo9 --pages <name> --out local_data/shots`, then `uv run python scripts/site_assets.py screenshots local_data/shots/<name>-light.png local_data/shots/<name>-dark.png`. Re-doing `dashboard` also remakes the link-preview picture. |
-| The app changes in a way the video shows | Re-film it (about 45 seconds): `uv run --with imageio-ffmpeg python scripts/promo_video.py --site --sound local_data/video/mixkit-forest-birds-ambience-1210.wav`. That updates `site/video/thicket-tour.mp4` and its poster. The birdsong file stays out of git (its licence: docs/19-promo-video-plan.md). |
+| The app *looks* different in a way the video shows | Re-film it (about 45 seconds): `uv run --with imageio-ffmpeg python scripts/promo_video.py --site --sound local_data/video/mixkit-forest-birds-ambience-1210.wav`. That updates `site/video/thicket-tour.mp4`, its captions and its poster. The birdsong file stays out of git (its licence: docs/19-promo-video-plan.md). **Only re-film for visible changes:** each new video adds about 2.8 MB to the git history for good. (To refresh just the poster or captions, use `--site-from site/video/thicket-tour.mp4`, which doesn't film.) If `tests/ui/test_promo_video.py` fails, an app change has renamed something the video script uses: update `missing_hooks()` and the scenes together. |
 | The app icon's design changes | `uv run python scripts/make_icon.py` (app and website icons together). |
 | A release is ever published without `Thicket-Setup.exe` (the buttons would lead nowhere) | Actions tab › **Add Thicket-Setup.exe to a release** › Run workflow, with that release's tag. It copies the installer already on the release (after checking its checksum). 1.2.1 got its copy this way. |
 | You edit a page | Preview with the `website` launch entry, run `uv run pytest tests/unit/test_site.py`, commit and push. (`404.html` shows unstyled in the preview: it uses the live site's `/Thicket/` address so it works for any missing page.) |
 
 Every push to `main` that changes `site/` (or `CHANGELOG.md`) runs `.github/workflows/pages.yml`: it runs the site test, then publishes. If the test fails, the live site stays as it was.
+
+**Browsers the site supports:** current Chrome, Edge, Firefox and Safari, on desktop and phones: anything from about 2020 on (Safari and iOS 14 or later).
+- The WebP screenshots and a few modern CSS features (`:focus-visible`, `inset`, `color-mix()` with a fallback) need that.
+- On older browsers the text and download still work, but screenshots may not show.
+- Checked in Chromium, with phone sizes emulated. Firefox and Safari haven't been tried on real devices yet (docs/20-website-audit-2.md section 5).
 
 **Things found while building:**
 - Switching theme while Thicket was open turned the map black (fixed in commit 3bac5f1, with a test). It belongs in the next version's changelog.
