@@ -2,6 +2,11 @@
 
 Each version's notes are used for its download page on GitHub (`scripts/release_notes.py`).
 
+## 1.4.1
+
+- Fixed: sightings imported with a location name but no saved place, such as eBird hotspots, showed "No location", as if the location was lost. The name now shows in the sightings list, the calendar and the sighting's details (as "Location name"). iNaturalist's place names show the same way.
+- eBird: importing **Download My Data** after a life list now fills in those sightings' times and exact positions, instead of calling them already imported. A sighting you've edited in Thicket keeps your version.
+
 ## 1.4.0
 
 - **Import from eBird** (Settings › Import & export › From eBird). Thicket reads eBird's **Download My Data** file, with every species on every checklist and its position, time, count and notes, or a life or year list. Each sighting links back to its checklist on eBird. Importing a newer download later adds only what's new, and a life list followed by the full data doesn't double anything up. Escaped and domestic birds are marked not wild. The website's Help page has a step-by-step guide.
