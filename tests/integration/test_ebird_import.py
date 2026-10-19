@@ -1,13 +1,16 @@
 """Importing eBird exports end to end, from invented rows (helpers.ebird_full_row, ebird_life_row)."""
 
+from dataclasses import replace
+
 from helpers import EBIRD_FULL as FULL
 from helpers import EBIRD_LIFE as LIFE
 from helpers import ebird_full_row as full_row
 from helpers import ebird_life_row as life_row
 from helpers import ebird_table as table
 from helpers import taxon_id
+from wildlife.domain.filters import SightingFilter
 from wildlife.domain.models import PlaceDraft
-from wildlife.services.importer import ADD, SAME
+from wildlife.services.importer import ADD, SAME, SKIP, UPDATE
 
 
 def write(tmp_path, name: str, text: str):
@@ -37,9 +40,25 @@ def test_a_life_list_then_the_full_data_adds_only_whats_new(ctx, tmp_path):
     ctx.ebird.run(ctx.ebird.preview(write(tmp_path, "ebird_GB_life_list.csv", life)))
     full = table(FULL, [full_row(), full_row(**{"Submission ID": "S101"})])
     plan = ctx.ebird.preview(write(tmp_path, "MyEBirdData.csv", full))
-    assert [r.action for r in plan.rows] == [SAME, ADD]  # the life list's Robin is already in
-    again = ctx.ebird.preview(write(tmp_path, "life2.csv", life))
-    assert [r.action for r in again.rows] == [SAME]
+    # The life list's Robin is upgraded with the full data's time and exact position
+    assert [r.action for r in plan.rows] == [UPDATE, ADD]
+    result = ctx.ebird.run(plan)
+    robin = ctx.sightings.get(result.updated[0])
+    assert robin.observed_time == "07:45" and robin.latitude == 52.123457
+    assert ctx.sightings.totals(SightingFilter())[0] == 2  # nothing doubled
+    again = ctx.ebird.preview(write(tmp_path, "MyEBirdData2.csv", full))
+    assert [r.action for r in again.rows] == [SAME, SAME]
+    life_again = ctx.ebird.preview(write(tmp_path, "life2.csv", life))
+    assert [r.action for r in life_again.rows] == [SAME]  # a list never replaces full data
+
+
+def test_the_full_data_keeps_a_life_list_sighting_you_edited(ctx, tmp_path):
+    life = table(LIFE, [life_row()])
+    result = ctx.ebird.run(ctx.ebird.preview(write(tmp_path, "list.csv", life)))
+    mine = ctx.sightings.get(result.added[0])
+    ctx.sightings.save(replace(mine.to_draft(), notes="My own note"))
+    plan = ctx.ebird.preview(write(tmp_path, "MyEBirdData.csv", table(FULL, [full_row()])))
+    assert plan.rows[0].action == SKIP and "your Thicket version is kept" in plan.rows[0].reason
 
 
 def test_a_hotspot_without_a_position_uses_your_place_of_that_name(ctx, tmp_path):
@@ -48,6 +67,15 @@ def test_a_hotspot_without_a_position_uses_your_place_of_that_name(ctx, tmp_path
     result = ctx.ebird.run(ctx.ebird.preview(write(tmp_path, "list.csv", table(LIFE, [row]))))
     sighting = ctx.sightings.get(result.added[0])
     assert sighting.place_id == reserve.id and sighting.latitude is None
+
+
+def test_location_names_show_where_there_is_no_saved_place(ctx, tmp_path):
+    """A hotspot with no position, and a personal location with one: both are named."""
+    rows = [life_row(Location="Invented Reserve"), life_row(SubID="S200")]
+    result = ctx.ebird.run(ctx.ebird.preview(write(tmp_path, "list.csv", table(LIFE, rows))))
+    hotspot, personal = (ctx.sightings.get(i) for i in result.added)
+    assert hotspot.where == "Invented Reserve" and not hotspot.has_location
+    assert personal.where == "Somewhere, England, GB" and personal.has_location
 
 
 def test_the_sighting_links_back_to_its_checklist(ctx, tmp_path):

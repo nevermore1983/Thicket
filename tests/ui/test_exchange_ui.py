@@ -1,5 +1,7 @@
 """UI tests for importing, exporting, the health check and restoring (invented data)."""
 
+from PySide6.QtWidgets import QLabel
+
 from helpers import EBIRD_FULL, ebird_full_row, ebird_table, inat_csv, inat_row, taxon_id
 from wildlife.domain.filters import SightingFilter
 from wildlife.ui.exchange.import_dialog import CHECK, CHOOSE, MAP, ImportDialog
@@ -94,6 +96,15 @@ def test_ebird_from_settings_to_imported(window, qtbot, tmp_path):
     dialog._import()
     qtbot.waitUntil(lambda: dialog.outcome is not None, timeout=10_000)
     assert any("Import (eBird): 1 added" in m for m in window.toasts.messages())
+    # The location's name shows in the list and the details, with no saved place for it
+    sid = dialog.outcome.added[0]
+    dialog.reject()
+    window.go("sightings")
+    window.sightings_page.show_tab("sightings")
+    assert window.sightings_page.model.rows[0].where == "Invented Park"
+    window.open_sighting(sid)
+    texts = [w.text() for w in window.panel.current().findChildren(QLabel)]
+    assert "Location name" in texts and "Invented Park" in texts
 
 
 def test_a_wrong_file_for_ebird_says_where_to_get_one(window, qtbot, tmp_path):

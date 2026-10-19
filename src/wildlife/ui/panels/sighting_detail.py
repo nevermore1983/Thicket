@@ -31,7 +31,7 @@ from wildlife.ui.theme.manager import ThemeManager
 
 def location_text(s: Sighting) -> str:
     if s.eff_latitude is None:
-        return "No location yet"
+        return "No map position yet" if s.location_text else "No location yet"
     ref = geo.grid_ref_for(s.eff_latitude, s.eff_longitude, s.eff_uncertainty_m)
     where = ref or f"{s.eff_latitude:.5f}, {s.eff_longitude:.5f}"
     unc = f" (±{s.eff_uncertainty_m:,} m)" if s.eff_uncertainty_m else ""
@@ -148,6 +148,10 @@ class SightingDetail(PanelView):
                 + (f", {s.observed_time}" if s.observed_time else " (time unknown)"),
             ),
             ("Place", s.place_name or "None"),
+        ]
+        if s.location_text and s.location_text != s.place_name:
+            rows.append(("Location name", s.location_text))  # as an imported file gave it
+        rows += [
             ("Location", location_text(s)),
             ("Count", format_count(s.count, s.count_qualifier)),
             ("Evidence", s.evidence.label),

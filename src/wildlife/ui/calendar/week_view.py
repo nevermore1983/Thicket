@@ -33,8 +33,7 @@ class WeekCard(QWidget):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self.setAttribute(Qt.WidgetAttribute.WA_Hover)
-        where = s.place_name or ("Map position" if s.has_location else "No location")
-        self.meta = f"{s.observed_time or 'Time unknown'} · {where}"
+        self.meta = f"{s.observed_time or 'Time unknown'} · {s.where}"
         self.setToolTip(
             f"{s.display_name}\n{self.meta}" + (f"\n{FIRST_BADGES[mark]}" if mark else "")
         )

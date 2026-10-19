@@ -29,7 +29,8 @@ from wildlife.ui.theme.manager import ThemeManager
 
 def describe(s: Sighting) -> str:
     when = fmt_date(s.observed_date) + (f" {s.observed_time}" if s.observed_time else "")
-    where = f" · {s.place_name}" if s.place_name else ""
+    name = s.place_name or s.location_text
+    where = f" · {name}" if name else ""
     return f"{s.display_name}  ·  {when}{where}"
 
 

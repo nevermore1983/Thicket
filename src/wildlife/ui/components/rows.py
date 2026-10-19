@@ -143,7 +143,7 @@ def _count_suffix(s: Sighting) -> str:
 
 
 def _where(s: Sighting) -> str:
-    return s.place_name or ("Map position" if s.has_location else "No location")
+    return s.where
 
 
 def sighting_row(ctx: AppContext, theme: ThemeManager, s: Sighting, on_click) -> RowButton:

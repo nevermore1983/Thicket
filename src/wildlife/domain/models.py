@@ -157,6 +157,17 @@ class Sighting:
         return self.eff_latitude is not None
 
     @property
+    def where(self) -> str:
+        """Where it was, in a few words: the place, else the location's name as the app it
+        was imported from gave it (an eBird hotspot, iNaturalist's place), else whether it
+        has a map position at all."""
+        return (
+            self.place_name
+            or self.location_text
+            or ("Map position" if self.has_location else "No location")
+        )
+
+    @property
     def countable(self) -> bool:
         """Counts towards life/year lists (probable IDs handled by the caller's setting)."""
         return self.species_id is not None and not self.is_not_wild

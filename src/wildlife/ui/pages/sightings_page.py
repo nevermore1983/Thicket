@@ -111,7 +111,7 @@ class SightingTableModel(QAbstractTableModel):
                 s.display_name,
                 fmt_date(s.observed_date),
                 s.observed_time or "–",
-                s.place_name or ("Map position" if s.has_location else "No location"),
+                s.where,
                 format_count(s.count, s.count_qualifier),
                 s.evidence.label
                 + ("" if s.identification.value == "certain" else f" · {s.identification.label}"),

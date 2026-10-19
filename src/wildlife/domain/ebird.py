@@ -31,6 +31,10 @@ CHECKLIST_URL = "https://ebird.org/checklist/{}"
 MAX_NOTES, MAX_LOCATION_TEXT, MAX_UNCERTAINTY = 10_000, 200, 100_000
 FULL = ("Submission ID", "Scientific Name", "Date")  # Download My Data
 LIST = ("SubID", "Scientific Name", "Date")  # a life or year list
+# Marks a record from Download My Data. A life list's record of the same sighting has
+# less (no time, and a hotspot has no position), so the full data replaces it: the
+# importer updates a record whose mark differs, unless you've edited it in Thicket.
+FULL_DATA = "download-my-data"
 NOT_WILD_CATEGORIES = {"domestic"}  # eBird's own word for farmyard and pet birds
 ESCAPEE = "X"  # the Exotic column: N naturalised, P provisional, X escapee
 
@@ -171,5 +175,6 @@ def parse_row(line: int, row: dict, full: bool = True) -> ImportRecord:
         scientific_name=clean_name(scientific),
         common_name=common,
         kingdom="Animalia",  # birds: tells apart names shared with plants (Prunella)
+        updated_at=FULL_DATA if full else None,  # a life list's None never replaces anything
         problem=problem,
     )
