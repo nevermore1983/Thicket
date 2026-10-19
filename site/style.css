@@ -606,6 +606,14 @@ p {
   padding-left: 1.4em;
 }
 
+.prose h3 {
+  margin-top: 28px;
+}
+
+.prose .feature-shot {
+  margin: 8px 0 24px;
+}
+
 .prose li + li {
   margin-top: 6px;
 }

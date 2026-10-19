@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Help: Thicket</title>
-  <meta name="description" content="Installing Thicket, the 'Windows protected your PC' message, upgrading, where your data lives, backups, restoring, regions and uninstalling.">
+  <meta name="description" content="Installing Thicket, Windows warnings, upgrading, where your data lives, backups, importing from iNaturalist step by step, regions and uninstalling.">
   <link rel="canonical" href="https://nevermore1983.github.io/Thicket/help.html">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Thicket">
   <meta property="og:title" content="Help: Thicket">
-  <meta property="og:description" content="Installing Thicket, the 'Windows protected your PC' message, upgrading, where your data lives, backups, restoring, regions and uninstalling.">
+  <meta property="og:description" content="Installing Thicket, Windows warnings, upgrading, where your data lives, backups, importing from iNaturalist step by step, regions and uninstalling.">
   <meta property="og:url" content="https://nevermore1983.github.io/Thicket/help.html">
   <meta property="og:image" content="https://nevermore1983.github.io/Thicket/images/social-card.png">
   <meta property="og:image:width" content="1200">
@@ -141,12 +141,51 @@
 
         <section id="import">
           <h2>Importing from iNaturalist</h2>
+          <p>Thicket can bring in everything you've recorded on iNaturalist, photos included. There are two parts: download your observations from the iNaturalist website as a file, then open that file in Thicket. Allow ten minutes the first time.</p>
+          <p>You'll need a computer for part 1: the iNaturalist phone app can't export.</p>
+
+          <h3 id="import-download">Part 1: download your observations from iNaturalist</h3>
           <ol>
-            <li>On the iNaturalist website, use <a href="https://www.inaturalist.org/observations/export">Export observations</a> to download your observations as a CSV file.</li>
-            <li>In Thicket, go to <strong>Settings › Import &amp; export › From iNaturalist</strong> and choose the file.</li>
-            <li>Check what Thicket found, then import. <strong>Also download the photos</strong> is ticked whenever online features are allowed, so the photos come too. Untick it if you'd rather not.</li>
+            <li>Sign in at <a href="https://www.inaturalist.org">inaturalist.org</a>, then open <a href="https://www.inaturalist.org/observations/export">Export observations</a>.</li>
+            <li>At the top, the query says which observations to export. Check it includes your username, like <code>user_id=yourname</code>. If it doesn't, type that in, with your own username. Leave the other filters alone to export everything.</li>
+            <li>In the list of columns, tick every column in the <strong>Basic</strong>, <strong>Geo</strong> and <strong>Taxon</strong> groups (each group has an <strong>All</strong> link). Thicket ignores the columns it doesn't need. These three groups have everything it uses, including the exact position of observations you've hidden from other people.</li>
+            <li>Press <strong>Create Export</strong> at the bottom of the page. A few thousand observations take a minute or two. When the export is ready, a download link appears on the same page.</li>
+            <li>Download it. You get a <code>.zip</code> file named something like <code>observations-123456.csv.zip</code>. Leave it as it is: Thicket opens the <code>.zip</code> itself. Don't open and save it in Excel first, which can change the dates.</li>
           </ol>
-          <p>Importing a newer export later only adds what's new or changed. Spreadsheets import the same way, from <strong>From a spreadsheet</strong>.</p>
+
+          <h3 id="import-thicket">Part 2: bring them into Thicket</h3>
+          <ol>
+            <li>Go to <strong>Settings › Import &amp; export › From iNaturalist</strong>, click <strong>Choose export file…</strong> and pick the <code>.zip</code> you downloaded (or the <code>.csv</code> inside it).</li>
+            <li>Thicket reads the file and shows <strong>Check before importing</strong>: how many observations are new, how many are already in Thicket, and how many can't be imported. Nothing has changed yet.</li>
+            <li>If some names aren't in your species list as written, Thicket lists them. Choose the species (or a broader group, such as a genus) for each, and Thicket remembers your choice next time. Leave one empty to skip those records.</li>
+            <li><strong>Also download the photos from iNaturalist</strong> brings each observation's photos into your photo library, in the background (usually 1–3 MB each). It needs <strong>Allow online features</strong> on in Settings. Untick it if you'd rather not.</li>
+            <li>Press <strong>Import</strong> (it says how many, such as <strong>Import 6 sightings</strong>). If the result isn't what you wanted, <strong>Undo import</strong> removes everything it added.</li>
+          </ol>
+          <figure class="feature-shot feature-shot-dialog">
+            <picture>
+              <source srcset="images/inat-check-dark.webp" media="(prefers-color-scheme: dark)">
+              <img src="images/inat-check-light.webp" width="640" height="560" loading="lazy"
+                   alt="Check before importing: 8 new and 1 that can't be imported. Two names to choose a species for, a link to show the row left out and why, the photos option ticked, and an Import 6 sightings button.">
+            </picture>
+            <a class="zoom only-light" href="images/inat-check-light.webp"><span class="visually-hidden">Full-size screenshot of checking an iNaturalist import</span></a>
+            <a class="zoom only-dark" href="images/inat-check-dark.webp"><span class="visually-hidden">Full-size screenshot of checking an iNaturalist import</span></a>
+          </figure>
+
+          <h3 id="import-what">What comes across</h3>
+          <ul>
+            <li><strong>Identifications:</strong> research-grade observations are marked <em>certain</em>, the rest <em>probable</em>. You can choose whether probable ones count in your lists in <strong>Settings › Recording</strong>.</li>
+            <li><strong>Positions:</strong> the exact spot. For observations you obscured on iNaturalist, that needs the <strong>Geo</strong> columns from step 3. Without them, Thicket uses iNaturalist's blurred position and records how rough it is.</li>
+            <li><strong>Captive or cultivated</strong> observations are marked <em>not wild</em>, so they stay out of your life and year lists.</li>
+            <li>Observations with only a sound recording are marked <em>heard</em>.</li>
+            <li>The date and time you gave on iNaturalist, the place name, and your notes.</li>
+          </ul>
+
+          <h3 id="import-again">Importing again later</h3>
+          <p>Export again whenever you like and import the new file. Only what's new or changed on iNaturalist is added. A sighting you've edited in Thicket keeps your version, and one you deleted in Thicket isn't brought back.</p>
+
+          <h3 id="import-left-out">If some are left out</h3>
+          <p>On the check page, <strong>Show the rows left out, and why</strong> lists each one, and <strong>Save this list…</strong> keeps it as a text file. The usual reasons are an observation with no identification yet, or no date. Fix them on iNaturalist, then import a new export.</p>
+          <p>Spreadsheets from other apps import in a similar way, from <strong>Settings › Import &amp; export › From a spreadsheet</strong>.</p>
         </section>
 
         <section id="region">
