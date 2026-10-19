@@ -26,6 +26,7 @@ class MapBridge(QObject):
     cluster_picked = Signal(list)  # sighting ids under a cluster that can't be split further
     context_menu = Signal(float, float, float)  # lat, lon, zoom
     view_changed = Signal(dict)  # {"lat", "lon", "zoom"}
+    position_picked = Signal(float, float, float)  # lat, lon, zoom ("Choose on map" only)
 
     def command(self, name: str, **args) -> None:
         self.send.emit(name, json.dumps(args))
@@ -50,6 +51,10 @@ class MapBridge(QObject):
     @Slot(float, float, float)
     def contextMenu(self, lat: float, lon: float, zoom: float) -> None:
         self.context_menu.emit(lat, lon, zoom)
+
+    @Slot(float, float, float)
+    def positionPicked(self, lat: float, lon: float, zoom: float) -> None:
+        self.position_picked.emit(lat, lon, zoom)
 
     @Slot(str)
     def viewChanged(self, camera: str) -> None:

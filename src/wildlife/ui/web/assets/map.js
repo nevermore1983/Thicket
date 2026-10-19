@@ -30,7 +30,9 @@ const state = {
   places: null,
   heat: null, // URL of the heat cells (sightings added up in ~200 m cells, by Python)
   highlight: null, // [lon, lat]
+  pick: false, // "Choose on map": a click places the pin instead of opening sightings
 };
+let pin = null; // the chosen position's marker (pick mode only)
 
 const report = (code, message) => bridge && bridge.pageError(code, String(message));
 const empty = { type: 'FeatureCollection', features: [] };
@@ -222,6 +224,7 @@ function interactiveLayers() {
 }
 
 function onMove(e) {
+  if (state.pick) return; // no sighting tooltips while choosing a position
   const layers = interactiveLayers().filter((id) => map.getLayer(id));
   const features = layers.length ? map.queryRenderedFeatures(e.point, { layers }) : [];
   map.getCanvas().style.cursor = features.length && state.mode !== 'squares' ? 'pointer' : '';
@@ -241,6 +244,7 @@ function onMove(e) {
 }
 
 async function onClick(e) {
+  if (state.pick) { placePin(e.lngLat, true); return; }
   const layers = interactiveLayers().filter((id) => map.getLayer(id));
   const features = layers.length ? map.queryRenderedFeatures(e.point, { layers }) : [];
   if (!features.length || state.mode === 'squares') return;
@@ -259,6 +263,33 @@ async function onClick(e) {
   } else {
     bridge.sightingClicked(f.id);
   }
+}
+
+// ---- choosing a position ("Choose on map") ----------------------------------------------
+function placePin(lngLat, picked) {
+  // A draggable pin in the accent colour. `picked`: tell Python (not for the starting pin).
+  if (!pin) {
+    pin = new maplibregl.Marker({ color: state.theme.accent, draggable: true }).setLngLat(lngLat).addTo(map);
+    pin.getElement().setAttribute('aria-label', 'The chosen position');
+    pin.on('dragend', () => reportPin());
+  } else {
+    pin.setLngLat(lngLat);
+  }
+  if (picked) reportPin();
+}
+
+function reportPin() {
+  const p = pin.getLngLat();
+  bridge.positionPicked(p.lat, p.lng, map.getZoom());
+}
+
+function recolourPin() {
+  // A marker's colour is fixed when it's made: make it again after a theme change
+  if (!pin) return;
+  const at = pin.getLngLat();
+  pin.remove();
+  pin = null;
+  placePin(at, false);
 }
 
 // ---- errors: fall back to the plain outline when the online map can't load -----------
@@ -303,7 +334,10 @@ const commands = {
     map.on('mousemove', onMove);
     map.on('mouseout', () => { tip.hidden = true; });
     map.on('click', onClick);
-    map.on('contextmenu', (e) => { tip.hidden = true; bridge.contextMenu(e.lngLat.lat, e.lngLat.lng, map.getZoom()); });
+    map.on('contextmenu', (e) => {
+      tip.hidden = true;
+      if (!state.pick) bridge.contextMenu(e.lngLat.lat, e.lngLat.lng, map.getZoom());
+    });
     map.on('moveend', () => {
       const c = map.getCenter();
       bridge.viewChanged(JSON.stringify({ lat: c.lat, lon: c.lng, zoom: map.getZoom() }));
@@ -321,7 +355,19 @@ const commands = {
     if (!first && map) {
       for (const id of map.listImages()) if (id.startsWith('n-') || id.startsWith('cat-')) map.removeImage(id);
       if (state.basemap === 'plain') useBasemap('plain'); else rebuildOurLayers();
+      recolourPin();
     }
+  },
+
+  pickMode(a) {
+    // Clicking (or Enter, for the map's centre: the arrow keys move the map) places the pin
+    state.pick = true;
+    tip.hidden = true;
+    map.getCanvas().style.cursor = 'crosshair';
+    map.getCanvas().addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') placePin(map.getCenter(), true);
+    });
+    if (a.at) placePin({ lng: a.at.lon, lat: a.at.lat }, false);
   },
 
   setBasemap(a) {

@@ -11,7 +11,7 @@ import base64
 import logging
 
 import shiboken6
-from PySide6.QtCore import QBuffer, QIODevice, QRectF, QSettings, Qt, QUrl, Signal
+from PySide6.QtCore import QBuffer, QIODevice, QRectF, QSettings, Qt, Signal
 from PySide6.QtGui import QColor, QCursor, QGuiApplication, QImage, QPainter, QPen
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -98,6 +98,16 @@ def theme_payload(ctx: AppContext, t: Tokens) -> dict:
         "water": t.surface_3,
         "coast": t.border_strong,
     }
+
+
+def resolve_basemap(choice: str, online: bool, dark: bool) -> str:
+    """The background map to draw: the plain outline when online maps are off, and for
+    "Automatic" the one that suits the theme."""
+    if not online:
+        return "plain"
+    if choice == "auto":
+        return "dark" if dark else "standard"
+    return choice
 
 
 def _bounds_dict(b: Bounds) -> dict:
@@ -215,41 +225,18 @@ class MapPage(QWidget):
             self._create_view()
 
     def _create_view(self) -> None:
-        from PySide6.QtWebChannel import QWebChannel
-        from PySide6.QtWebEngineCore import QWebEnginePage
-        from PySide6.QtWebEngineWidgets import QWebEngineView
+        from wildlife.ui.web.view import map_view
 
-        from wildlife.ui.web import scheme
-        from wildlife.ui.web.map_bridge import MapBridge
-
-        profile, self.handler, self.gate = scheme.profile(
+        self.view, self.bridge, self.handler, self.gate = map_view(
             self.ctx.paths.maps, self._online_allowed()
         )
-
-        class Page(QWebEnginePage):
-            def javaScriptConsoleMessage(self, level, message, line, source) -> None:
-                log.info("Map console: %s (%s:%s)", message, source.rsplit("/", 1)[-1], line)
-
-        self.view = QWebEngineView()
-        self.view.setPage(Page(profile, self.view))
-        self.view.setContextMenuPolicy(
-            Qt.ContextMenuPolicy.NoContextMenu
-        )  # ours comes from the page
-        self.bridge = MapBridge(self.view)
-        channel = QWebChannel(self.view.page())
-        channel.registerObject("bridge", self.bridge)
-        self.view.page().setWebChannel(channel)
         self.bridge.ready.connect(self._page_ready)
         self.bridge.failed.connect(self._page_failed)
         self.bridge.sighting_clicked.connect(self.open_sighting)
         self.bridge.cluster_picked.connect(self.show_ids)
         self.bridge.context_menu.connect(self._context_menu)
         self.bridge.view_changed.connect(lambda cam: QSettings().setValue("map/camera", cam))
-        self.view.loadFinished.connect(
-            lambda ok: None if ok else self._page_failed("script", "The map page didn't load")
-        )
         self.stack.addWidget(self.view)
-        self.view.load(QUrl("wildlife://app/map.html"))
 
     def _page_ready(self, info: dict) -> None:
         log.info("Map ready: MapLibre %s", info.get("maplibre"))
@@ -417,11 +404,7 @@ class MapPage(QWidget):
         return self.ctx.settings.current.allow_online
 
     def _resolved_basemap(self) -> str:
-        if not self._online_allowed():
-            return "plain"
-        if self.basemap == "auto":
-            return "dark" if self.theme.tokens.dark else "standard"
-        return self.basemap
+        return resolve_basemap(self.basemap, self._online_allowed(), self.theme.tokens.dark)
 
     def _basemap_changed(self, _index: int) -> None:
         self.basemap = self.basemap_box.currentData()

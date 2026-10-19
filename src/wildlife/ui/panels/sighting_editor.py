@@ -106,9 +106,12 @@ def _input_of(control: QWidget) -> QWidget:
 
 
 class _Field(QWidget):
-    """Label above a control, with a help/error line below it."""
+    """Label above a control, with a help/error line below it. `beside`: a button to the
+    right of the control (e.g. "Choose on map")."""
 
-    def __init__(self, label: str, control: QWidget, help_text: str = "") -> None:
+    def __init__(
+        self, label: str, control: QWidget, help_text: str = "", beside: QWidget | None = None
+    ) -> None:
         super().__init__()
         self.control = control
         v = QVBoxLayout(self)
@@ -117,7 +120,14 @@ class _Field(QWidget):
         self.label = QLabel(label)
         self.label.setProperty("role", "fieldLabel")
         v.addWidget(self.label)
-        v.addWidget(control)
+        if beside is None:
+            v.addWidget(control)
+        else:
+            row = QHBoxLayout()
+            row.setSpacing(6)
+            row.addWidget(control, 1)
+            row.addWidget(beside)
+            v.addLayout(row)
         # Link the label to the field, so screen readers say "Date, edit" rather than "edit"
         target = _input_of(control)
         self.label.setBuddy(target)
@@ -270,8 +280,10 @@ class SightingEditor(PanelView):
 
         # exact position
         self.location = QLineEdit()
-        self.location.setPlaceholderText(
-            "Grid ref like TQ 308 808, or 51.50, -0.12, or paste a map link"
+        self.location.setPlaceholderText("TQ 308 808 or 51.50, -0.12")
+        self.location.setToolTip(
+            "A grid reference like TQ 308 808, coordinates like 51.50, -0.12, or a link "
+            "pasted from an online map"
         )
         self._lat, self._lon, self._unc = draft.latitude, draft.longitude, draft.uncertainty_m
         self._method = draft.location_method
@@ -283,7 +295,10 @@ class SightingEditor(PanelView):
         self.location.textEdited.connect(self._on_location_edited)
         self._loc_timer = QTimer(self, singleShot=True, interval=250)
         self._loc_timer.timeout.connect(self._update_location_note)
-        self.f_location = _Field("Exact position (optional)", self.location)
+        self.map_btn = QPushButton("Choose on map")
+        self.map_btn.setToolTip("Choose the position by clicking a map")
+        self.map_btn.clicked.connect(self._choose_on_map)
+        self.f_location = _Field("Exact position (optional)", self.location, beside=self.map_btn)
         form.addWidget(self.f_location)
 
         # count + evidence
@@ -436,6 +451,7 @@ class SightingEditor(PanelView):
             icon("chevron-down" if self._more_btn.isChecked() else "chevron-right", t.text_2, 16)
         )
         self.save_btn.setIcon(icon("check", t.accent_fg, 16))
+        self.map_btn.setIcon(icon("map", t.text_2, 16))
 
     def _build_place_chips(self) -> None:
         layout = self._place_flow
@@ -551,6 +567,46 @@ class SightingEditor(PanelView):
         self._location_edited = True
         self._mark_dirty()
         self._loc_timer.start()
+
+    def _choose_on_map(self) -> None:
+        """Open the map on the position typed or found so far (or the place's centre), and
+        use the spot you click."""
+        from wildlife.ui.map_picker import MapPicker  # loads the browser engine: only now
+
+        start, zoom = self._map_start()
+        picker = MapPicker(self.ctx, self.theme, start, zoom, parent=self.window())
+        try:
+            if picker.exec() == MapPicker.DialogCode.Accepted and picker.position:
+                self.use_map_position(*picker.position)
+        finally:
+            picker.deleteLater()
+
+    def _map_start(self) -> tuple[tuple[float, float] | None, float]:
+        """Where the map opens: the position in the box, else the chosen place."""
+        if self._location_edited:
+            parsed = self._parsed_location()
+            if parsed is not None and not parsed.looks_swapped:
+                return (parsed.latitude, parsed.longitude), 15
+        elif self._lat is not None:
+            return (self._lat, self._lon), 15
+        if self._place_id:
+            place = self.ctx.places.get(self._place_id)
+            zoom = 15 if place.radius_m <= 250 else 13 if place.radius_m <= 2_000 else 11
+            return (place.latitude, place.longitude), zoom
+        return None, 15
+
+    def use_map_position(self, lat: float, lon: float, uncertainty_m: int) -> None:
+        """Fill in a position chosen on the map. Like a photo's position, it also picks
+        the place it's in, unless you chose a place yourself."""
+        self._lat, self._lon, self._unc = lat, lon, uncertainty_m
+        self._method = LocationMethod.MAP
+        self._location_edited = False
+        self.location.setText(geo.grid_ref_for(lat, lon, uncertainty_m) or f"{lat:.5f}, {lon:.5f}")
+        self._mark_dirty()
+        if not self._place_chosen:
+            near = self.ctx.places.nearest(lat, lon)
+            self._set_place(near.id if near else None)
+        self._update_location_note()
 
     def _parsed_location(self) -> geo.ParsedLocation | None:
         return geo.parse_location(self.location.text())

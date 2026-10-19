@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 
+import shiboken6
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QButtonGroup,
@@ -34,6 +35,23 @@ def clear_layout(layout) -> None:
             w.deleteLater()
 
 
+def follow_theme(theme: ThemeManager, widget: QWidget, paint: Callable[[], None]) -> None:
+    """Paint `widget` now and again on every theme change, for as long as it exists.
+
+    A plain function connected to a signal stays connected after its widget has been
+    deleted (Qt only tidies up methods of the widget itself), and would then paint a
+    deleted widget: an error. So the connection ends with the widget."""
+
+    def repaint() -> None:
+        if shiboken6.isValid(widget):
+            paint()
+        else:
+            theme.changed.disconnect(repaint)
+
+    paint()
+    theme.changed.connect(repaint)
+
+
 def button(
     text: str,
     variant: str = "secondary",
@@ -54,8 +72,7 @@ def button(
             )
             btn.setIcon(icon(icon_name, colour, 16))
 
-        paint()
-        theme.changed.connect(paint)
+        follow_theme(theme, btn, paint)
     if on_click:
         btn.clicked.connect(on_click)
     return btn
@@ -182,8 +199,7 @@ class Callout(QFrame):
             colour = {"warning": t.warning, "good": t.good_text}.get(tone, t.text_2)
             self._icon.setPixmap(pixmap(icon_name, colour, 17))
 
-        paint()
-        theme.changed.connect(paint)
+        follow_theme(theme, self, paint)
 
     def set_text(self, text: str) -> None:
         self._label.setText(text)

@@ -90,6 +90,26 @@ def main() -> int:
                     window.open_outing(outings[0].id)
                 else:
                     window.edit_outing(outings[0].id)
+        elif target == "map-picker":  # "Choose on map" from Add sighting, with a spot picked
+            from wildlife.ui.map_picker import MapPicker
+
+            window.go("sightings")
+            window.add_sighting()
+            places = ctx.places.all()
+            start = (places[0].latitude, places[0].longitude) if places else None
+            dialog = MapPicker(ctx, theme, start, 15, parent=window)
+            dialog.show()
+            wait(lambda: dialog.ready or dialog.failed, 15)
+            wait(lambda: False, 3)  # the page makes the map after 'init'
+            if start:
+                lat, lon = start[0] + 0.0004, start[1] + 0.0007
+                dialog.view.page().runJavaScript(
+                    f"window.__map.fire('click', {{lngLat: {{lng: {lon}, lat: {lat}}}, "
+                    "point: {x: 0, y: 0}, originalEvent: new MouseEvent('click')})"
+                )
+                wait(lambda: dialog.position is not None, 5)
+            wait(lambda: False, 4)  # tiles load in the background
+            return dialog
         elif target.startswith("map-"):  # map-pins / map-heat / map-squares
             window.go("map")
             wait(lambda: window.map_page.ready or window.map_page.failed, 15)

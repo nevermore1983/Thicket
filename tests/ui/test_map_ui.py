@@ -173,7 +173,9 @@ def test_switching_theme_recolours_the_map(window, map_page, qtbot):
     from wildlife.ui.theme.tokens import DARK, LIGHT
 
     def accent() -> str:
-        return js(map_page, qtbot, "window.__map.getPaintProperty('highlight', 'circle-stroke-color')")
+        return js(
+            map_page, qtbot, "window.__map.getPaintProperty('highlight', 'circle-stroke-color')"
+        )
 
     qtbot.waitUntil(lambda: accent() == window.theme.tokens.accent, timeout=10_000)
     try:

@@ -48,6 +48,18 @@ def test_theme_switch_from_settings_is_saved(window, qtbot):
     assert window.theme.tokens is LIGHT
 
 
+def test_theme_switch_after_settings_redraw_their_rows(window, qtbot):
+    """Changing a setting redraws parts of Settings, deleting their old buttons and notes.
+    A theme switch after that used to try to repaint the deleted ones: an error each."""
+    window.go("settings")
+    window.ctx.settings.update(allow_online=False)
+    window.ctx.settings.update(allow_online=True)
+    qtbot.wait(50)  # let the deleted widgets go
+    window.settings_page.theme_choice.button_for(Theme.DARK).click()
+    window.settings_page.theme_choice.button_for(Theme.LIGHT).click()
+    assert window.theme.tokens is LIGHT  # and pytest-qt saw no errors in Qt's event loop
+
+
 def test_pages_are_narrow_enough_for_the_sidebar_to_collapse(window):
     """The sidebar shrinks below 900 px, so at full width (228 px) no page may need over 671."""
     for i in range(window.pages.count()):
