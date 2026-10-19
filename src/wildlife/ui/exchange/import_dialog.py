@@ -81,6 +81,21 @@ KINDS = {
             "Choose export file…",
         ),
         Kind(
+            "ebird",
+            "Import from eBird",
+            "Bring in your eBird sightings",
+            "Every species on your eBird checklists becomes a Thicket sighting, matched to your "
+            "species list. Importing a newer download later only adds what's new.",
+            "1. On <b>ebird.org</b>, open <b>My eBird › Download My Data</b> and press "
+            "<b>Submit</b>.<br>"
+            "2. eBird emails you a link. Download the <b>.zip</b>: Thicket opens it as it "
+            "comes, or the <b>MyEBirdData.csv</b> inside it.<br>"
+            "A life or year list (<b>My eBird › Life list › Download</b>) works too, but it "
+            "only has the first time you saw each species.",
+            "eBird download (*.csv *.zip)",
+            "Choose eBird file…",
+        ),
+        Kind(
             "csv",
             "Import a spreadsheet",
             "Bring in sightings from a spreadsheet",
@@ -315,6 +330,7 @@ class ImportDialog(QDialog):
         self._busy = True
         reader = {
             "inaturalist": lambda: self.ctx.inaturalist.preview(path),
+            "ebird": lambda: self.ctx.ebird.preview(path),
             "csv": lambda: self.ctx.spreadsheet.read(path),
             "wildlife": lambda: self.ctx.wildlife_import.preview(path),
         }[self.kind.key]
@@ -465,7 +481,9 @@ class ImportDialog(QDialog):
             )
 
     def _fill_record_check(self, plan: ImportPlan) -> None:
-        changed_where = "on iNaturalist" if self.kind.key == "inaturalist" else "in the file"
+        changed_where = {"inaturalist": "on iNaturalist", "ebird": "on eBird"}.get(
+            self.kind.key, "in the file"
+        )
         parts = [f"<b>{plan.count(ADD):,}</b> new"]
         if plan.count(UPDATE):
             parts.append(f"<b>{plan.count(UPDATE):,}</b> changed {changed_where} since last time")
@@ -592,8 +610,8 @@ class ImportDialog(QDialog):
 
             progress = self._on_progress
         else:
-            service = (
-                self.ctx.inaturalist if self.kind.key == "inaturalist" else self.ctx.spreadsheet
+            service = {"inaturalist": self.ctx.inaturalist, "ebird": self.ctx.ebird}.get(
+                self.kind.key, self.ctx.spreadsheet
             )
 
             def work():

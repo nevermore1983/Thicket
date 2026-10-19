@@ -204,7 +204,12 @@ DWC_COLUMNS = (
     "associatedMedia",
     "modified",
 )
-SOURCE_LABELS = {"inaturalist": "iNaturalist", "csv": "Spreadsheet", "wildlife": "Thicket export"}
+SOURCE_LABELS = {
+    "inaturalist": "iNaturalist",
+    "ebird": "eBird",
+    "csv": "Spreadsheet",
+    "wildlife": "Thicket export",
+}
 
 
 @dataclass(frozen=True, slots=True)

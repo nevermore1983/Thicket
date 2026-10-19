@@ -424,3 +424,64 @@ def serve_us_pack(ctx, records=None) -> list[str]:
 
     ctx.species_packs._fetch = fetch
     return asked
+
+
+# ---- eBird: invented rows of its two exports (Download My Data, a life list) ----------
+EBIRD_FULL = [
+    "Submission ID", "Common Name", "Scientific Name", "Taxonomic Order", "Count",
+    "State/Province", "County", "Location ID", "Location", "Latitude", "Longitude", "Date",
+    "Time", "Protocol", "Duration (Min)", "All Obs Reported", "Distance Traveled (km)",
+    "Area Covered (ha)", "Number of Observers", "Breeding Code", "Observation Details",
+    "Checklist Comments", "ML Catalog Numbers",
+]  # fmt: skip
+EBIRD_LIFE = [
+    "Row #", "Taxon Order", "Category", "Common Name", "Scientific Name", "Count", "Location",
+    "S/P", "Date", "LocID", "SubID", "Exotic", "Countable",
+]  # fmt: skip
+
+
+def ebird_table(columns: list[str], rows: list[dict]) -> str:
+    """An eBird CSV with these columns: EBIRD_FULL or EBIRD_LIFE."""
+    import csv
+    import io
+
+    out = io.StringIO()
+    writer = csv.DictWriter(out, columns, lineterminator="\n", restval="")
+    writer.writeheader()
+    writer.writerows(rows)
+    return out.getvalue()
+
+
+def ebird_full_row(**kw) -> dict:
+    """An invented checklist row from Download My Data: a Robin at a made-up park."""
+    row = {
+        "Submission ID": "S100",
+        "Common Name": "European Robin",
+        "Scientific Name": "Erithacus rubecula",
+        "Count": "2",
+        "Location": "Invented Park",
+        "Latitude": "52.1234567",
+        "Longitude": "-1.7654321",
+        "Date": "2026-05-03",
+        "Time": "07:45 AM",
+        "Protocol": "eBird - Stationary Count",
+    }
+    row.update(kw)
+    return row
+
+
+def ebird_life_row(**kw) -> dict:
+    """An invented life-list row: the first Robin, at a made-up personal location."""
+    row = {
+        "Row #": "1",
+        "Category": "species",
+        "Common Name": "European Robin",
+        "Scientific Name": "Erithacus rubecula",
+        "Count": "1",
+        "Location": "Somewhere, England, GB (52.123, -1.765)",
+        "Date": "03 May 2026",
+        "SubID": "S100",
+        "Countable": "1",
+    }
+    row.update(kw)
+    return row

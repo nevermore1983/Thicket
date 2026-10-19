@@ -11,7 +11,6 @@ from __future__ import annotations
 import csv
 import io
 import re
-import zipfile
 from collections.abc import Callable
 from datetime import date, datetime
 from pathlib import Path
@@ -19,13 +18,12 @@ from pathlib import Path
 from wildlife.domain.codes import Evidence, Identification
 from wildlife.domain.dates import uk_local
 from wildlife.domain.errors import ImportFileError
-from wildlife.domain.import_records import ImportRecord
+from wildlife.domain.import_records import ImportRecord, export_text
 
 SOURCE = "inaturalist"
 OBSERVATION_URL = "https://www.inaturalist.org/observations/{}"
 NEEDED = ("id", "observed_on", "scientific_name", "latitude", "longitude")
 MAX_NOTES, MAX_LOCATION_TEXT, MAX_UNCERTAINTY = 10_000, 200, 100_000
-MAX_FILE = 500 * 1024 * 1024  # far more than any export, but not unlimited
 
 # iNaturalist's broad "iconic" groups -> the kingdom used to tell apart names shared
 # between kingdoms (Prunella is both the Dunnock's genus and Selfheal's).
@@ -52,25 +50,7 @@ def is_inaturalist(header: list[str]) -> bool:
 def read_file(path: Path, local: Clock = uk_local) -> list[ImportRecord]:
     """Read an export: the .csv, or the .zip iNaturalist downloads it in.
     Raises ImportFileError if it isn't an iNaturalist export."""
-    try:
-        raw = _zipped_csv(path) if zipfile.is_zipfile(path) else path.read_bytes()
-    except (OSError, zipfile.BadZipFile) as exc:
-        raise ImportFileError("The file couldn't be opened. Is it still there?") from exc
-    try:
-        text = raw.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        text = raw.decode("cp1252", errors="replace")  # re-saved by Excel
-    return read_text(text, local)
-
-
-def _zipped_csv(path: Path) -> bytes:
-    with zipfile.ZipFile(path) as archive:
-        csvs = [i for i in archive.infolist() if i.filename.lower().endswith(".csv")]
-        if not csvs:
-            raise ImportFileError("There's no .csv file inside this .zip.")
-        if csvs[0].file_size > MAX_FILE:
-            raise ImportFileError("The file inside this .zip is too large to be an export.")
-        return archive.read(csvs[0])
+    return read_text(export_text(path), local)
 
 
 def read_text(text: str, local: Clock = uk_local) -> list[ImportRecord]:

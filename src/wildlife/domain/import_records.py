@@ -7,8 +7,10 @@ duplicates and creates the sightings.
 
 from __future__ import annotations
 
+import zipfile
 from dataclasses import dataclass
 from datetime import date
+from pathlib import Path
 
 from wildlife.domain.codes import (
     CountQualifier,
@@ -18,6 +20,32 @@ from wildlife.domain.codes import (
     LifeStage,
     Sex,
 )
+from wildlife.domain.errors import ImportFileError
+
+MAX_FILE = 500 * 1024 * 1024  # far more than any export, but not unlimited
+
+
+def export_text(path: Path) -> str:
+    """The text of an exported CSV: the .csv itself, or the one inside the .zip that
+    iNaturalist and eBird download it in. Raises ImportFileError if it can't be read."""
+    try:
+        raw = _zipped_csv(path) if zipfile.is_zipfile(path) else path.read_bytes()
+    except (OSError, zipfile.BadZipFile) as exc:
+        raise ImportFileError("The file couldn't be opened. Is it still there?") from exc
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return raw.decode("cp1252", errors="replace")  # re-saved by Excel
+
+
+def _zipped_csv(path: Path) -> bytes:
+    with zipfile.ZipFile(path) as archive:
+        csvs = [i for i in archive.infolist() if i.filename.lower().endswith(".csv")]
+        if not csvs:
+            raise ImportFileError("There's no .csv file inside this .zip.")
+        if csvs[0].file_size > MAX_FILE:
+            raise ImportFileError("The file inside this .zip is too large to be an export.")
+        return archive.read(csvs[0])
 
 
 @dataclass(frozen=True, slots=True)

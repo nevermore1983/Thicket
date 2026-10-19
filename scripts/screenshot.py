@@ -167,6 +167,12 @@ def main() -> int:
             page.table.selectRow(0)
         elif target.startswith("inat"):  # inat-start / inat-check / inat-done (invented rows)
             return import_dialog(target)
+        elif target == "ebird-start":  # the eBird import window, with its instructions
+            window.go("settings")
+            dialog = window.import_data("ebird")
+            dialog.resize(640, 560)
+            wait(lambda: False, 0.3)
+            return dialog
         elif target == "csv-map":  # a spreadsheet's columns being matched (invented rows)
             window.go("settings")
             sheet = Path(tempfile.mkdtemp(prefix="wildlife-csv-")) / "Garden list 2025.csv"

@@ -88,7 +88,7 @@ def _pair(*widgets: QWidget) -> QWidget:
 
 class SettingsPage(QWidget):
     backup_requested = Signal()
-    import_requested = Signal(str)  # 'inaturalist', 'csv' or 'wildlife'
+    import_requested = Signal(str)  # 'inaturalist', 'ebird', 'csv' or 'wildlife'
     export_requested = Signal()
     health_requested = Signal()
     restore_requested = Signal()
@@ -386,6 +386,12 @@ class SettingsPage(QWidget):
                 "Your observations from an iNaturalist export. Importing again later only adds "
                 "what's new or changed.",
                 importer("inaturalist"),
+            ),
+            _row(
+                "From eBird",
+                "Your eBird checklists, from Download My Data (or a life list). Importing "
+                "again later only adds what's new.",
+                importer("ebird"),
             ),
             _row(
                 "From a spreadsheet",

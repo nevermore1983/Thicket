@@ -1,6 +1,6 @@
 """UI tests for importing, exporting, the health check and restoring (invented data)."""
 
-from helpers import inat_csv, inat_row, taxon_id
+from helpers import EBIRD_FULL, ebird_full_row, ebird_table, inat_csv, inat_row, taxon_id
 from wildlife.domain.filters import SightingFilter
 from wildlife.ui.exchange.import_dialog import CHECK, CHOOSE, MAP, ImportDialog
 
@@ -73,6 +73,35 @@ def test_a_wrong_file_is_explained(window, qtbot, tmp_path):
     dialog.open_file(wrong)
     qtbot.waitUntil(lambda: "iNaturalist" in dialog.choose_status.text(), timeout=10_000)
     assert dialog.pages.currentIndex() == CHOOSE and dialog.choose_btn.isEnabled()
+    dialog.reject()
+
+
+# ---- eBird ---------------------------------------------------------------------------
+def test_ebird_from_settings_to_imported(window, qtbot, tmp_path):
+    path = tmp_path / "MyEBirdData.csv"
+    rows = [ebird_full_row(), ebird_full_row(**{"Date": ""})]  # the second has no date
+    path.write_text(ebird_table(EBIRD_FULL, rows), encoding="utf-8")
+    window.go("settings")
+    dialog = window.import_data("ebird")
+    assert dialog.windowTitle() == "Import from eBird"
+    assert not dialog.photos_box.isVisible()  # eBird exports have no photo links
+    dialog.open_file(path)
+    qtbot.waitUntil(lambda: dialog.pages.currentIndex() == CHECK, timeout=10_000)
+    assert (
+        "<b>1</b> new" in dialog.summary.text() and "1 can't be imported" in dialog.summary.text()
+    )
+    assert dialog.go_btn.text() == "Import 1 sighting"
+    dialog._import()
+    qtbot.waitUntil(lambda: dialog.outcome is not None, timeout=10_000)
+    assert any("Import (eBird): 1 added" in m for m in window.toasts.messages())
+
+
+def test_a_wrong_file_for_ebird_says_where_to_get_one(window, qtbot, tmp_path):
+    dialog = window.import_data("ebird")
+    wrong = tmp_path / "list.csv"
+    wrong.write_text("species,date\nRobin,2026-05-03\n", encoding="utf-8")
+    dialog.open_file(wrong)
+    qtbot.waitUntil(lambda: "Download My Data" in dialog.choose_status.text(), timeout=10_000)
     dialog.reject()
 
 

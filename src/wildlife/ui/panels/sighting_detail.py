@@ -18,10 +18,9 @@ from PySide6.QtWidgets import (
 )
 
 from wildlife.context import AppContext
-from wildlife.domain import geo
+from wildlife.domain import ebird, geo, inaturalist
 from wildlife.domain.codes import Identification
 from wildlife.domain.counting import format_count
-from wildlife.domain.inaturalist import OBSERVATION_URL, SOURCE
 from wildlife.domain.models import Sighting
 from wildlife.ui.components.side_panel import PanelView
 from wildlife.ui.components.species_picker import species_html
@@ -38,6 +37,19 @@ def location_text(s: Sighting) -> str:
     unc = f" (±{s.eff_uncertainty_m:,} m)" if s.eff_uncertainty_m else ""
     centre = f" · centre of {s.place_name}" if s.latitude is None and s.place_name else ""
     return f"{where}{unc}{centre}"
+
+
+def _origin(s: Sighting) -> tuple[str, str, str] | None:
+    """For a sighting imported from another app: (the app, a link back, the link's words)."""
+    if not s.source_id:
+        return None
+    if s.source == inaturalist.SOURCE:
+        link = inaturalist.OBSERVATION_URL.format(s.source_id)
+        return "iNaturalist", link, "Open on iNaturalist"
+    if s.source == ebird.SOURCE:  # its id is "<checklist>/<species>"
+        link = ebird.CHECKLIST_URL.format(s.source_id.split("/", 1)[0])
+        return "eBird", link, "Open the checklist on eBird"
+    return None
 
 
 class SightingDetail(PanelView):
@@ -167,11 +179,12 @@ class SightingDetail(PanelView):
         b.addLayout(facts)
         edited = f" · edited {s.updated_at[:10]}" if s.updated_at[:16] != s.created_at[:16] else ""
         added = QLabel(f"Added {s.created_at[:10]}{edited}")
-        if s.source == SOURCE and s.source_id:
-            link = OBSERVATION_URL.format(s.source_id)
+        origin = _origin(s)
+        if origin is not None:
+            app, link, words = origin
             added.setText(
-                f"Imported from iNaturalist {s.created_at[:10]}{edited} · "
-                f'<a href="{link}" style="color:{t.accent}">Open on iNaturalist</a>'
+                f"Imported from {app} {s.created_at[:10]}{edited} · "
+                f'<a href="{link}" style="color:{t.accent}">{words}</a>'
             )
             added.setTextFormat(Qt.TextFormat.RichText)
             added.setOpenExternalLinks(True)

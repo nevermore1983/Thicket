@@ -17,6 +17,7 @@ from wildlife.data.migrate import migrate
 from wildlife.domain.errors import DatabaseError
 from wildlife.services.backup import BackupService
 from wildlife.services.calendar import CalendarService
+from wildlife.services.ebird import EbirdImporter
 from wildlife.services.events import EventHub
 from wildlife.services.export import ExportService
 from wildlife.services.health import HealthService
@@ -64,6 +65,7 @@ class AppContext:
     map: MapService = field(init=False)
     statistics: StatisticsService = field(init=False)
     inaturalist: InaturalistImporter = field(init=False)
+    ebird: EbirdImporter = field(init=False)
     export: ExportService = field(init=False)
     spreadsheet: SpreadsheetImporter = field(init=False)
     wildlife_import: WildlifeImporter = field(init=False)
@@ -87,6 +89,7 @@ class AppContext:
         self.inaturalist = InaturalistImporter(
             self.paths, self.db, self.events, self.settings, self.photos
         )
+        self.ebird = EbirdImporter(self.paths, self.db, self.events, self.settings, self.photos)
         self.export = ExportService(self.paths, self.db, self.settings)
         self.wildlife_import = WildlifeImporter(self.paths, self.db, self.events, self.photos)
         self.health = HealthService(self.paths, self.db, self.backup, self.catalogue)
@@ -104,6 +107,7 @@ class AppContext:
         self.stats.today = lambda: today
         self.statistics.today = lambda: today
         self.inaturalist._today = lambda: today
+        self.ebird._today = lambda: today
         self.spreadsheet._today = lambda: today
 
     @classmethod

@@ -8,6 +8,7 @@ from wildlife.services.sightings import SightingService, Undo
 
 SOURCE_NAMES = {
     "inaturalist": "iNaturalist",
+    "ebird": "eBird",
     "csv": "Spreadsheet",
     "wildlife": "Thicket export",
 }

@@ -317,7 +317,7 @@ class MainWindow(QMainWindow):
         return next(k for k, i in self._page_index.items() if i == index)
 
     def import_data(self, kind: str = "inaturalist") -> ImportDialog:
-        """Open the import window for 'inaturalist', 'csv' or 'wildlife'."""
+        """Open the import window for 'inaturalist', 'ebird', 'csv' or 'wildlife'."""
         dialog = ImportDialog(self.ctx, self.theme, kind, self)
         dialog.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         title = dialog.windowTitle().removeprefix("Import from ").removeprefix("Import a ")
