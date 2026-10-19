@@ -3,6 +3,11 @@
     uv run --with imageio-ffmpeg python scripts/promo_video.py
     uv run --with imageio-ffmpeg python scripts/promo_video.py --scenes add map --out local_data/video/try.mp4
 
+For the website, with the birdsong (which stays out of git: its licence forbids sharing
+the file itself). --site copies the video into site/video and remakes its poster:
+
+    uv run --with imageio-ffmpeg python scripts/promo_video.py --site --sound local_data/video/mixkit-forest-birds-ambience-1210.wav
+
 Opens Thicket off-screen on a fresh copy of the demo library (local_data/demo9, never your
 own data) and plays each scene as the steps a person would take: real clicks and key
 presses. The window is grabbed 30 times a second and piped to ffmpeg (a current build,
@@ -40,6 +45,9 @@ SCALE = SIZE.width() / WINDOW.width()
 FPS = 30
 FADE = round(0.35 * FPS)  # frames of cross-fade between scenes
 WEBSITE = "nevermore1983.github.io/Thicket"
+SITE_VIDEO = ROOT / "site" / "video" / "thicket-tour.mp4"
+SITE_POSTER = ROOT / "site" / "images" / "tour-poster.webp"
+POSTER_FRAME = 200  # "gold" typed, the suggestions showing
 
 
 def ease(t: float) -> float:
@@ -493,6 +501,9 @@ def main() -> int:
         "local_data/video/mixkit-forest-birds-ambience-1210.wav (keep it out of git)",
     )
     parser.add_argument("--sound-start", type=float, default=0.0, help="seconds into the sound")
+    parser.add_argument(
+        "--site", action="store_true", help="also put the video and its poster on the website"
+    )
     args = parser.parse_args()
     if args.sound and not args.sound.is_file():
         raise SystemExit(f"No sound file at {args.sound}")
@@ -540,6 +551,10 @@ def main() -> int:
     window = MainWindow(ctx, theme)
     window.resize(WINDOW)
     window.show()
+    # With the side panel open the dashboard is a little too wide and gains a sideways
+    # scrollbar; in a short video that only looks untidy, so pages don't show one
+    for area in window.findChildren(QScrollArea):
+        area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
     def film() -> None:
         rec = Recorder(app, window, args.out, LIGHT)
@@ -559,7 +574,28 @@ def main() -> int:
     if args.sound:
         add_soundtrack(args.out, args.sound, args.sound_start, final)
         args.out.unlink()
+    if args.site:
+        to_website(final)
     return 0
+
+
+def to_website(video: Path) -> None:
+    """Put the video on the website: site/video/thicket-tour.mp4, and its poster (the
+    moment 'gold' brings up suggestions) as site/images/tour-poster.webp."""
+    import imageio_ffmpeg
+    from PIL import Image
+
+    shutil.copy2(video, SITE_VIDEO)
+    still = Path(tempfile.mkdtemp(prefix="thicket-poster-")) / "poster.png"
+    pick = f"select=eq(n\\,{POSTER_FRAME})"
+    subprocess.run(
+        [imageio_ffmpeg.get_ffmpeg_exe(), "-hide_banner", "-loglevel", "error", "-y",
+         "-i", str(SITE_VIDEO), "-vf", pick, "-frames:v", "1", "-fps_mode", "vfr", str(still)],
+        check=True,
+    )  # fmt: skip
+    Image.open(still).convert("RGB").save(SITE_POSTER, "WEBP", quality=90, method=6)
+    shutil.rmtree(still.parent, ignore_errors=True)
+    print(f"{SITE_VIDEO.relative_to(ROOT)} and {SITE_POSTER.relative_to(ROOT)} updated")
 
 
 if __name__ == "__main__":

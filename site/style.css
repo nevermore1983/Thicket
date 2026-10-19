@@ -409,6 +409,56 @@ p {
   height: 22px;
 }
 
+/* ---------- Home: the video tour ---------- */
+
+.tour {
+  padding: 0 0 88px;
+  text-align: center;
+  scroll-margin-top: 80px; /* clear of the sticky header when linked to */
+}
+
+.tour-lede {
+  color: var(--text-2);
+}
+
+.tour-video {
+  max-width: 960px;
+  margin: 24px auto 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.tour-video video {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.tour-shows {
+  max-width: 960px;
+  margin: 16px auto 0;
+  text-align: left;
+  color: var(--text-2);
+}
+
+.tour-shows summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tour-shows ol {
+  margin: 12px 0 0;
+  padding-left: 1.4em;
+}
+
+.tour-shows li + li {
+  margin-top: 6px;
+}
+
 /* ---------- Home: closing call to action ---------- */
 
 .cta {
@@ -778,6 +828,14 @@ kbd {
 
   .reasons {
     padding: 56px 0;
+  }
+
+  .tour {
+    padding-bottom: 56px;
+  }
+
+  .tour-video {
+    border-radius: var(--radius-md);
   }
 
   .reasons ul,

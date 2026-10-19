@@ -67,10 +67,13 @@ def is_external(url: str) -> bool:
 
 
 def loaded_urls(page: Page) -> list[str]:
-    """Everything the browser fetches by itself when the page opens (not links you click)."""
+    """Everything the browser fetches by itself (or when a video is played), not links you
+    click."""
     urls = [a["href"] for a in page.all("link") if a.get("rel") not in ("canonical", "alternate")]
     urls += [a["src"] for t in ("img", "script", "iframe") for a in page.all(t) if "src" in a]
-    urls += [a["srcset"].split()[0] for a in page.all("source")]
+    urls += [a["poster"] for a in page.all("video") if "poster" in a]
+    # <source srcset> in a <picture>, <source src> in a <video>
+    urls += [(a.get("srcset") or a["src"]).split()[0] for a in page.all("source")]
     return urls
 
 
@@ -245,3 +248,17 @@ def test_screenshots_come_in_light_and_dark():
             name.replace("-light", "-dark") if "-light" in name else name.replace("-dark", "-light")
         )
         assert other in names, f"{name} has no {other}"
+
+
+def test_videos_are_light_and_described(pages):
+    """The tour video (scripts/promo_video.py): play controls, never plays by itself, only
+    downloads when played, and says in words what it shows."""
+    videos = [(page, video) for page in pages.values() for video in page.all("video")]
+    assert videos
+    for page, video in videos:
+        assert "controls" in video and "autoplay" not in video
+        assert video.get("preload") == "none"
+        assert (SITE / video["poster"]).is_file()
+        assert video.get("aria-describedby") in page.ids
+    for clip in (SITE / "video").glob("*.mp4"):
+        assert clip.stat().st_size < 5_000_000, f"{clip.name} is too big for the home page"

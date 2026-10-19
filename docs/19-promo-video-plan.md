@@ -1,7 +1,7 @@
 # Thicket — promo video (plan)
 
 **Date:** 19 October 2026
-**Status:** Plan for your approval. No code yet.
+**Status:** Done: filmed by `scripts/promo_video.py` and on the home page ("See it in action"). To re-make it after the app changes, run the `--site` command in section 1.
 
 A short video that shows Thicket working, for the website's home page (and YouTube or social media if you like). Thicket films itself: a script drives the real app on the demo library and records it, so the video is sharp, shows no personal data, and can be re-made with one command whenever the app changes.
 
