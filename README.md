@@ -22,7 +22,7 @@ What changed in each version: [CHANGELOG.md](CHANGELOG.md). How the installer wo
 
 ## Status
 
-Version 1.2.1. See `docs/` for the research, specification, architecture, UI design and
+Version 1.3.0. See `docs/` for the research, specification, architecture, UI design and
 each phase's record, and `prototype/index.html` for the clickable design prototype.
 
 ## Developer setup
@@ -44,6 +44,10 @@ Building a release (needs [Inno Setup 7](https://jrsoftware.org/isinfo.php)):
 uv run --with "pyinstaller==6.22.3" python scripts/build_exe.py   # app folder + smoke test
 uv run python scripts/build_installer.py                        # installer + install check
 ```
+
+## Licence
+
+Thicket is free software under the [GNU General Public License v3](LICENSE): you may use, change and share it, and copies you share (changed or not) must come with their source under the same licence. The libraries, fonts and species data it includes keep their own licences, listed in `THIRD-PARTY-NOTICES.txt` in the installed program folder.
 
 ## Project layout
 

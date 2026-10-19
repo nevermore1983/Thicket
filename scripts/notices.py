@@ -181,9 +181,14 @@ def write(app_folder: Path) -> int:
     licence files were copied."""
     target = app_folder / "licenses"
     shutil.rmtree(target, ignore_errors=True)
+    shutil.copy2(ROOT / "LICENSE", app_folder / "LICENSE.txt")
     lines = [
         "Thicket: third-party notices",
         "=============================",
+        "",
+        "Thicket itself is free software: you can redistribute it and/or modify it under the "
+        "terms of the GNU General Public License version 3, in LICENSE.txt next to this file. "
+        "It comes with no warranty. Source: https://github.com/nevermore1983/Thicket",
         "",
         "Thicket includes the components below. Their licence texts are in the "
         "'licenses' folder next to this file.",

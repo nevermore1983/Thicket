@@ -2,6 +2,12 @@
 
 Each version's notes are used for its download page on GitHub (`scripts/release_notes.py`).
 
+## 1.3.0
+
+- **Choose on map:** when adding or editing a sighting, the button beside the position box opens a map. Click where you saw it, drag the pin to adjust, and the grid reference (or coordinates outside Britain) is filled in, with the place it's in. Zoom in for a more precise position. From the keyboard, the arrow keys move the map and Enter picks its centre.
+- Fixed: after changing some settings (such as online features), switching between light and dark could show an error message.
+- Thicket is free software under the GNU General Public License v3. The licence comes with the app (`LICENSE.txt` in the program folder) and is mentioned in Settings › About.
+
 ## 1.2.1
 
 - Fixed: switching between light and dark while Thicket was open (in Settings, or when Windows switches by itself) turned the map's clusters black and hid their numbers until Thicket was restarted.

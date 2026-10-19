@@ -80,7 +80,8 @@ def version_file() -> Path:
         "FileDescription": "Thicket wildlife journal",
         "FileVersion": __version__,
         "InternalName": "Thicket",
-        "LegalCopyright": "Thicket. Third-party notices: THIRD-PARTY-NOTICES.txt",
+        "LegalCopyright": "Thicket. Free software under the GNU GPL v3 (LICENSE.txt). "
+        "Third-party notices: THIRD-PARTY-NOTICES.txt",
         "OriginalFilename": "WildLife.exe",
         "ProductName": "Thicket",
         "ProductVersion": __version__,

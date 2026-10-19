@@ -264,7 +264,8 @@ class SettingsPage(QWidget):
                 [
                     _row(
                         f"Thicket {__version__}",
-                        f"Data format version {ctx.schema_version}. Species names: UK Species Inventory, Natural History "
+                        "Free software under the GNU General Public License v3 (LICENSE.txt "
+                        f"in the program folder). Data format version {ctx.schema_version}. Species names: UK Species Inventory, Natural History "
                         f"Museum (CC BY 4.0){self._pack_credit()}. Map data © OpenStreetMap contributors.",
                         _pair(
                             button(
