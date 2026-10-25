@@ -2,6 +2,17 @@
 
 Each version's notes are used for its download page on GitHub (`scripts/release_notes.py`).
 
+## 1.4.2
+
+Fixes from a full check of the code.
+
+- Fixed: an iNaturalist or eBird file with the same record in it twice (two exports pasted together, say) stopped the import with an error. The second copy is now skipped, as "Appears twice in this file".
+- Fixed: a species brought in by a Thicket export from another PC (one from a US state's species pack, say) couldn't be found by name afterwards, in the species picker or in search. Species imported before this version are put right when you upgrade.
+- Fixed: outside the UK, an iNaturalist observation from before 1970 could stop the whole import.
+- Fixed: on the welcome screen, choosing the United States and pressing Continue before the list of states had loaded set up only the UK list. Thicket now waits for you to choose a state.
+- The welcome screen now goes online only if you choose the United States, as the privacy page says. Choosing the UK never connects to anything.
+- Sorting the sightings list by Place now uses the location names it shows, such as eBird hotspots.
+
 ## 1.4.1
 
 - Fixed: sightings imported with a location name but no saved place, such as eBird hotspots, showed "No location", as if the location was lost. The name now shows in the sightings list, the calendar and the sighting's details (as "Location name"). iNaturalist's place names show the same way.
