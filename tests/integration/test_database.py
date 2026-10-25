@@ -242,3 +242,28 @@ def test_disk_trouble_that_lasts_is_not_called_damage(paths, monkeypatch):
         AppContext.open(paths)
     assert failed.value.user_message != DAMAGED
     assert "couldn't read" in failed.value.user_message
+
+
+def test_migration_8_makes_imported_species_findable(tmp_path):
+    """Species an import added before 1.4.2 had no searchable names (migration 0008)."""
+    database = Database(tmp_path / "old.db")
+    try:
+        with database.connection() as conn:
+            migrate(conn, migrations=available_migrations()[:7])  # as 1.4.1 left it
+            category = conn.execute("SELECT id FROM category LIMIT 1").fetchone()[0]
+            conn.execute(
+                "INSERT INTO taxon (scientific_name, common_name, rank, category_id, is_custom) "
+                "VALUES ('Cardinalis cardinalis', 'Northern Cardinal', 'species', ?, 1)",
+                (category,),
+            )
+            migrate(conn)
+            names = conn.execute(
+                "SELECT name, kind FROM taxon_name WHERE taxon_id = "
+                "(SELECT id FROM taxon WHERE scientific_name = 'Cardinalis cardinalis')"
+            ).fetchall()
+        assert sorted(map(tuple, names)) == [
+            ("Cardinalis cardinalis", "scientific"),
+            ("Northern Cardinal", "common"),
+        ]
+    finally:
+        database.close()

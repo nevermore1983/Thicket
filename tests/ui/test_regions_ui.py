@@ -79,18 +79,41 @@ def _welcome(ctx, monkeypatch, qtbot) -> FirstRunDialog:
 def test_the_welcome_can_set_up_a_us_state(ctx, monkeypatch, qtbot):
     serve_us_pack(ctx)
     dialog = _welcome(ctx, monkeypatch, qtbot)
+    dialog.in_us.setChecked(True)  # only now is the list of states fetched
     qtbot.waitUntil(lambda: dialog.state.count() == 1, timeout=10_000)
-    dialog.in_us.setChecked(True)
     dialog._next()  # to the install page: the UK list, then California
     qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
     assert "California" in dialog.progress_text.text()
     assert ctx.catalogue.region() == "us-ca"
 
 
+def test_choosing_the_uk_never_goes_online(ctx, monkeypatch, qtbot):
+    """The privacy page promises GitHub is asked only when you add a state."""
+    asked = []
+    monkeypatch.setattr(ctx.species_packs, "offered", lambda *a: asked.append(True) or [])
+    dialog = _welcome(ctx, monkeypatch, qtbot)
+    dialog._next()
+    qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
+    assert asked == [] and ctx.catalogue.region() == "uk"
+
+
+def test_the_welcome_waits_for_a_state_before_going_on(ctx, monkeypatch, qtbot):
+    """Choosing the US and pressing Continue before the list came used to install only
+    the UK list, without a word."""
+    dialog = _welcome(ctx, monkeypatch, qtbot)
+    monkeypatch.setattr(dialog, "_ask_for_states", lambda: None)  # the list hasn't come yet
+    dialog.in_us.setChecked(True)
+    dialog._next()
+    assert dialog.pages.currentIndex() == dialog.region_index
+    assert "Choose your state first" in dialog.state_note.text()
+
+
 def test_the_welcome_carries_on_with_the_uk_without_internet(ctx, monkeypatch, qtbot):
     ctx.settings.update(allow_online=False)
     dialog = _welcome(ctx, monkeypatch, qtbot)
+    dialog.in_us.setChecked(True)
     qtbot.waitUntil(lambda: not dialog.in_us.isEnabled(), timeout=10_000)
+    assert dialog.in_uk.isChecked()  # back to the UK, with the reason
     assert "Settings › Region" in dialog.state_note.text()
     dialog._next()
     qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)

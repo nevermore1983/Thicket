@@ -23,7 +23,9 @@ from wildlife.domain.models import Sighting, SightingDraft
 SORTS = {  # sort key -> ORDER BY (ascending); the list reverses for descending
     "date": "v.observed_date {d}, v.observed_time {d}, v.id {d}",
     "species": "COALESCE(v.common_name, v.scientific_name) COLLATE NOCASE {d}, v.observed_date DESC",
-    "place": "v.place_name IS NULL, v.place_name COLLATE NOCASE {d}, v.observed_date DESC",
+    # As the list shows it (Sighting.where): the place, else an imported location's name
+    "place": "COALESCE(v.place_name, v.location_text) IS NULL, "
+    "COALESCE(v.place_name, v.location_text) COLLATE NOCASE {d}, v.observed_date DESC",
     "count": "v.count {d}, v.observed_date DESC",
     "category": "v.category_id {d}, v.observed_date DESC",
 }

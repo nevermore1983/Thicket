@@ -1,7 +1,7 @@
 """The rest of Thicket following where you record (docs/16-regions-plan.md, step 4):
 the regions table, clocks for times in files, and spreadsheet date order."""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 from helpers import inat_csv, inat_row
 from wildlife.domain.csv_import import (
@@ -31,6 +31,9 @@ def test_each_region_has_its_clock():
     assert uk_local(moment) == datetime(2026, 7, 4, 19, 30)  # British summer time
     expected = moment.replace(tzinfo=UTC).astimezone().replace(tzinfo=None)
     assert pc_local(moment) == expected
+    # Before 1970 Windows can't convert at all; an hour either way is still a sound answer
+    old = datetime(1965, 6, 1, 12, 0)
+    assert abs(pc_local(old) - (old + (expected - moment))) <= timedelta(hours=1)
 
 
 def test_inaturalist_times_use_the_regions_clock(ctx, tmp_path):

@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   release:
-    runs-on: windows-latest
+    runs-on: windows-2025 # pinned, like the other workflows: 'latest' moves without notice
     timeout-minutes: 90
     defaults:
       run:

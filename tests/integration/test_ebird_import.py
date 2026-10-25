@@ -93,3 +93,15 @@ def test_the_import_can_be_undone(ctx, tmp_path):
     result = ctx.ebird.run(ctx.ebird.preview(path))
     result.undo.run()
     assert [r.action for r in ctx.ebird.preview(path).rows] == [ADD]
+
+
+def test_sorting_by_place_uses_the_location_name_shown(ctx, tmp_path):
+    ctx.places.save(PlaceDraft("Middle Wood", 52.5, -1.5))
+    rows = [
+        life_row(Location="Zebra Marsh", SubID="S1"),
+        life_row(Location="Middle Wood", SubID="S2"),  # your saved place
+        life_row(Location="Alder Carr", SubID="S3"),
+    ]
+    ctx.ebird.run(ctx.ebird.preview(write(tmp_path, "list.csv", table(LIFE, rows))))
+    shown = [s.where for s in ctx.sightings.page(SightingFilter(), "place", descending=False)]
+    assert shown == ["Alder Carr", "Middle Wood", "Zebra Marsh"]

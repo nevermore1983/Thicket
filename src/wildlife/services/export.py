@@ -710,7 +710,7 @@ def _sighting_json(r, photo_uuids: list[str]) -> dict:
 
 def _readme(sightings: int, photos: int) -> str:
     return f"""Thicket export
-===============
+==============
 
 Made by Thicket {__version__} on {datetime.now().strftime("%d %B %Y")}: {sightings:,} sightings, {photos:,} photos.
 

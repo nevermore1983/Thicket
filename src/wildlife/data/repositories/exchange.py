@@ -122,7 +122,9 @@ def _insert(conn: sqlite3.Connection, table: str, values: dict) -> int:
 
 
 def insert_custom_taxon(conn: sqlite3.Connection, t: dict, category_id: int) -> int:
-    return _insert(
+    """A species from an export that this library's list doesn't have (from a region's
+    pack you haven't added, say), added as your own, with its names searchable."""
+    taxon_id = _insert(
         conn,
         "taxon",
         {
@@ -140,6 +142,13 @@ def insert_custom_taxon(conn: sqlite3.Connection, t: dict, category_id: int) -> 
             "is_custom": 1,
         },
     )
+    # Without these the species picker, search and later imports couldn't find it by name
+    names = [(t["scientific_name"], "scientific"), (t.get("common_name"), "common")]
+    conn.executemany(
+        "INSERT OR IGNORE INTO taxon_name (taxon_id, name, kind) VALUES (?, ?, ?)",
+        [(taxon_id, name, kind) for name, kind in names if name],
+    )
+    return taxon_id
 
 
 def set_species_of_custom(conn: sqlite3.Connection, taxon_id: int) -> None:

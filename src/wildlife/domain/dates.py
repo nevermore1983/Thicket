@@ -104,7 +104,13 @@ def pc_local(moment: datetime) -> datetime:
     two time zones; your PC knows which one you're in)."""
     if moment.tzinfo is None:
         moment = moment.replace(tzinfo=UTC)
-    return moment.astimezone().replace(tzinfo=None)
+    try:
+        return moment.astimezone().replace(tzinfo=None)
+    except (OSError, OverflowError):
+        # Windows can't look up its time-zone rules before 1970 (or far ahead): use the
+        # PC's offset from UTC as it is now, which is right to within an hour
+        offset = datetime.now(UTC).astimezone().utcoffset() or timedelta(0)
+        return (moment.astimezone(UTC) + offset).replace(tzinfo=None)
 
 
 def local_clock(region: str) -> Callable[[datetime], datetime]:

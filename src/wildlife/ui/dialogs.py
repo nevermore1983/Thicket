@@ -121,8 +121,6 @@ class FirstRunDialog(QDialog):
         i, n = self.pages.currentIndex(), self.pages.count()
         self.step_label.setText(f"Step {i + 1} of {n}" if n > 1 else "")
         self.next_btn.setText("Finish" if i == n - 1 else "Continue")
-        if i == self.region_index:
-            self._ask_for_states()
         if i == self.install_index and not self._installed:
             self.next_btn.setEnabled(False)
             self._install()
@@ -130,6 +128,10 @@ class FirstRunDialog(QDialog):
     def _next(self) -> None:
         if hasattr(self, "name") and self.pages.currentWidget() is self.name.parentWidget():
             self.ctx.settings.update(recorder_name=self.name.text().strip())
+        on_region_page = self.pages.currentIndex() == self.region_index
+        if on_region_page and self.in_us.isChecked() and self.state.currentData() is None:
+            self.state_note.setText("Choose your state first: the list is on its way.")
+            return  # (the list hasn't come yet)
         if self.pages.currentIndex() == self.pages.count() - 1:
             self.accept()
             return
@@ -195,13 +197,15 @@ class FirstRunDialog(QDialog):
         self.state_note.setWordWrap(True)
         self.state_note.setProperty("role", "muted")
         self.in_us.toggled.connect(lambda on: self.state.setEnabled(on and self.state.count() > 0))
+        # Only asked for if you choose the US: choosing the UK never goes online
+        self.in_us.toggled.connect(lambda on: on and self._ask_for_states())
         for w in (self.in_uk, self.in_us, self.state, self.state_note):
             layout.addWidget(w)
         layout.addStretch(1)
         return page
 
     def _ask_for_states(self) -> None:
-        """Fetch the states offered, once, when the region page is first shown."""
+        """Fetch the states offered, once, when you first choose the United States."""
         if self._states_asked:
             return
         self._states_asked = True
@@ -214,6 +218,7 @@ class FirstRunDialog(QDialog):
             self.state.setEnabled(self.in_us.isChecked())
 
         def failed(exc: BaseException) -> None:
+            self.in_uk.setChecked(True)  # nothing to choose from: back to the UK list
             self.in_us.setEnabled(False)
             self.state_note.setText(
                 f"{problem_text(exc)} You can carry on with the UK list and add a state later "

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from helpers import MINI_CATALOGUE, TODAY, jpeg_with_gps, taxon_id
+from helpers import MINI_CATALOGUE, TODAY, US_PACK, jpeg_with_gps, taxon_id
 from wildlife.config.paths import DataPaths
 from wildlife.context import AppContext
 from wildlife.data.repositories import taxa as taxa_repo
@@ -178,3 +178,17 @@ def test_species_notes_travel_with_the_export(ctx, other, tmp_path):
     result.undo.run()
     assert other.species_notes.get(taxon_id(other, "Erithacus rubecula")) == ""
     assert other.species_notes.get(taxon_id(other, "Vulpes vulpes")) == "Mine"
+
+
+def test_a_species_from_another_regions_pack_can_be_found_after_import(ctx, other, tmp_path):
+    """A US pack's species, exported from a library that has the pack, comes into one
+    that hasn't as your own species: the picker, search and later imports must find it."""
+    with ctx.db.transaction() as conn:
+        taxa_repo.install_pack(conn, US_PACK, "us-ca", "California", "gbif", "test")
+    cardinal = ctx.catalogue.search("Cardinalis cardinalis")[0].taxon
+    ctx.sightings.save(SightingDraft(taxon_id=cardinal.id, observed_date=TODAY))
+    path = ctx.export.export(ExportOptions("json"), tmp_path / "records").path
+    other.wildlife_import.run(other.wildlife_import.preview(path))
+    found = [m.taxon.scientific_name for m in other.catalogue.search("Northern Cardinal")]
+    assert found == ["Cardinalis cardinalis"]
+    assert other.sightings.totals(SightingFilter(text="Cardinalis"))[0] == 1

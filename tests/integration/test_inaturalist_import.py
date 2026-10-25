@@ -251,3 +251,11 @@ def test_only_known_hosts_over_https():
     assert not is_allowed("http://static.inaturalist.org/photos/1/original.jpg")
     assert not is_allowed("https://example.com/photo.jpg")
     assert not is_allowed("https://static.inaturalist.org.example.com/x.jpg")
+
+
+def test_the_same_observation_twice_in_one_file_is_imported_once(ctx, tmp_path):
+    """Two exports pasted together: the import used to stop with a database error."""
+    plan = ctx.inaturalist.preview(write(tmp_path, [inat_row(1), inat_row(2), inat_row(1)]))
+    assert [r.action for r in plan.rows] == [ADD, ADD, SAME]
+    assert plan.rows[2].reason == "Appears twice in this file"
+    assert len(ctx.inaturalist.run(plan).added) == 2

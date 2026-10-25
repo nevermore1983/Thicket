@@ -180,10 +180,18 @@ class RecordImporter:
             places = places_repo.all_places(conn, include_archived=True)
             have = {duplicate_key(d) for d in repo.live_drafts(conn)}
             cache: dict[tuple, tuple[int | None, str]] = {}
+            seen: set[str] = set()  # ids met earlier in this file
             rows = []
             for i, rec in enumerate(records):
                 if i % 200 == 0:
                     progress(i, len(records))
+                if rec.source_id and not rec.problem:  # (a row with a problem says that)
+                    if rec.source_id in seen:
+                        # The same record twice (two exports pasted together, say): one is
+                        # enough, and two would break the rule that an id is imported once
+                        rows.append(PlannedRow(rec, SAME, reason="Appears twice in this file"))
+                        continue
+                    seen.add(rec.source_id)
                 row = self._plan_row(conn, rec, known, remembered, cache, today)
                 if row.action == ADD and row.taxon_id and not rec.source_id:
                     key = duplicate_key(self._draft(rec, row.taxon_id, places))
