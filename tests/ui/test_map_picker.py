@@ -176,3 +176,26 @@ def test_clicking_the_map_places_the_pin(window, picker, qtbot):
     assert js(picker, qtbot, "document.querySelectorAll('.maplibregl-marker').length") == 1
     assert picker.position[:2] == (51.4, 0.1)
     assert "script" not in errors
+
+
+def test_a_place_can_be_put_on_the_map_too(window, monkeypatch):
+    from wildlife.ui.panels.place_editor import PlaceEditor
+
+    opened = []
+
+    class Picker(FakePicker):
+        def __init__(self, ctx, theme, start, zoom, parent=None, hint=""):
+            opened.append((start, hint))
+            self.position = (*RAINHAM, 10)
+
+    monkeypatch.setattr(map_picker, "MapPicker", Picker)
+    window.edit_place(None)
+    editor = window.panel.current()
+    assert isinstance(editor, PlaceEditor)
+    editor.map_btn.click()
+    assert opened == [(None, map_picker.PLACE_HINT)]
+    assert editor.position.text().startswith("TQ")
+    editor.name.setText("Rainham Marshes")
+    editor.save()
+    place = next(p for p in window.ctx.places.all() if p.name == "Rainham Marshes")
+    assert (place.latitude, place.longitude) == pytest.approx(RAINHAM, abs=1e-4)

@@ -26,6 +26,7 @@ from datetime import date
 from wildlife.config.paths import DataPaths
 from wildlife.data.db import Database
 from wildlife.data.repositories import imports as repo
+from wildlife.data.repositories import outings as outings_repo
 from wildlife.data.repositories import photos as photos_repo
 from wildlife.data.repositories import places as places_repo
 from wildlife.data.repositories import sightings as sightings_repo
@@ -33,7 +34,7 @@ from wildlife.data.repositories import taxa as taxa_repo
 from wildlife.domain.codes import LocationMethod
 from wildlife.domain.geo import distance_m
 from wildlife.domain.import_records import ImportRecord
-from wildlife.domain.models import Place, SightingDraft
+from wildlife.domain.models import OutingDraft, Place, SightingDraft
 from wildlife.domain.validation import validate_sighting
 from wildlife.services.events import EventHub
 from wildlife.services.photos import PhotoService
@@ -88,12 +89,15 @@ class ImportResult:
     updated: list[int] = field(default_factory=list)
     skipped: int = 0
     image_urls: dict[int, str] = field(default_factory=dict)  # sighting id -> first photo
+    outings: list[int] = field(default_factory=list)  # outings made (eBird checklists)
     undo: Undo | None = None
 
     def describe(self) -> str:
         parts = [f"{len(self.added):,} added"]
         if self.updated:
             parts.append(f"{len(self.updated):,} updated")
+        if self.outings:
+            parts.append(f"{len(self.outings):,} outing{'s' if len(self.outings) != 1 else ''}")
         if self.skipped:
             parts.append(f"{self.skipped:,} skipped")
         return " · ".join(parts)
@@ -268,6 +272,7 @@ class RecordImporter:
             result = ImportResult(batch)
             places = places_repo.all_places(conn, include_archived=True)
             have = {duplicate_key(d) for d in repo.live_drafts(conn)}
+            outings = outings_repo.by_source(conn, plan.source)
             if remember:
                 for name, taxon_id in choices.items():
                     repo.remember(conn, plan.source, name, taxon_id)
@@ -279,6 +284,9 @@ class RecordImporter:
                     continue
                 rec = row.record
                 draft = self._draft(rec, taxon_id, places)
+                if rec.outing is not None:
+                    outing_id = self._outing(conn, rec, outings, places, plan.source, result)
+                    draft = replace(draft, outing_id=outing_id)
                 if validate_sighting(draft, self._today()):
                     result.skipped += 1
                     continue
@@ -306,12 +314,40 @@ class RecordImporter:
                     result.image_urls[sid] = rec.image_url
             repo.finish_batch(conn, batch, len(result.added), len(result.updated), result.skipped)
         log.info("Import (%s) %s: %s", plan.source, plan.file_name, result.describe())
+        if result.outings:
+            self._events.publish("outings", tuple(result.outings))
         self._events.publish("sightings", tuple(result.added + result.updated))
         result.undo = Undo(
             f"Import of {len(result.added) + len(result.updated):,} sightings",
             lambda: self._undo(result, previous),
         )
         return result
+
+    @staticmethod
+    def _outing(conn, rec: ImportRecord, outings, places, source: str, result) -> int | None:
+        """The outing for the record's checklist: the one an earlier import made, or a
+        new one. None if you deleted that checklist's outing."""
+        visit = rec.outing
+        if visit.key in outings:
+            return outings[visit.key]
+        place_id = None
+        if visit.place_name:
+            wanted = visit.place_name.strip().lower()
+            place_id = next((p.id for p in places if p.name.lower() == wanted), None)
+        if place_id is None and visit.latitude is not None:
+            place_id = _place_at(places, visit.latitude, visit.longitude)
+        draft = OutingDraft(
+            visit.outing_date,
+            visit.start_time,
+            visit.end_time,
+            place_id,
+            visit.title,
+            is_complete_list=visit.is_complete_list,
+            notes=visit.notes,
+        )
+        outings[visit.key] = outings_repo.insert_from_source(conn, draft, source, visit.key)
+        result.outings.append(outings[visit.key])
+        return outings[visit.key]
 
     def _draft(self, rec: ImportRecord, taxon_id: int, places: list[Place]) -> SightingDraft:
         place_id = None
@@ -354,7 +390,12 @@ class RecordImporter:
             # Photos fetched for the removed sightings go to the recycle bin
             orphans = [p.id for p in photos_repo.unlinked(conn, photo_ids)]
             photos_repo.soft_delete(conn, orphans)
+            for outing_id in result.outings:  # the outings it made go too
+                outings_repo.link(conn, outings_repo.sighting_ids(conn, outing_id), None)
+                outings_repo.hard_delete(conn, outing_id)
             repo.delete_batch(conn, result.batch_id)
+        if result.outings:
+            self._events.publish("outings", tuple(result.outings))
         self._events.publish("sightings", tuple(result.added + result.updated))
         if orphans:
             self._events.publish("photos", tuple(orphans))

@@ -31,6 +31,13 @@ from wildlife.ui.theme.manager import ThemeManager
 
 log = logging.getLogger(__name__)
 
+SIGHTING_HINT = (
+    "Click where you saw it, then drag the pin to adjust. Zoom in first for a more "
+    "precise position. Your places show as circles."
+)
+PLACE_HINT = (
+    "Click the middle of the place, then drag the pin to adjust. Your other places show as circles."
+)
 NO_MAP = (
     "The map needs graphics acceleration (WebGL 2), which isn't available here. Type a "
     "grid reference or coordinates in the position box instead."
@@ -47,6 +54,7 @@ class MapPicker(QDialog):
         start: tuple[float, float] | None = None,
         zoom: float = 15,
         parent: QWidget | None = None,
+        hint: str = SIGHTING_HINT,
     ) -> None:
         super().__init__(parent)
         self.ctx, self.theme = ctx, theme
@@ -60,10 +68,7 @@ class MapPicker(QDialog):
         v = QVBoxLayout(self)
         v.setContentsMargins(18, 16, 18, 16)
         v.setSpacing(10)
-        hint = QLabel(
-            "Click where you saw it, then drag the pin to adjust. Zoom in first for a more "
-            "precise position. Your places show as circles."
-        )
+        hint = QLabel(hint)
         hint.setWordWrap(True)
         hint.setProperty("role", "muted")
         v.addWidget(hint)

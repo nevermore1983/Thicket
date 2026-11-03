@@ -22,8 +22,10 @@ from wildlife.domain import geo
 from wildlife.domain.codes import Habitat
 from wildlife.domain.errors import ConflictError, ValidationError
 from wildlife.domain.models import Place, PlaceDraft
+from wildlife.ui.components.common import follow_theme
 from wildlife.ui.components.side_panel import PanelView
 from wildlife.ui.panels.sighting_editor import _Field
+from wildlife.ui.theme.icons import icon
 from wildlife.ui.theme.manager import ThemeManager
 
 
@@ -40,7 +42,7 @@ class PlaceEditor(PanelView):
         at: tuple[float, float] | None = None,  # a new place's centre, e.g. from the map
     ) -> None:
         super().__init__()
-        self.ctx, self.place = ctx, place
+        self.ctx, self.theme, self.place = ctx, theme, place
         self.title = "Edit place" if place else "New place"
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -54,7 +56,11 @@ class PlaceEditor(PanelView):
         self.name.setPlaceholderText("e.g. Garden, or Rainham Marshes")
         self.f_name = _Field("Name", self.name)
         self.position = QLineEdit()
-        self.position.setPlaceholderText("Grid ref like TQ 308 808, or 51.50, -0.12, or a map link")
+        self.position.setPlaceholderText("TQ 308 808 or 51.50, -0.12")
+        self.position.setToolTip(
+            "A grid reference like TQ 308 808, coordinates like 51.50, -0.12, or a link "
+            "pasted from an online map"
+        )
         if place:
             self.position.setText(
                 geo.grid_ref_for(place.latitude, place.longitude, 10)
@@ -62,7 +68,15 @@ class PlaceEditor(PanelView):
             )
         if at is not None and place is None:
             self.position.setText(geo.grid_ref_for(*at, 10) or f"{at[0]:.5f}, {at[1]:.5f}")
-        self.f_position = _Field("Centre", self.position, "The middle of the place")
+        self.map_btn = QPushButton("Choose on map")
+        self.map_btn.setToolTip("Choose the middle of the place by clicking a map")
+        follow_theme(
+            theme, self.map_btn, lambda: self.map_btn.setIcon(icon("map", theme.tokens.text_2, 16))
+        )
+        self.map_btn.clicked.connect(self._choose_on_map)
+        self.f_position = _Field(
+            "Centre", self.position, "The middle of the place", beside=self.map_btn
+        )
         self._timer = QTimer(self, singleShot=True, interval=250)
         self._timer.timeout.connect(self._update_position_note)
         self.position.textEdited.connect(lambda _: self._timer.start())
@@ -127,6 +141,24 @@ class PlaceEditor(PanelView):
 
     def on_shown(self) -> None:
         QTimer.singleShot(0, self.name.setFocus)
+
+    def _choose_on_map(self) -> None:
+        """Open the map on the centre so far (or where the map was last), and use the spot
+        you click as the place's middle."""
+        from wildlife.ui.map_picker import PLACE_HINT, MapPicker  # loads the browser engine
+
+        parsed = geo.parse_location(self.position.text())
+        start = (parsed.latitude, parsed.longitude) if parsed and not parsed.looks_swapped else None
+        picker = MapPicker(self.ctx, self.theme, start, 15, self.window(), hint=PLACE_HINT)
+        try:
+            if picker.exec() == MapPicker.DialogCode.Accepted and picker.position:
+                self.use_map_position(*picker.position[:2])
+        finally:
+            picker.deleteLater()
+
+    def use_map_position(self, lat: float, lon: float) -> None:
+        self.position.setText(geo.grid_ref_for(lat, lon, 10) or f"{lat:.5f}, {lon:.5f}")
+        self._update_position_note()
 
     def _update_position_note(self) -> None:
         text = self.position.text().strip()

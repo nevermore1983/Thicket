@@ -2,12 +2,15 @@
 
 from dataclasses import replace
 
+import pytest
+
 from helpers import EBIRD_FULL as FULL
 from helpers import EBIRD_LIFE as LIFE
 from helpers import ebird_full_row as full_row
 from helpers import ebird_life_row as life_row
 from helpers import ebird_table as table
 from helpers import taxon_id
+from wildlife.domain.errors import NotFoundError
 from wildlife.domain.filters import SightingFilter
 from wildlife.domain.models import PlaceDraft
 from wildlife.services.importer import ADD, SAME, SKIP, UPDATE
@@ -105,3 +108,66 @@ def test_sorting_by_place_uses_the_location_name_shown(ctx, tmp_path):
     ctx.ebird.run(ctx.ebird.preview(write(tmp_path, "list.csv", table(LIFE, rows))))
     shown = [s.where for s in ctx.sightings.page(SightingFilter(), "place", descending=False)]
     assert shown == ["Alder Carr", "Middle Wood", "Zebra Marsh"]
+
+
+def checklist_rows():
+    """Two species on one invented checklist, and one on another."""
+    walk = {
+        "Duration (Min)": "95",
+        "All Obs Reported": "1",
+        "Distance Traveled (km)": "2.5",
+        "Number of Observers": "2",
+        "Protocol": "eBird - Traveling Count",
+        "Checklist Comments": "Calm and bright",
+    }
+    return [
+        full_row(**walk),
+        full_row(**walk, **{"Scientific Name": "Alcedo atthis", "Common Name": "Kingfisher"}),
+        full_row(**{"Submission ID": "S101", "Date": "2026-05-04"}),
+    ]
+
+
+def test_each_checklist_becomes_one_outing(ctx, tmp_path):
+    park = ctx.places.save(PlaceDraft("Invented Park", 52.12, -1.76))
+    path = write(tmp_path, "MyEBirdData.csv", table(FULL, checklist_rows()))
+    result = ctx.ebird.run(ctx.ebird.preview(path))
+    assert len(result.outings) == 2 and "2 outings" in result.describe()
+    robin, kingfisher, other = (ctx.sightings.get(i) for i in result.added)
+    assert robin.outing_id == kingfisher.outing_id != other.outing_id
+    walk = ctx.outings.get(robin.outing_id)
+    assert (walk.outing_date.isoformat(), walk.start_time, walk.end_time) == (
+        "2026-05-03",
+        "07:45",
+        "09:20",
+    )
+    assert walk.place_id == park.id and walk.is_complete_list
+    assert walk.notes.startswith("Calm and bright")
+    assert "S100: eBird - Traveling Count, 2.5 km, 2 observers" in walk.notes
+    again = ctx.ebird.run(
+        ctx.ebird.preview(write(tmp_path, "newer.csv", table(FULL, checklist_rows())))
+    )
+    assert again.outings == []  # the same checklists: no second outings
+
+
+def test_undo_removes_the_outings_too(ctx, tmp_path):
+    result = ctx.ebird.run(
+        ctx.ebird.preview(write(tmp_path, "d.csv", table(FULL, checklist_rows())))
+    )
+    result.undo.run()
+    for outing_id in result.outings:
+        with pytest.raises(NotFoundError):
+            ctx.outings.get(outing_id)
+
+
+def test_a_life_list_makes_no_outings(ctx, tmp_path):
+    result = ctx.ebird.run(ctx.ebird.preview(write(tmp_path, "l.csv", table(LIFE, [life_row()]))))
+    assert result.outings == [] and ctx.sightings.get(result.added[0]).outing_id is None
+
+
+def test_an_outing_you_deleted_isnt_made_again(ctx, tmp_path):
+    path = write(tmp_path, "d.csv", table(FULL, checklist_rows()[:1]))
+    first = ctx.ebird.run(ctx.ebird.preview(path))
+    ctx.outings.delete(first.outings[0])
+    rows = [full_row(**{"Scientific Name": "Alcedo atthis", "Common Name": "Kingfisher"})]
+    later = ctx.ebird.run(ctx.ebird.preview(write(tmp_path, "e.csv", table(FULL, rows))))
+    assert later.outings == [] and ctx.sightings.get(later.added[0]).outing_id is None

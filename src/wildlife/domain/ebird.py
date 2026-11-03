@@ -24,7 +24,7 @@ from pathlib import Path
 
 from wildlife.domain.codes import CountQualifier
 from wildlife.domain.errors import ImportFileError
-from wildlife.domain.import_records import ImportRecord, export_text
+from wildlife.domain.import_records import ImportOuting, ImportRecord, export_text
 
 SOURCE = "ebird"
 CHECKLIST_URL = "https://ebird.org/checklist/{}"
@@ -177,4 +177,42 @@ def parse_row(line: int, row: dict, full: bool = True) -> ImportRecord:
         kingdom="Animalia",  # birds: tells apart names shared with plants (Prunella)
         updated_at=FULL_DATA if full else None,  # a life list's None never replaces anything
         problem=problem,
+        outing=_checklist(row, checklist, day, location, lat, lon) if full and checklist else None,
+    )
+
+
+def _checklist(
+    row: dict, checklist: str, day: date | None, location: str | None, lat, lon
+) -> ImportOuting | None:
+    """The checklist as an outing: its date, start and end, place and comments (only
+    Download My Data has them; a list is one row per species)."""
+    if day is None:
+        return None
+    start = _time(_text(row, "Time"))
+    end = None
+    minutes = _float(row, "Duration (Min)")
+    if start and minutes:
+        hour, minute = (int(x) for x in start.split(":"))
+        total = min(hour * 60 + minute + round(minutes), 23 * 60 + 59)  # same day
+        end = f"{total // 60:02d}:{total % 60:02d}"
+    about = [_text(row, "Protocol")]
+    if distance := _float(row, "Distance Traveled (km)"):
+        about.append(f"{distance:g} km")
+    if observers := _text(row, "Number of Observers"):
+        about.append(f"{observers} observer{'s' if observers != '1' else ''}")
+    notes = [
+        _text(row, "Checklist Comments"),
+        f"eBird checklist {checklist}: " + ", ".join(a for a in about if a),
+    ]
+    return ImportOuting(
+        key=checklist,
+        outing_date=day,
+        start_time=start,
+        end_time=end,
+        title=location[:MAX_LOCATION_TEXT] if location else "eBird checklist",
+        place_name=location,
+        latitude=round(lat, 6) if lat is not None else None,
+        longitude=round(lon, 6) if lon is not None else None,
+        is_complete_list=_text(row, "All Obs Reported") == "1",
+        notes="\n".join(n for n in notes if n)[:MAX_NOTES],
     )

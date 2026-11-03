@@ -158,3 +158,25 @@ def purge_deleted_before(conn: sqlite3.Connection, cutoff_iso: str) -> int:
     return conn.execute(
         "DELETE FROM outing WHERE deleted_at IS NOT NULL AND deleted_at <= ?", (cutoff_iso,)
     ).rowcount
+
+
+# --- outings made by an import (an eBird checklist) ----------------------------------
+def by_source(conn: sqlite3.Connection, source: str) -> dict[str, int | None]:
+    """The other app's id -> outing id, for outings an import made. None for one you
+    deleted: it isn't made again, and nothing is put in it."""
+    rows = conn.execute(
+        "SELECT source_id, CASE WHEN deleted_at IS NULL THEN id END FROM outing "
+        "WHERE source = ? AND source_id IS NOT NULL",
+        (source,),
+    )
+    return dict(rows.fetchall())
+
+
+def insert_from_source(
+    conn: sqlite3.Connection, draft: OutingDraft, source: str, source_id: str
+) -> int:
+    outing_id = insert(conn, draft)
+    conn.execute(
+        "UPDATE outing SET source = ?, source_id = ? WHERE id = ?", (source, source_id, outing_id)
+    )
+    return outing_id

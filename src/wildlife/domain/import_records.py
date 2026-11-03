@@ -49,6 +49,23 @@ def _zipped_csv(path: Path) -> bytes:
 
 
 @dataclass(frozen=True, slots=True)
+class ImportOuting:
+    """The visit a record was part of, in the other app (an eBird checklist): becomes a
+    Thicket outing, made once however many records share it."""
+
+    key: str  # the other app's id for it, 'S340879334'
+    outing_date: date
+    start_time: str | None = None
+    end_time: str | None = None
+    title: str | None = None
+    place_name: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
+    is_complete_list: bool = False
+    notes: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class ImportRecord:
     line: int  # line in the file (the header is line 1), for messages
     observed_date: date | None
@@ -76,6 +93,7 @@ class ImportRecord:
     image_url: str | None = None
     updated_at: str | None = None  # the other app's "last changed", to spot later edits
     problem: str | None = None  # why this row can't be imported
+    outing: ImportOuting | None = None  # the checklist (visit) it was part of
 
     @property
     def name(self) -> str:
