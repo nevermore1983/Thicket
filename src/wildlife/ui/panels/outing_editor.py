@@ -26,14 +26,14 @@ from wildlife.domain.codes import Visibility, Weather, Wind
 from wildlife.domain.errors import ValidationError
 from wildlife.domain.models import Outing, OutingDraft
 from wildlife.domain.validation import validate_outing
-from wildlife.ui.components.side_panel import PanelView
-from wildlife.ui.panels.sighting_editor import (
-    _combo,
-    _Field,
-    _maybe,
+from wildlife.ui.components.form_fields import (
+    Field,
     check_time_field,
+    combo,
+    maybe_enum,
     normalise_time,
 )
+from wildlife.ui.components.side_panel import PanelView
 from wildlife.ui.theme.manager import ThemeManager
 
 
@@ -78,7 +78,7 @@ class OutingEditor(PanelView):
 
         self.title_edit = QLineEdit(draft.title or "")
         self.title_edit.setPlaceholderText("Optional, e.g. Dawn chorus walk")
-        self.f_title = _Field("Title", self.title_edit, "Left empty, the place and date are used")
+        self.f_title = Field("Title", self.title_edit, "Left empty, the place and date are used")
         form.addWidget(self.f_title)
 
         self.date = QDateEdit()
@@ -93,9 +93,9 @@ class OutingEditor(PanelView):
         for edit in (self.start, self.end):
             edit.setPlaceholderText("HH:MM")
             edit.setMaxLength(5)
-        self.f_date = _Field("Date", self.date)
-        self.f_start = _Field("Start", self.start)
-        self.f_end = _Field("End", self.end)
+        self.f_date = Field("Date", self.date)
+        self.f_start = Field("Start", self.start)
+        self.f_end = Field("End", self.end)
         row = QHBoxLayout()
         row.setSpacing(12)
         row.addWidget(self.f_date, 2, Qt.AlignmentFlag.AlignTop)
@@ -108,32 +108,32 @@ class OutingEditor(PanelView):
         for place in ctx.places.all():
             self.place.addItem(place.name, place.id)
         self.place.setCurrentIndex(max(0, self.place.findData(draft.place_id)))
-        self.f_place = _Field("Place", self.place)
+        self.f_place = Field("Place", self.place)
         form.addWidget(self.f_place)
 
         grid = QGridLayout()
         grid.setHorizontalSpacing(12)
         grid.setVerticalSpacing(12)
-        self.weather = _combo(
+        self.weather = combo(
             [("Not recorded", None)] + [(w.label, w) for w in Weather], draft.weather
         )
         self.temperature = QLineEdit(
             "" if draft.temperature_c is None else f"{draft.temperature_c:g}"
         )
         self.temperature.setPlaceholderText("°C")
-        self.wind = _combo([("Not recorded", None)] + [(w.label, w) for w in Wind], draft.wind)
-        self.visibility = _combo(
+        self.wind = combo([("Not recorded", None)] + [(w.label, w) for w in Wind], draft.wind)
+        self.visibility = combo(
             [("Not recorded", None)] + [(v.label, v) for v in Visibility], draft.visibility
         )
-        self.f_weather = _Field("Weather", self.weather)
-        self.f_temperature = _Field("Temperature (°C)", self.temperature)
+        self.f_weather = Field("Weather", self.weather)
+        self.f_temperature = Field("Temperature (°C)", self.temperature)
         for edit, field in ((self.start, self.f_start), (self.end, self.f_end)):
             edit.editingFinished.connect(lambda e=edit, f=field: check_time_field(e, f))
         self.temperature.editingFinished.connect(self._check_temperature)
         grid.addWidget(self.f_weather, 0, 0, Qt.AlignmentFlag.AlignTop)
         grid.addWidget(self.f_temperature, 0, 1, Qt.AlignmentFlag.AlignTop)
-        grid.addWidget(_Field("Wind", self.wind), 1, 0, Qt.AlignmentFlag.AlignTop)
-        grid.addWidget(_Field("Visibility", self.visibility), 1, 1, Qt.AlignmentFlag.AlignTop)
+        grid.addWidget(Field("Wind", self.wind), 1, 0, Qt.AlignmentFlag.AlignTop)
+        grid.addWidget(Field("Visibility", self.visibility), 1, 1, Qt.AlignmentFlag.AlignTop)
         form.addLayout(grid)
 
         self.complete = QCheckBox("Complete list: I recorded every species I identified")
@@ -146,7 +146,7 @@ class OutingEditor(PanelView):
         self.notes = QPlainTextEdit(draft.notes or "")
         self.notes.setFixedHeight(80)
         self.notes.setPlaceholderText("Route, conditions, who you were with…")
-        self.f_notes = _Field("Notes", self.notes)
+        self.f_notes = Field("Notes", self.notes)
         form.addWidget(self.f_notes)
         form.addStretch(1)
 
@@ -225,10 +225,10 @@ class OutingEditor(PanelView):
             place_id=self.place.currentData(),
             title=self.title_edit.text().strip() or None,
             # QComboBox returns enum data as plain strings, so convert back to the codes
-            weather=_maybe(Weather, self.weather.currentData()),
+            weather=maybe_enum(Weather, self.weather.currentData()),
             temperature_c=temperature,
-            wind=_maybe(Wind, self.wind.currentData()),
-            visibility=_maybe(Visibility, self.visibility.currentData()),
+            wind=maybe_enum(Wind, self.wind.currentData()),
+            visibility=maybe_enum(Visibility, self.visibility.currentData()),
             is_complete_list=self.complete.isChecked(),
             notes=self.notes.toPlainText().strip() or None,
         )

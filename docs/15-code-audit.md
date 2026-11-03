@@ -2,7 +2,7 @@
 
 **Date:** 17 October 2026
 **Scope:** all 23,350 lines in `src/`, plus the build scripts and tests.
-**Status:** All bugs (A1–A12) and improvements B1, B2, B3 and B5 **fixed in version 1.0.1** (section 4). B6, B7 and B8, plus one more bug found while doing them, **fixed in version 1.0.2** (section 5). Only B4 (splitting the biggest files) is left, on purpose.
+**Status:** All bugs (A1–A12) and improvements B1, B2, B3 and B5 **fixed in version 1.0.1** (section 4). B6, B7 and B8, plus one more bug found while doing them, **fixed in version 1.0.2** (section 5). B4 (splitting the biggest files) was **done in version 1.5.0**: see the note at the end.
 
 **How it was done:**
 - I read every layer: database, services, screens and the map page.
@@ -94,3 +94,15 @@ All 526 tests pass, 6 of them new. The app smoke test and the installer check pa
 | A13 (found while doing B6) | **A backup folder whose name contains `#` or `%` was read wrongly.** Backups were opened read-only through a file address that didn't encode those characters, so "Backups #2" was read as "Backups ". The backup itself was fine, but the restore list showed it as empty. Fixed with one shared read-only open (`snapshot.open_read_only`) that encodes the path. | `test_safety_nets::test_a_backup_folder_with_unusual_characters_works` |
 
 **Left on purpose: B4 (splitting the seven biggest files).** It's a large restructure with nothing you'd notice in use. It's safest done alongside a feature that changes those files anyway.
+
+---
+
+## B4, done in version 1.5.0 (3 November 2026)
+
+The three biggest files were split, with no change to what the code does:
+
+- **`charts.py` (742 lines):** now a `charts/` package with one file per chart type (`base`, `bars`, `columns`, `lines`, `heat`). Everything is still imported from `wildlife.ui.components.charts`.
+- **`sighting_editor.py` (992 lines, after later features):** now 582 lines. The form helpers that the outing and place editors share moved to `components/form_fields.py`, and the photo drop box to `components/photo_drop_zone.py`. The photos and the exact-position sections are now mix-ins: `panels/editor_photos.py` and `panels/editor_location.py`.
+- **`main_window.py` (760 lines):** now 542 lines. Opening the side panels (sightings, outings, species, photos, the map, places) moved to `window_panels.py`.
+
+All 666 tests passed before and after, unchanged, and the packaged app's smoke test passed.

@@ -23,8 +23,8 @@ from wildlife.domain.codes import Habitat
 from wildlife.domain.errors import ConflictError, ValidationError
 from wildlife.domain.models import Place, PlaceDraft
 from wildlife.ui.components.common import follow_theme
+from wildlife.ui.components.form_fields import Field
 from wildlife.ui.components.side_panel import PanelView
-from wildlife.ui.panels.sighting_editor import _Field
 from wildlife.ui.theme.icons import icon
 from wildlife.ui.theme.manager import ThemeManager
 
@@ -54,7 +54,7 @@ class PlaceEditor(PanelView):
         form.setSpacing(14)
         self.name = QLineEdit(place.name if place else "")
         self.name.setPlaceholderText("e.g. Garden, or Rainham Marshes")
-        self.f_name = _Field("Name", self.name)
+        self.f_name = Field("Name", self.name)
         self.position = QLineEdit()
         self.position.setPlaceholderText("TQ 308 808 or 51.50, -0.12")
         self.position.setToolTip(
@@ -74,7 +74,7 @@ class PlaceEditor(PanelView):
             theme, self.map_btn, lambda: self.map_btn.setIcon(icon("map", theme.tokens.text_2, 16))
         )
         self.map_btn.clicked.connect(self._choose_on_map)
-        self.f_position = _Field(
+        self.f_position = Field(
             "Centre", self.position, "The middle of the place", beside=self.map_btn
         )
         self._timer = QTimer(self, singleShot=True, interval=250)
@@ -85,7 +85,7 @@ class PlaceEditor(PanelView):
         self.radius.setSingleStep(50)
         self.radius.setSuffix(" m")
         self.radius.setValue(place.radius_m if place else 250)
-        self.f_radius = _Field(
+        self.f_radius = Field(
             "Radius", self.radius, "Sightings within this distance suggest this place"
         )
         self.habitat = QComboBox()
@@ -103,9 +103,9 @@ class PlaceEditor(PanelView):
             self.f_name,
             self.f_position,
             self.f_radius,
-            _Field("Default habitat", self.habitat),
+            Field("Default habitat", self.habitat),
             self.favourite,
-            _Field("Notes", self.notes),
+            Field("Notes", self.notes),
         ):
             form.addWidget(w)
         form.addStretch(1)

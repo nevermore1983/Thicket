@@ -3,22 +3,14 @@
 from __future__ import annotations
 
 import logging
-import re
-from dataclasses import replace
 from datetime import date, datetime
-from pathlib import Path
 
-import shiboken6
 from PySide6.QtCore import QDate, QEvent, QObject, Qt, QTimer, Signal
-from PySide6.QtGui import QDragEnterEvent, QDropEvent, QPixmap
 from PySide6.QtWidgets import (
-    QAbstractButton,
-    QAbstractSpinBox,
     QButtonGroup,
     QCheckBox,
     QComboBox,
     QDateEdit,
-    QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -46,131 +38,28 @@ from wildlife.domain.codes import (
 from wildlife.domain.counting import CountError, format_count, parse_count
 from wildlife.domain.errors import NotFoundError, ValidationError
 from wildlife.domain.models import Photo, Sighting, SightingDraft
-from wildlife.domain.photo_groups import draft_from_photos
-from wildlife.services.photos import SUPPORTED, ImportSummary
-from wildlife.services.sightings import SaveResult, Undo
+from wildlife.services.sightings import SaveResult
 from wildlife.ui.components.common import clear_layout
 from wildlife.ui.components.flow_layout import flow_box
+from wildlife.ui.components.form_fields import (
+    Field,
+    check_time_field,
+    combo,
+    maybe_enum,
+    normalise_time,
+)
+from wildlife.ui.components.photo_drop_zone import PhotoDropZone
 from wildlife.ui.components.side_panel import PanelView
 from wildlife.ui.components.species_picker import SpeciesPicker
-from wildlife.ui.components.visuals import plural, rounded
-from wildlife.ui.theme.icons import icon, pixmap
+from wildlife.ui.panels.editor_location import EditorLocation
+from wildlife.ui.panels.editor_photos import EditorPhotos
+from wildlife.ui.theme.icons import icon
 from wildlife.ui.theme.manager import ThemeManager
-from wildlife.ui.workers import run_in_background
 
 log = logging.getLogger(__name__)
 
-_TIME = re.compile(r"^\s*(\d{1,2})[:.]?(\d{2})\s*$")
 
-
-def normalise_time(text: str) -> str | None:
-    """'930' / '9:30' / '09.30' -> '09:30'; '' -> None; anything else is returned as typed."""
-    text = text.strip()
-    if not text:
-        return None
-    if m := _TIME.match(text):
-        return f"{int(m[1]):02d}:{m[2]}"
-    return text
-
-
-TIME_PROBLEM = "Use 24-hour time like 09:30, or leave it empty if you don't know."
-
-
-def check_time_field(edit: QLineEdit, field: _Field) -> None:
-    """When you leave a time box: tidy what you typed ('930' becomes '09:30'), or say
-    straight away if it can't be read, rather than waiting for Save."""
-    fixed = normalise_time(edit.text())
-    if fixed is None:
-        field.reset_note()
-        return
-    hour, _, minute = fixed.partition(":")
-    if not (minute and hour.isdigit() and minute.isdigit() and int(hour) < 24 and int(minute) < 60):
-        field.set_note(TIME_PROBLEM, "error")
-        return
-    if fixed != edit.text():
-        edit.setText(fixed)
-    field.reset_note()
-
-
-_INPUTS = (QLineEdit, QComboBox, QAbstractSpinBox, QPlainTextEdit, QAbstractButton)
-
-
-def _input_of(control: QWidget) -> QWidget:
-    """The part of a control that takes keyboard input (the text box of the species
-    picker, the first input inside a row of controls), or the control itself."""
-    if isinstance(control, _INPUTS):
-        return control
-    if isinstance(getattr(control, "edit", None), QWidget):
-        return control.edit
-    return next((w for w in control.findChildren(QWidget) if isinstance(w, _INPUTS)), control)
-
-
-class _Field(QWidget):
-    """Label above a control, with a help/error line below it. `beside`: a button to the
-    right of the control (e.g. "Choose on map")."""
-
-    def __init__(
-        self, label: str, control: QWidget, help_text: str = "", beside: QWidget | None = None
-    ) -> None:
-        super().__init__()
-        self.control = control
-        v = QVBoxLayout(self)
-        v.setContentsMargins(0, 0, 0, 0)
-        v.setSpacing(5)
-        self.label = QLabel(label)
-        self.label.setProperty("role", "fieldLabel")
-        v.addWidget(self.label)
-        if beside is None:
-            v.addWidget(control)
-        else:
-            row = QHBoxLayout()
-            row.setSpacing(6)
-            row.addWidget(control, 1)
-            row.addWidget(beside)
-            v.addLayout(row)
-        # Link the label to the field, so screen readers say "Date, edit" rather than "edit"
-        target = _input_of(control)
-        self.label.setBuddy(target)
-        if not target.accessibleName() and not isinstance(target, QAbstractButton):
-            target.setAccessibleName(label)  # a button keeps its own words ("Garden")
-        if help_text:
-            target.setAccessibleDescription(help_text)
-        self.note = QLabel(help_text)
-        self.note.setWordWrap(True)
-        self.note.setProperty("role", "help")
-        self.note.setVisible(bool(help_text))
-        self._help = help_text
-        v.addWidget(self.note)
-
-    def set_note(self, text: str, tone: str = "help") -> None:
-        self.note.setText(text)
-        self.note.setProperty("role", tone)
-        self.note.setVisible(bool(text))
-        self.note.style().unpolish(self.note)
-        self.note.style().polish(self.note)
-        self.control.setProperty("invalid", tone == "error")
-        self.control.style().unpolish(self.control)
-        self.control.style().polish(self.control)
-
-    def reset_note(self) -> None:
-        self.set_note(self._help)
-
-
-def _maybe(enum, value):
-    return None if value is None else enum(value)
-
-
-def _combo(options: list[tuple[str, object]], current: object) -> QComboBox:
-    box = QComboBox()
-    for label, value in options:
-        box.addItem(label, value)
-        if explanation := getattr(value, "explanation", ""):
-            box.setItemData(box.count() - 1, explanation, Qt.ItemDataRole.ToolTipRole)
-    box.setCurrentIndex(max(0, box.findData(current)))
-    return box
-
-
-class SightingEditor(PanelView):
+class SightingEditor(EditorPhotos, EditorLocation, PanelView):
     saved = Signal(object, bool)  # SaveResult, add another?
     cancelled = Signal()
 
@@ -227,7 +116,7 @@ class SightingEditor(PanelView):
         if draft.taxon_id:
             self.picker.set_taxon(ctx.catalogue.get(draft.taxon_id))
         self.picker.chosen.connect(self._species_chosen)
-        self.f_species = _Field("Species", self.picker)
+        self.f_species = Field("Species", self.picker)
         form.addWidget(self.f_species)
 
         # date + time
@@ -248,8 +137,8 @@ class SightingEditor(PanelView):
         self.time.setPlaceholderText("HH:MM")
         self.time.setMaxLength(5)
         self.time.textEdited.connect(self._mark_dirty)
-        self.f_date = _Field("Date", self.date)
-        self.f_time = _Field("Time", self.time, "Leave empty if you don't know")
+        self.f_date = Field("Date", self.date)
+        self.f_time = Field("Time", self.time, "Leave empty if you don't know")
         row = QHBoxLayout()
         row.setSpacing(12)
         row.addWidget(self.f_date, 3, Qt.AlignmentFlag.AlignTop)
@@ -260,7 +149,7 @@ class SightingEditor(PanelView):
         self._outing_touched = draft.outing_id is not None
         self.outing = QComboBox()
         self.outing.activated.connect(self._outing_chosen)
-        self.f_outing = _Field("Outing", self.outing)
+        self.f_outing = Field("Outing", self.outing)
         form.addWidget(self.f_outing)
         self._fill_outings(draft.outing_id)
         self.time.editingFinished.connect(lambda: self._fill_outings())
@@ -275,7 +164,7 @@ class SightingEditor(PanelView):
         )
         self._place_box, self._place_flow = flow_box(6)
         self._build_place_chips()
-        self.f_place = _Field("Place", self._place_box)
+        self.f_place = Field("Place", self._place_box)
         form.addWidget(self.f_place)
 
         # exact position
@@ -298,7 +187,7 @@ class SightingEditor(PanelView):
         self.map_btn = QPushButton("Choose on map")
         self.map_btn.setToolTip("Choose the position by clicking a map")
         self.map_btn.clicked.connect(self._choose_on_map)
-        self.f_location = _Field("Exact position (optional)", self.location, beside=self.map_btn)
+        self.f_location = Field("Exact position (optional)", self.location, beside=self.map_btn)
         form.addWidget(self.f_location)
 
         # count + evidence
@@ -311,10 +200,10 @@ class SightingEditor(PanelView):
             self.count.setText("1")
         self.count.installEventFilter(self)  # select-all on focus, so typing replaces the default
         self.count.textEdited.connect(lambda _: (self._mark_dirty(), self._update_count_note()))
-        self.evidence = _combo([(e.label, e) for e in Evidence], draft.evidence)
+        self.evidence = combo([(e.label, e) for e in Evidence], draft.evidence)
         self.evidence.currentIndexChanged.connect(self._mark_dirty)
-        self.f_count = _Field("Count", self.count)
-        self.f_evidence = _Field("Evidence", self.evidence)
+        self.f_count = Field("Count", self.count)
+        self.f_evidence = Field("Evidence", self.evidence)
         row = QHBoxLayout()
         row.setSpacing(12)
         row.addWidget(self.f_count, 1, Qt.AlignmentFlag.AlignTop)
@@ -322,7 +211,7 @@ class SightingEditor(PanelView):
         form.addLayout(row)
 
         # photos
-        self._photo_zone = _DropZone(theme, self._add_photo_files, self._browse_photos)
+        self._photo_zone = PhotoDropZone(theme, self._add_photo_files, self._browse_photos)
         # thumbnails wrap onto new rows, so many photos never widen the panel
         self._photo_strip_box, self._photo_strip = flow_box(8)
         photos_box = QWidget()
@@ -331,7 +220,7 @@ class SightingEditor(PanelView):
         pv.setSpacing(8)
         pv.addWidget(self._photo_zone)
         pv.addWidget(self._photo_strip_box)
-        self.f_photos = _Field("Photos", photos_box)
+        self.f_photos = Field("Photos", photos_box)
         form.addWidget(self.f_photos)
 
         # notes
@@ -340,7 +229,7 @@ class SightingEditor(PanelView):
         self.notes.setFixedHeight(84)
         self.notes.setTabChangesFocus(True)
         self.notes.textChanged.connect(self._mark_dirty)
-        self.f_notes = _Field("Notes", self.notes)
+        self.f_notes = Field("Notes", self.notes)
         form.addWidget(self.f_notes)
 
         # more details
@@ -353,20 +242,20 @@ class SightingEditor(PanelView):
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setHorizontalSpacing(12)
         grid.setVerticalSpacing(12)
-        self.identification = _combo([(i.label, i) for i in Identification], draft.identification)
-        self.sex = _combo([("Not recorded", None)] + [(s.label, s) for s in Sex], draft.sex)
-        self.life_stage = _combo(
+        self.identification = combo([(i.label, i) for i in Identification], draft.identification)
+        self.sex = combo([("Not recorded", None)] + [(s.label, s) for s in Sex], draft.sex)
+        self.life_stage = combo(
             [("Not recorded", None)] + [(s.label, s) for s in LifeStage], draft.life_stage
         )
-        self.habitat = _combo(
+        self.habitat = combo(
             [("Not recorded", None)] + [(h.label, h) for h in Habitat], draft.habitat
         )
         self.not_wild = QCheckBox("Not wild (captive, escaped or released: left out of your lists)")
         self.not_wild.setChecked(draft.is_not_wild)
-        grid.addWidget(_Field("Identification", self.identification), 0, 0)
-        grid.addWidget(_Field("Sex", self.sex), 0, 1)
-        grid.addWidget(_Field("Life stage", self.life_stage), 1, 0)
-        grid.addWidget(_Field("Habitat", self.habitat), 1, 1)
+        grid.addWidget(Field("Identification", self.identification), 0, 0)
+        grid.addWidget(Field("Sex", self.sex), 0, 1)
+        grid.addWidget(Field("Life stage", self.life_stage), 1, 0)
+        grid.addWidget(Field("Habitat", self.habitat), 1, 1)
         grid.addWidget(self.not_wild, 2, 0, 1, 2)
         for w in (self.identification, self.sex, self.life_stage, self.habitat):
             w.currentIndexChanged.connect(self._mark_dirty)
@@ -563,98 +452,6 @@ class SightingEditor(PanelView):
         self._outing_touched = True
         self._mark_dirty()
 
-    def _on_location_edited(self, _text: str) -> None:
-        self._location_edited = True
-        self._mark_dirty()
-        self._loc_timer.start()
-
-    def _choose_on_map(self) -> None:
-        """Open the map on the position typed or found so far (or the place's centre), and
-        use the spot you click."""
-        from wildlife.ui.map_picker import MapPicker  # loads the browser engine: only now
-
-        start, zoom = self._map_start()
-        picker = MapPicker(self.ctx, self.theme, start, zoom, parent=self.window())
-        try:
-            if picker.exec() == MapPicker.DialogCode.Accepted and picker.position:
-                self.use_map_position(*picker.position)
-        finally:
-            picker.deleteLater()
-
-    def _map_start(self) -> tuple[tuple[float, float] | None, float]:
-        """Where the map opens: the position in the box, else the chosen place."""
-        if self._location_edited:
-            parsed = self._parsed_location()
-            if parsed is not None and not parsed.looks_swapped:
-                return (parsed.latitude, parsed.longitude), 15
-        elif self._lat is not None:
-            return (self._lat, self._lon), 15
-        if self._place_id:
-            place = self.ctx.places.get(self._place_id)
-            zoom = 15 if place.radius_m <= 250 else 13 if place.radius_m <= 2_000 else 11
-            return (place.latitude, place.longitude), zoom
-        return None, 15
-
-    def use_map_position(self, lat: float, lon: float, uncertainty_m: int) -> None:
-        """Fill in a position chosen on the map. Like a photo's position, it also picks
-        the place it's in, unless you chose a place yourself."""
-        self._lat, self._lon, self._unc = lat, lon, uncertainty_m
-        self._method = LocationMethod.MAP
-        self._location_edited = False
-        self.location.setText(geo.grid_ref_for(lat, lon, uncertainty_m) or f"{lat:.5f}, {lon:.5f}")
-        self._mark_dirty()
-        if not self._place_chosen:
-            near = self.ctx.places.nearest(lat, lon)
-            self._set_place(near.id if near else None)
-        self._update_location_note()
-
-    def _parsed_location(self) -> geo.ParsedLocation | None:
-        return geo.parse_location(self.location.text())
-
-    def _update_location_note(self) -> None:
-        text = self.location.text().strip()
-        if not text:
-            if self._place_id:
-                place = self.ctx.places.get(self._place_id)
-                self.f_location.set_note(
-                    f"Without one, the sighting uses the centre of {place.name} "
-                    f"(±{place.radius_m:,} m)."
-                )
-            else:
-                self.f_location.set_note(
-                    "Add a place or a position when you can; you can save without one."
-                )
-            return
-        if not self._location_edited and self._lat is not None:
-            unc = f"±{self._unc:,} m" if self._unc else ""
-            self.f_location.set_note(f"{self._lat:.5f}, {self._lon:.5f} {unc}".strip(), "ok")
-            return
-        parsed = self._parsed_location()
-        if parsed is None:
-            self.f_location.set_note(
-                "That doesn't look like a grid reference or coordinates. "
-                "Example: TQ 308 808, or 51.50, -0.12",
-                "error",
-            )
-        elif parsed.looks_swapped:
-            self.f_location.set_note(
-                f"Latitude and longitude look swapped. Did you mean "
-                f"{parsed.longitude}, {parsed.latitude}?",
-                "error",
-            )
-        else:
-            # Show the position the other way round from how it was typed: a grid reference
-            # for coordinates in Great Britain, coordinates otherwise (anywhere else: the US)
-            ref = geo.grid_ref_for(parsed.latitude, parsed.longitude, parsed.uncertainty_m)
-            coords = f"{parsed.latitude:.5f}, {parsed.longitude:.5f}"
-            where = ref if ref and parsed.method != "grid_ref" else coords
-            note = f"{where} · ±{parsed.uncertainty_m:,} m"
-            if self._place_id is None and (
-                near := self.ctx.places.nearest(parsed.latitude, parsed.longitude)
-            ):
-                note += f" · inside {near.name}"
-            self.f_location.set_note(note, "ok")
-
     def _update_count_note(self) -> None:
         try:
             count = parse_count(self.count.text())
@@ -669,139 +466,6 @@ class SightingEditor(PanelView):
             self.f_count.set_note(f"At least {count.value:,}")
         else:
             self.f_count.set_note("“c. 200” for about 200 or “50+” for at least 50 also work")
-
-    # ---- photos ----------------------------------------------------------------
-    def _browse_photos(self) -> None:
-        patterns = " ".join(f"*{ext}" for ext in sorted(SUPPORTED))
-        files, _ = QFileDialog.getOpenFileNames(self, "Add photos", "", f"Photos ({patterns})")
-        if files:
-            self._add_photo_files([Path(f) for f in files])
-
-    def _add_photo_files(self, files: list[Path]) -> None:
-        self._set_adding(+1)
-
-        def done(summary: ImportSummary) -> None:
-            if not shiboken6.isValid(self) or self._done:
-                log.info("Photos finished importing after the form closed: left in the Inbox")
-                return
-            self._set_adding(-1)
-            new = [p for p in summary.photos if p.id not in {x.id for x in self._photos}]
-            self._photos += new
-            self._mark_dirty()
-            self._refresh_photo_strip()
-            self._autofill_from_photos(new)
-            if summary.failed:
-                names = ", ".join(name for name, _ in summary.failed[:3])
-                self.f_photos.set_note(
-                    f"Couldn't add {plural(len(summary.failed), 'file')}: {names}", "error"
-                )
-
-        def failed(exc: BaseException) -> None:
-            if shiboken6.isValid(self):
-                self._set_adding(-1)
-            raise exc  # to the error reporter
-
-        run_in_background(
-            lambda: self.ctx.photos.import_files(files), on_done=done, on_error=failed
-        )
-
-    def _set_adding(self, change: int) -> None:
-        """Photos being added: Save waits until they're in, so none are left out."""
-        self._adding_photos += change
-        busy = self._adding_photos > 0
-        self._photo_zone.set_busy(busy)
-        for b in (self.save_btn, getattr(self, "another_btn", None)):
-            if b is not None:
-                b.setEnabled(not busy)
-        if not busy and self.f_photos.note.text().startswith("Still adding photos"):
-            self.f_photos.reset_note()
-
-    def _autofill_from_photos(self, photos: list[Photo]) -> None:
-        """Fill empty date, time and position from the photos (rules in domain.photo_groups)."""
-        filled = []
-        draft = draft_from_photos(photos, self.ctx.sightings._today())
-        if draft.observed_time is not None and not self._date_touched:
-            day = draft.observed_date
-            self.date.blockSignals(True)
-            self.date.setDate(QDate(day.year, day.month, day.day))
-            self.date.blockSignals(False)
-            self._date_touched = True
-            self.time.setText(draft.observed_time)
-            from_name = any(p.taken_source == "file_name" for p in photos if p.taken_at)
-            filled.append("date and time" + (" (from the file name)" if from_name else ""))
-            self._fill_outings()
-        if draft.latitude is not None and not self.location.text().strip():
-            self._lat, self._lon, self._unc = draft.latitude, draft.longitude, draft.uncertainty_m
-            self._method = draft.location_method
-            self._location_edited = False
-            self.location.setText(
-                geo.grid_ref_for(self._lat, self._lon, self._unc)
-                or f"{self._lat:.5f}, {self._lon:.5f}"
-            )
-            filled.append("position")
-            if not self._place_chosen:
-                near = self.ctx.places.nearest(self._lat, self._lon)
-                self._set_place(near.id if near else None)
-        if filled:
-            noun = "photo" if len(photos) == 1 else "photos"
-            self._photo_note.setText(f"Filled in the {' and '.join(filled)} from your {noun}.")
-            self._photo_note.show()
-            self._update_location_note()
-
-    def _refresh_photo_strip(self) -> None:
-        clear_layout(self._photo_strip)
-        for photo in self._photos:
-            thumb = self.ctx.photos.thumbnail(photo, 256)
-            tile = QLabel()
-            tile.setFixedSize(84, 64)
-            tile.setToolTip(photo.original_name)
-            if thumb:
-                tile.setPixmap(
-                    rounded(QPixmap(str(thumb)), 64, 8).scaled(
-                        84, 64, Qt.AspectRatioMode.KeepAspectRatioByExpanding
-                    )
-                )
-            else:
-                tile.setText("Missing")
-                tile.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            holder = QWidget()
-            hv = QVBoxLayout(holder)
-            hv.setContentsMargins(0, 0, 0, 0)
-            hv.setSpacing(2)
-            hv.addWidget(tile)
-            controls = QHBoxLayout()
-            controls.setSpacing(2)
-            at = self._photos.index(photo)
-            for text, name, step in (("‹", "Move earlier", -1), ("›", "Move later", 1)):
-                move = QPushButton(text)
-                move.setProperty("variant", "ghost")
-                move.setFixedWidth(24)
-                move.setToolTip(f"{name} (the first photo is the cover)")
-                move.setAccessibleName(f"{name}: {photo.original_name}")
-                move.setEnabled(0 <= at + step < len(self._photos))
-                move.clicked.connect(lambda _=False, p=photo, d=step: self._move_photo(p, d))
-                controls.addWidget(move)
-            remove = QPushButton("Remove")
-            remove.setProperty("variant", "link")
-            remove.setAccessibleName(f"Remove {photo.original_name}")
-            remove.clicked.connect(lambda _=False, p=photo: self._remove_photo(p))
-            controls.addWidget(remove)
-            hv.addLayout(controls)
-            self._photo_strip.addWidget(holder)
-        self._photo_zone.set_count(len(self._photos))
-
-    def _move_photo(self, photo: Photo, step: int) -> None:
-        i = self._photos.index(photo)
-        j = i + step
-        if 0 <= j < len(self._photos):
-            self._photos[i], self._photos[j] = self._photos[j], self._photos[i]
-            self._mark_dirty()
-            self._refresh_photo_strip()
-
-    def _remove_photo(self, photo: Photo) -> None:
-        self._photos = [p for p in self._photos if p.id != photo.id]
-        self._mark_dirty()
-        self._refresh_photo_strip()
 
     # ---- saving -----------------------------------------------------------------
     def build_draft(self) -> tuple[SightingDraft | None, dict[str, str]]:
@@ -846,9 +510,9 @@ class SightingEditor(PanelView):
             # QComboBox returns enum data as plain strings, so convert back to the codes
             evidence=Evidence(self.evidence.currentData()),
             identification=Identification(self.identification.currentData()),
-            sex=_maybe(Sex, self.sex.currentData()),
-            life_stage=_maybe(LifeStage, self.life_stage.currentData()),
-            habitat=_maybe(Habitat, self.habitat.currentData()),
+            sex=maybe_enum(Sex, self.sex.currentData()),
+            life_stage=maybe_enum(LifeStage, self.life_stage.currentData()),
+            habitat=maybe_enum(Habitat, self.habitat.currentData()),
             is_not_wild=self.not_wild.isChecked(),
             outing_id=self.outing.currentData(),
             notes=self.notes.toPlainText().strip() or None,
@@ -897,22 +561,6 @@ class SightingEditor(PanelView):
             first.control.setFocus()
         return None
 
-    def _save_photos(self, result: SaveResult) -> SaveResult:
-        """Put the photos shown here on the sighting, in this order. For an edit, Undo
-        then puts back the photos it had before, as well as its details."""
-        sid, ids, before = result.sighting.id, [p.id for p in self._photos], self._photos_before
-        removed = [i for i in before if i not in ids]
-        self.ctx.photos.set_sighting_photos(sid, ids, removed)
-        if not self.existing or ids == before:
-            return result
-        details, photos = result.undo, self.ctx.photos
-
-        def undo() -> None:
-            details.run()
-            photos.set_sighting_photos(sid, before, [i for i in ids if i not in before])
-
-        return replace(result, undo=Undo(details.description, undo))
-
     def keyPressEvent(self, event) -> None:
         ctrl = event.modifiers() & Qt.KeyboardModifier.ControlModifier
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and ctrl:
@@ -932,61 +580,3 @@ class SightingEditor(PanelView):
         if obj is self.count and event.type() == QEvent.Type.FocusIn:
             QTimer.singleShot(0, self.count.selectAll)  # typing replaces the default "1"
         return super().eventFilter(obj, event)
-
-
-class _DropZone(QFrame):
-    """'Drop photos here or click to choose' box."""
-
-    def __init__(self, theme: ThemeManager, on_files, on_click) -> None:
-        super().__init__()
-        self.setObjectName("DropZone")
-        self.setAcceptDrops(True)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._theme, self._on_files, self._on_click = theme, on_files, on_click
-        h = QHBoxLayout(self)
-        h.setContentsMargins(14, 12, 14, 12)
-        h.setSpacing(10)
-        self._icon = QLabel()
-        self._text = QLabel("Drop photos here or click to choose")
-        self._text.setProperty("role", "muted")
-        h.addWidget(self._icon)
-        h.addWidget(self._text, 1)
-        self._count = 0
-        theme.changed.connect(self._paint)
-        self._paint()
-
-    def _paint(self) -> None:
-        self._icon.setPixmap(pixmap("camera", self._theme.tokens.text_2, 20))
-
-    def set_count(self, n: int) -> None:
-        self._count = n
-        self._text.setText(
-            f"{plural(n, 'photo')} attached. Drop or click to add more."
-            if n
-            else "Drop photos here or click to choose"
-        )
-
-    def set_busy(self, busy: bool) -> None:
-        self._text.setText("Adding photos…" if busy else self._text.text())
-        if not busy:
-            self.set_count(self._count)
-
-    def mousePressEvent(self, event) -> None:
-        self._on_click()
-
-    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-            self.setProperty("over", True)
-            self.style().polish(self)
-
-    def dragLeaveEvent(self, event) -> None:
-        self.setProperty("over", False)
-        self.style().polish(self)
-
-    def dropEvent(self, event: QDropEvent) -> None:
-        self.setProperty("over", False)
-        self.style().polish(self)
-        files = [Path(u.toLocalFile()) for u in event.mimeData().urls() if u.isLocalFile()]
-        if files:
-            self._on_files(files)
