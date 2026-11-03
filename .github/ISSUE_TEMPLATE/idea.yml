@@ -1,0 +1,17 @@
+name: Suggest an idea
+description: Something Thicket could do, or do better.
+title: "Idea: "
+labels: ["idea"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: What would you like Thicket to do? What would it help you with?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Thicket version
+      description: Filled in for you when you suggest from Thicket (Settings › About).

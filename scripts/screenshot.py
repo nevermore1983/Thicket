@@ -167,6 +167,16 @@ def main() -> int:
             page.table.selectRow(0)
         elif target.startswith("inat"):  # inat-start / inat-check / inat-done (invented rows)
             return import_dialog(target)
+        elif target == "own-species":  # "Add your own species", from a name that isn't listed
+            from wildlife.ui.own_species import AddSpeciesDialog
+
+            window.go("sightings")
+            window.add_sighting()
+            dialog = AddSpeciesDialog(ctx.catalogue, "Emberiza bruniceps", window)
+            dialog.common.setText("Red-headed Bunting")
+            dialog.show()
+            wait(lambda: False, 0.3)
+            return dialog
         elif target == "ebird-start":  # the eBird import window, with its instructions
             window.go("settings")
             dialog = window.import_data("ebird")

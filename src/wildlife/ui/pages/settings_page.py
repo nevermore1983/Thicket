@@ -29,6 +29,7 @@ from wildlife import __version__
 from wildlife.config.settings import Theme
 from wildlife.context import AppContext
 from wildlife.domain.filters import SightingFilter
+from wildlife.feedback import form_url
 from wildlife.services.import_history import SOURCE_NAMES
 from wildlife.ui.components.common import Callout, Page, Segmented, button
 from wildlife.ui.components.visuals import fmt_date, plural
@@ -74,6 +75,11 @@ def _section(title: str, rows: list[QWidget]) -> QFrame:
         r.setProperty("first", i == 0)  # no divider directly under the heading
         layout.addWidget(r)
     return card
+
+
+def _open_form(kind: str) -> None:
+    """Report a problem or suggest an idea: GitHub's form, in the browser."""
+    QDesktopServices.openUrl(QUrl(form_url(kind)))
 
 
 def _pair(*widgets: QWidget) -> QWidget:
@@ -283,6 +289,27 @@ class SettingsPage(QWidget):
                                 lambda: QDesktopServices.openUrl(
                                     QUrl.fromLocalFile(str(ctx.paths.logs))
                                 ),
+                            ),
+                        ),
+                    ),
+                    _row(
+                        "Feedback",
+                        "Opens a form on GitHub in your browser, with Thicket's version filled "
+                        "in. Nothing is sent until you submit it there (needs a free account).",
+                        _pair(
+                            button(
+                                "Report a problem…",
+                                "secondary",
+                                None,
+                                None,
+                                lambda: _open_form("problem"),
+                            ),
+                            button(
+                                "Suggest an idea…",
+                                "secondary",
+                                None,
+                                None,
+                                lambda: _open_form("idea"),
                             ),
                         ),
                     ),

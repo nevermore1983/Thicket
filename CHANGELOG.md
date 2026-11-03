@@ -2,6 +2,11 @@
 
 Each version's notes are used for its download page on GitHub (`scripts/release_notes.py`).
 
+## 1.5.0
+
+- **Add your own species.** If a species isn't in your list (an escape, a new arrival, one from a region whose pack you haven't added), the species box now offers "Add … as your own species" as its last suggestion. Give it a name and its scientific name; its group comes from a known species of the same genus. It works like any other species, travels with your exports, and if a species pack adds it later, the two become one.
+- **Report a problem or suggest an idea** from Settings › About. Each opens a short form on GitHub in your browser, with Thicket's and Windows' versions filled in. Nothing is sent unless you submit it there. When Thicket shows "Something went wrong", **Report it…** copies the details for you to paste in.
+
 ## 1.4.2
 
 Fixes from a full check of the code.

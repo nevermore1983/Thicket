@@ -6,6 +6,7 @@ import re
 import sqlite3
 from collections.abc import Callable, Iterable
 
+from wildlife.data.repositories import exchange
 from wildlife.domain.models import Category, Taxon, TaxonMatch
 
 # "Deraeocoris (Deraeocoris) flavilinea": the subgenus in brackets, which most people leave out
@@ -170,7 +171,9 @@ def install_pack(
         )
         taxon_id = key_to_id.get(key)
         if taxon_id is None:
-            taxon_id = same_name.get(_name_key(rec["s"], rec["r"], lineage[0]))
+            name_key = _name_key(rec["s"], rec["r"], lineage[0])
+            # ...or one of your own whose kingdom isn't known (added with no relative)
+            taxon_id = same_name.get(name_key) or same_name.get((*name_key[:2], ""))
             if taxon_id is None:
                 cur = conn.execute(
                     "INSERT INTO taxon (scientific_name, authority, common_name, rank, tax_kingdom, "
@@ -284,6 +287,52 @@ def _name_index(conn: sqlite3.Connection) -> dict[tuple[str, str, str], int]:
     ):
         index[_name_key(name, rank, kingdom)] = taxon_id  # the last one written wins
     return index
+
+
+# --- your own species ---------------------------------------------------------------------
+def same_name(conn: sqlite3.Connection, scientific_name: str) -> Taxon | None:
+    """A species already in the list under this scientific name (hidden ones too)."""
+    row = conn.execute(
+        f"SELECT {_TAXON_COLS} FROM taxon t WHERE t.scientific_name = ? COLLATE NOCASE "
+        "ORDER BY t.is_custom LIMIT 1",
+        (" ".join(scientific_name.split()),),
+    ).fetchone()
+    return _taxon(row) if row else None
+
+
+def genus_relative(conn: sqlite3.Connection, scientific_name: str) -> sqlite3.Row | None:
+    """A species of the same genus, whose family tree and group a new species shares."""
+    genus = scientific_name.split()[0] if scientific_name.split() else ""
+    return conn.execute(
+        "SELECT tax_kingdom, tax_phylum, tax_class, tax_order, tax_family, category_id "
+        "FROM taxon WHERE scientific_name LIKE ? || ' %' AND is_custom = 0 "
+        "ORDER BY priority DESC LIMIT 1",
+        (genus,),
+    ).fetchone()
+
+
+def add_own_species(
+    conn: sqlite3.Connection, scientific_name: str, common_name: str | None, category_id: int
+) -> int:
+    """A species of your own (not in any pack): searchable by both names, counted as a
+    species, its family tree from a relative in the same genus if there is one."""
+    relative = genus_relative(conn, scientific_name)
+    tree = dict(relative) if relative else {}
+    taxon_id = exchange.insert_custom_taxon(
+        conn,
+        {
+            "scientific_name": scientific_name,
+            "common_name": common_name,
+            "rank": "species",
+            **{
+                k: tree.get(k)
+                for k in ("tax_kingdom", "tax_phylum", "tax_class", "tax_order", "tax_family")
+            },
+        },
+        category_id,
+    )
+    exchange.set_species_of_custom(conn, taxon_id)
+    return taxon_id
 
 
 # --- regions --------------------------------------------------------------------------

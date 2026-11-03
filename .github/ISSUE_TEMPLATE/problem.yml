@@ -1,0 +1,34 @@
+name: Report a problem
+description: Something in Thicket doesn't work, or works differently than you expected.
+title: "Problem: "
+labels: ["problem"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Everything here will be public, so leave out anything private (your address, where rare species nest).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+      placeholder: "I imported my eBird file, and…"
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Error details (if there was a message)
+      description: If Thicket showed an error, press its Copy details button and paste here. Check it first and remove anything private, such as folder names.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Thicket version
+      description: Filled in for you when you report from Thicket (Settings › About).
+      placeholder: "1.5.0"
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: "Windows 11"

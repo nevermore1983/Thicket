@@ -26,6 +26,7 @@ from wildlife.ui.theme.manager import ThemeManager
 from wildlife.ui.theme.tokens import FONT_SCI
 
 MAX_SUGGESTIONS = 8
+NEW_SPECIES = "new-species"  # the last suggestion: add one that isn't in the list
 
 
 def species_html(taxon: Taxon, sci_colour: str) -> str:
@@ -167,16 +168,34 @@ class SpeciesPicker(QWidget):
             )
             empty.setFlags(Qt.ItemFlag.NoItemFlags)
             self.list.addItem(empty)
-        self.list.setCurrentRow(0 if matches else -1)
+        # Always last, so Enter still picks the best match: a species that isn't in the list
+        add = QListWidgetItem(f"＋  Add “{text}” as your own species…")
+        add.setData(Qt.ItemDataRole.UserRole, NEW_SPECIES)
+        add.setToolTip("For a species that isn't in your list")
+        self.list.addItem(add)
+        self.list.setCurrentRow(0 if matches else -1)  # adding one is never a stray Enter
         rows = self.list.count()
         self.list.setFixedHeight(sum(self.list.sizeHintForRow(i) for i in range(rows)) + 6)
         self.list.show()
 
-    def _pick(self, taxon: Taxon | None) -> None:
+    def _pick(self, taxon: Taxon | str | None) -> None:
+        if taxon == NEW_SPECIES:
+            taxon = self._add_own(self.edit.text())
         if taxon is None:
             return
         self.set_taxon(taxon)
         self.chosen.emit(taxon)
+
+    def _add_own(self, typed: str) -> Taxon | None:
+        """Open "Add your own species" with what you typed; the new species, or None."""
+        from wildlife.ui.own_species import AddSpeciesDialog
+
+        self.list.hide()
+        dialog = AddSpeciesDialog(self._catalogue, typed, self.window())
+        try:
+            return dialog.taxon if dialog.exec() else None
+        finally:
+            dialog.deleteLater()
 
     def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         if obj is self.edit and event.type() == QEvent.Type.KeyPress and self.list.isVisible():

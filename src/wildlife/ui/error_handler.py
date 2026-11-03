@@ -12,11 +12,12 @@ import threading
 import traceback
 from types import TracebackType
 
-from PySide6.QtCore import QObject, Signal
-from PySide6.QtGui import QGuiApplication
+from PySide6.QtCore import QObject, QUrl, Signal
+from PySide6.QtGui import QDesktopServices, QGuiApplication
 from PySide6.QtWidgets import QMessageBox, QWidget
 
 from wildlife.domain.errors import WildlifeError
+from wildlife.feedback import form_url
 
 log = logging.getLogger("wildlife.errors")
 
@@ -60,10 +61,18 @@ class ErrorReporter(QObject):
             if not expected:
                 box.setInformativeText("The details have been saved to the log file.")
             copy = box.addButton("Copy details", QMessageBox.ButtonRole.ActionRole)
+            report = None
+            if not expected:  # a bug in Thicket, not something you can put right yourself
+                report = box.addButton("Report it…", QMessageBox.ButtonRole.ActionRole)
+                report.setToolTip(
+                    "Copies the details and opens a problem report on GitHub to paste them in"
+                )
             box.addButton(QMessageBox.StandardButton.Ok)
             box.exec()
-            if box.clickedButton() is copy:
+            if box.clickedButton() in (copy, report):
                 QGuiApplication.clipboard().setText(details)
+            if report is not None and box.clickedButton() is report:
+                QDesktopServices.openUrl(QUrl(form_url("problem")))
         finally:
             self._showing = False
 

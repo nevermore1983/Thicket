@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Help with installing, backups and imports
+    url: https://nevermore1983.github.io/Thicket/help.html
+    about: Short answers to the common questions.

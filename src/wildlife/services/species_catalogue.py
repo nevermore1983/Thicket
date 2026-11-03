@@ -5,6 +5,7 @@ from __future__ import annotations
 import gzip
 import json
 import logging
+import re
 import time
 from collections.abc import Callable
 from importlib import resources
@@ -12,11 +13,14 @@ from pathlib import Path
 
 from wildlife.data.db import Database
 from wildlife.data.repositories import taxa as repo
+from wildlife.domain.errors import ValidationError
 from wildlife.domain.models import Category, Taxon, TaxonMatch
 from wildlife.services.events import EventHub
 
 log = logging.getLogger(__name__)
 Progress = Callable[[str, float], None]
+# "Emberiza bruniceps", "Larus michahellis atlantis", "Anas platyrhynchos × acuta"
+_SCIENTIFIC = re.compile(r"^[A-Za-z][a-z]+(?: (?:[a-z][a-z.-]+|×|x))+$")
 
 
 def bundled_catalogue() -> tuple[Path, dict]:
@@ -96,6 +100,47 @@ class SpeciesCatalogue:
         """The species packs installed: region, name, source, version, taxa, installed_at."""
         with self._db.connection() as conn:
             return [dict(r) for r in repo.packs(conn)]
+
+    # ---- your own species ---------------------------------------------------------
+    def add_species(
+        self, scientific_name: str, common_name: str | None, category_id: int | None = None
+    ) -> Taxon:
+        """Add a species that isn't in any list (an escape, a new arrival, one from a
+        region whose pack you haven't added). Raises ValidationError if the name is
+        missing, doesn't look like a scientific name, or is in the list already."""
+        scientific = " ".join(scientific_name.split())
+        common = " ".join((common_name or "").split()) or None
+        if not scientific:
+            raise ValidationError({"scientific_name": "The scientific name is needed."})
+        if not _SCIENTIFIC.match(scientific):
+            raise ValidationError(
+                {"scientific_name": "Write it as genus and species, like Emberiza bruniceps."}
+            )
+        scientific = scientific[0].upper() + scientific[1:]
+        with self._db.transaction() as conn:
+            if (have := repo.same_name(conn, scientific)) is not None:
+                raise ValidationError(
+                    {
+                        "scientific_name": f"That's in the list already, as "
+                        f"{have.common_name or have.scientific_name}. Search for it instead."
+                    }
+                )
+            if category_id is None:
+                relative = repo.genus_relative(conn, scientific)
+                category_id = relative["category_id"] if relative else self._fallback_id()
+            taxon_id = repo.add_own_species(conn, scientific, common, category_id)
+        log.info("Added a species of your own: %s", scientific)
+        self._events.publish("taxa", (taxon_id,))
+        return self.get(taxon_id)
+
+    def suggested_category(self, scientific_name: str) -> int | None:
+        """The group of a known species in the same genus, if there is one."""
+        with self._db.connection() as conn:
+            relative = repo.genus_relative(conn, " ".join(scientific_name.split()))
+        return relative["category_id"] if relative else None
+
+    def _fallback_id(self) -> int:
+        return next(c.id for c in self.categories() if c.is_fallback)
 
     # ---- reading ------------------------------------------------------------
     def search(self, text: str, limit: int = 20) -> list[TaxonMatch]:
