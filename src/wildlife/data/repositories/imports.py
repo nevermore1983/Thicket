@@ -27,6 +27,8 @@ class Existing:
     source_updated_at: str | None
     edited_here: bool  # changed in Thicket since it was last imported
     deleted: bool  # in the recycle bin
+    outing_id: int | None = None
+    taxon_id: int | None = None
 
 
 def taxa_named(conn: sqlite3.Connection, name: str) -> list[NameHit]:
@@ -55,11 +57,32 @@ def remember(conn: sqlite3.Connection, source: str, name: str, taxon_id: int) ->
 
 def existing(conn: sqlite3.Connection, source: str) -> dict[str, Existing]:
     rows = conn.execute(
-        "SELECT source_id, id, source_updated_at, source_edited, deleted_at IS NOT NULL "
-        "FROM sighting WHERE source = ?",
+        "SELECT source_id, id, source_updated_at, source_edited, deleted_at IS NOT NULL, "
+        "outing_id, taxon_id FROM sighting WHERE source = ?",
         (source,),
     )
-    return {r[0]: Existing(r[1], r[2], bool(r[3]), bool(r[4])) for r in rows}
+    return {r[0]: Existing(r[1], r[2], bool(r[3]), bool(r[4]), r[5], r[6]) for r in rows}
+
+
+def by_visit(known: dict[str, Existing]) -> dict[tuple[str, int], Existing]:
+    """The same sightings by (visit, species): an eBird record's id is
+    '<checklist>/<scientific name>', so after eBird renames a species its id changes,
+    but its checklist and the species it matched don't."""
+    return {
+        (source_id.split("/", 1)[0], e.taxon_id): e
+        for source_id, e in known.items()
+        if "/" in source_id and e.taxon_id is not None
+    }
+
+
+def group_in_outing(conn: sqlite3.Connection, sighting_id: int, outing_id: int | None) -> None:
+    """Put an imported sighting in (or, with None, take it out of) an outing, without
+    marking it as changed by you (a later import may still update it)."""
+    edited = conn.execute(
+        "SELECT source_edited FROM sighting WHERE id = ?", (sighting_id,)
+    ).fetchone()[0]
+    conn.execute("UPDATE sighting SET outing_id = ? WHERE id = ?", (outing_id, sighting_id))
+    conn.execute("UPDATE sighting SET source_edited = ? WHERE id = ?", (edited, sighting_id))
 
 
 def new_batch(conn: sqlite3.Connection, source: str, file_name: str | None) -> int:

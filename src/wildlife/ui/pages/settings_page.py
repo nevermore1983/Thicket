@@ -515,6 +515,9 @@ class SettingsPage(QWidget):
         region.activated.connect(lambda i: self._choose_region(region.itemData(i)))
         add = button("Add a US state…", "secondary", "plus", self.theme, self._add_pack)
         packs = len(self.ctx.catalogue.packs())
+        own = len(self.ctx.catalogue.own_species())
+        manage = button("Change or remove…", "secondary", None, None, self._own_species)
+        manage.setEnabled(own > 0)
         return [
             _row(
                 "Where you record",
@@ -527,7 +530,29 @@ class SettingsPage(QWidget):
                 "adding one needs the internet once.",
                 add,
             ),
+            _row(
+                "Your own species",
+                (
+                    f"{plural(own, 'species', 'species')} you added. Change their names or "
+                    "group, or remove one you no longer use."
+                    if own
+                    else "None yet. To add one, type its name in the species box when "
+                    "recording: if it isn't in the list, the last suggestion adds it."
+                ),
+                manage,
+            ),
         ]
+
+    def _own_species(self) -> None:
+        from wildlife.ui.own_species import OwnSpeciesDialog
+
+        dialog = OwnSpeciesDialog(self.ctx.catalogue, self)
+        try:
+            dialog.exec()
+            if dialog.changed:
+                self.refresh()
+        finally:
+            dialog.deleteLater()
 
     def _choose_region(self, region: str) -> None:
         if region == self.ctx.catalogue.region():

@@ -44,6 +44,8 @@ def _outing(r: sqlite3.Row) -> Outing:
         notes=r["notes"],
         sightings=r["sightings"],
         species=r["species"],
+        source=r["source"],
+        source_id=r["source_id"],
     )
 
 
@@ -180,3 +182,16 @@ def insert_from_source(
         "UPDATE outing SET source = ?, source_id = ? WHERE id = ?", (source, source_id, outing_id)
     )
     return outing_id
+
+
+def emptied_by_batch(conn: sqlite3.Connection, batch_id: int) -> list[int]:
+    """Outings an import made whose sightings, from that import, are all in the recycle
+    bin now (so they'd show as empty): none of yours, and none with other sightings."""
+    rows = conn.execute(
+        """SELECT DISTINCT o.id FROM outing o JOIN sighting s ON s.outing_id = o.id
+           WHERE s.import_batch_id = ? AND o.source IS NOT NULL AND o.deleted_at IS NULL
+             AND NOT EXISTS (SELECT 1 FROM sighting x
+                             WHERE x.outing_id = o.id AND x.deleted_at IS NULL)""",
+        (batch_id,),
+    )
+    return [r[0] for r in rows]

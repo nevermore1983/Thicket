@@ -178,6 +178,7 @@ def parse_row(line: int, row: dict, full: bool = True) -> ImportRecord:
         updated_at=FULL_DATA if full else None,  # a life list's None never replaces anything
         problem=problem,
         outing=_checklist(row, checklist, day, location, lat, lon) if full and checklist else None,
+        visit_id=checklist,
     )
 
 
@@ -189,7 +190,9 @@ def _checklist(
     if day is None:
         return None
     start = _time(_text(row, "Time"))
-    end = None
+    # With no duration (an incidental sighting) it ends when it starts: a start with no
+    # end is how Thicket marks the outing you're on now
+    end = start
     minutes = _float(row, "Duration (Min)")
     if start and minutes:
         hour, minute = (int(x) for x in start.split(":"))

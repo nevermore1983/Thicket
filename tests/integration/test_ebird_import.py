@@ -171,3 +171,77 @@ def test_an_outing_you_deleted_isnt_made_again(ctx, tmp_path):
     rows = [full_row(**{"Scientific Name": "Alcedo atthis", "Common Name": "Kingfisher"})]
     later = ctx.ebird.run(ctx.ebird.preview(write(tmp_path, "e.csv", table(FULL, rows))))
     assert later.outings == [] and ctx.sightings.get(later.added[0]).outing_id is None
+
+
+# ---- audit 3 (docs/22-code-audit-3.md) -----------------------------------------------
+def test_sightings_imported_before_outings_are_grouped_on_the_next_import(ctx, tmp_path):
+    """A1: Download My Data imported with 1.4 (no outings), imported again with 1.5+."""
+    rows = checklist_rows()
+    first = ctx.ebird.run(ctx.ebird.preview(write(tmp_path, "d.csv", table(FULL, rows))))
+    with ctx.db.transaction() as conn:  # as 1.4 left it: no outings
+        conn.execute("UPDATE sighting SET outing_id = NULL")
+        conn.execute("UPDATE sighting SET source_edited = 0")
+        conn.execute("DELETE FROM outing")
+    plan = ctx.ebird.preview(write(tmp_path, "d2.csv", table(FULL, rows)))
+    assert [r.action for r in plan.rows] == [SAME, SAME, SAME] and plan.new_outings == 2
+    again = ctx.ebird.run(plan)
+    assert len(again.outings) == 2 and sorted(again.grouped) == sorted(first.added)
+    robin, kingfisher, other = (ctx.sightings.get(i) for i in first.added)
+    assert robin.outing_id == kingfisher.outing_id != other.outing_id
+    # Grouping isn't your edit: a later download may still update them
+    assert ctx.ebird.preview(write(tmp_path, "d3.csv", table(FULL, rows))).new_outings == 0
+    with ctx.db.connection() as conn:
+        assert conn.execute("SELECT MAX(source_edited) FROM sighting").fetchone()[0] == 0
+    again.undo.run()
+    assert ctx.sightings.get(first.added[0]).outing_id is None
+
+
+def test_a_species_ebird_renamed_is_recognised_by_its_checklist(ctx, tmp_path):
+    """A3: eBird's names change every year; the sighting must not come in twice."""
+    path = write(tmp_path, "d.csv", table(FULL, [full_row()]))
+    first = ctx.ebird.run(ctx.ebird.preview(path))
+    with ctx.db.transaction() as conn:  # as if eBird used another name then
+        conn.execute("UPDATE sighting SET source_id = 'S100/Erithacus rubeculus'")
+    plan = ctx.ebird.preview(write(tmp_path, "d2.csv", table(FULL, [full_row()])))
+    assert [r.action for r in plan.rows] == [SAME]
+    assert plan.rows[0].existing_id == first.added[0]
+    assert ctx.sightings.totals(SightingFilter())[0] == 1
+
+
+def test_removing_an_import_later_puts_its_outings_away_too(ctx, tmp_path):
+    """A4: Settings › Import & export › remove, days later."""
+    result = ctx.ebird.run(
+        ctx.ebird.preview(write(tmp_path, "d.csv", table(FULL, checklist_rows())))
+    )
+    batch = ctx.import_history.batches()[0]
+    undo = ctx.import_history.remove(batch.id)
+    for outing_id in result.outings:
+        with pytest.raises(NotFoundError):
+            ctx.outings.get(outing_id)
+    undo.run()
+    assert [ctx.outings.get(i).sightings for i in result.outings] == [2, 1]
+
+
+def test_a_checklist_without_a_duration_isnt_an_outing_in_progress(ctx, tmp_path):
+    """A5: an incidental sighting today would otherwise look like the outing you're on."""
+    row = full_row(Date=ctx.sightings._today().isoformat(), Time="06:00 AM")
+    result = ctx.ebird.run(ctx.ebird.preview(write(tmp_path, "d.csv", table(FULL, [row]))))
+    outing = ctx.outings.get(result.outings[0])
+    assert (outing.start_time, outing.end_time) == ("06:00", "06:00")
+    assert not outing.in_progress
+
+
+def test_checklist_outings_are_named_by_place_and_date_and_link_to_ebird(ctx, tmp_path):
+    """B3: twenty visits to one reserve shouldn't all read 'Invented Park'."""
+    ctx.places.save(PlaceDraft("Invented Park", 52.12, -1.76))
+    rows = [
+        full_row(Location="Invented Park"),
+        full_row(
+            **{"Submission ID": "S9", "Location": "Elsewhere Moor", "Latitude": "", "Longitude": ""}
+        ),
+    ]
+    result = ctx.ebird.run(ctx.ebird.preview(write(tmp_path, "d.csv", table(FULL, rows))))
+    at_park, elsewhere = (ctx.outings.get(i) for i in result.outings)
+    assert at_park.title is None and at_park.display_title.startswith("Invented Park · ")
+    assert elsewhere.display_title == "Elsewhere Moor"
+    assert (at_park.source, at_park.source_id) == ("ebird", "S100")

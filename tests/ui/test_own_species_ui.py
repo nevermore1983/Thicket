@@ -64,3 +64,34 @@ def test_feedback_buttons_open_githubs_forms(window, monkeypatch):
         "problem.yml",
         "idea.yml",
     ]
+
+
+def test_settings_lists_your_species_to_change_or_remove(window, monkeypatch):
+    from wildlife.domain.models import SightingDraft
+    from wildlife.ui.own_species import OwnSpeciesDialog
+
+    catalogue = window.ctx.catalogue
+    used = catalogue.add_species("Erithacus akahige", "Japanese Robin")
+    catalogue.add_species("Novagenus inventus", None)
+    window.ctx.sightings.save(
+        SightingDraft(taxon_id=used.id, observed_date=window.ctx.sightings._today())
+    )
+    dialog = OwnSpeciesDialog(catalogue, window)
+    assert dialog.list.count() == 2
+    dialog.list.setCurrentRow(0)  # Japanese Robin, used once
+    assert "1 sighting" in dialog.list.currentItem().text()
+    assert dialog.edit_btn.isEnabled() and not dialog.remove_btn.isEnabled()
+    dialog.list.setCurrentRow(1)  # Novagenus inventus, unused
+    dialog._remove()
+    assert dialog.list.count() == 1 and dialog.changed
+
+    def fix(form):
+        form.common.setText("Japanese Robin (Komadori)")
+        form._add()
+        return form.result()
+
+    monkeypatch.setattr(AddSpeciesDialog, "exec", fix)
+    dialog.list.setCurrentRow(0)
+    dialog._edit()
+    assert "Komadori" in dialog.list.currentItem().text()
+    dialog.deleteLater()

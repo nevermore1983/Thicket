@@ -64,6 +64,7 @@ class ImportPlan:
     file_name: str
     source: str  # 'inaturalist', 'csv', ...
     rows: list[PlannedRow]
+    new_outings: int = 0  # outings importing would make (one per eBird checklist)
 
     def count(self, action: str) -> int:
         return sum(1 for r in self.rows if r.action == action)
@@ -90,6 +91,7 @@ class ImportResult:
     skipped: int = 0
     image_urls: dict[int, str] = field(default_factory=dict)  # sighting id -> first photo
     outings: list[int] = field(default_factory=list)  # outings made (eBird checklists)
+    grouped: list[int] = field(default_factory=list)  # sightings already here, now in one
     undo: Undo | None = None
 
     def describe(self) -> str:
@@ -180,6 +182,11 @@ class RecordImporter:
         today = self._today()
         with self._db.connection() as conn:
             known = repo.existing(conn, source)
+            visits = repo.by_visit(known) if any(r.visit_id for r in records) else {}
+            by_id = {e.sighting_id: e for e in known.values()}
+            claimed: set[int] = set()  # sightings a row of this file already stands for
+            outings_had = set(outings_repo.by_source(conn, source))
+            new_outings: set[str] = set()
             remembered = repo.remembered(conn, source)
             places = places_repo.all_places(conn, include_archived=True)
             have = {duplicate_key(d) for d in repo.live_drafts(conn)}
@@ -196,15 +203,21 @@ class RecordImporter:
                         rows.append(PlannedRow(rec, SAME, reason="Appears twice in this file"))
                         continue
                     seen.add(rec.source_id)
-                row = self._plan_row(conn, rec, known, remembered, cache, today)
+                row = self._plan_row(conn, rec, known, visits, claimed, remembered, cache, today)
                 if row.action == ADD and row.taxon_id and not rec.source_id:
                     key = duplicate_key(self._draft(rec, row.taxon_id, places))
                     if key in have:
                         row = replace(row, action=SAME, reason="Looks like a sighting you have")
                     have.add(key)  # the same row twice in one file is a duplicate too
+                if rec.outing is not None and rec.outing.key not in outings_had:
+                    ungrouped = row.action == SAME and (
+                        row.existing_id in by_id and by_id[row.existing_id].outing_id is None
+                    )
+                    if row.action in (ADD, UPDATE) or ungrouped:
+                        new_outings.add(rec.outing.key)
                 rows.append(row)
         progress(len(records), len(records))
-        return ImportPlan(file_name, source, rows)
+        return ImportPlan(file_name, source, rows, len(new_outings))
 
     def match(self, conn, rec: ImportRecord, remembered: dict[str, int]) -> tuple[int | None, str]:
         if rec.uksi_key and (found := repo.taxon_by_key(conn, rec.uksi_key)):
@@ -229,10 +242,21 @@ class RecordImporter:
                 return ids.pop(), "english"
         return None, ""
 
-    def _plan_row(self, conn, rec, known, remembered, cache, today) -> PlannedRow:
+    def _plan_row(self, conn, rec, known, visits, claimed, remembered, cache, today) -> PlannedRow:
         if rec.problem:
             return PlannedRow(rec, SKIP, reason=rec.problem)
+        key = (rec.uksi_key, rec.scientific_name, rec.common_name, rec.kingdom)
+        if key not in cache:
+            cache[key] = self.match(conn, rec, remembered)
+        taxon_id, how = cache[key]
         before = known.get(rec.source_id) if rec.source_id else None
+        if before is None and rec.visit_id and taxon_id:
+            # Not known by its id: the other app may have renamed the species since
+            found = visits.get((rec.visit_id, taxon_id))
+            if found is not None and found.sighting_id not in claimed:
+                before = found
+        if before is not None:
+            claimed.add(before.sighting_id)
         if before and before.deleted:
             return PlannedRow(rec, SKIP, reason="You deleted it in Thicket")
         if before and (rec.updated_at is None or rec.updated_at == before.source_updated_at):
@@ -248,10 +272,6 @@ class RecordImporter:
             )
         if rec.observed_date > today:
             return PlannedRow(rec, SKIP, reason="The date is in the future")
-        key = (rec.uksi_key, rec.scientific_name, rec.common_name, rec.kingdom)
-        if key not in cache:
-            cache[key] = self.match(conn, rec, remembered)
-        taxon_id, how = cache[key]
         action = UPDATE if before else ADD
         return PlannedRow(
             rec, action, taxon_id, how, existing_id=before.sighting_id if before else None
@@ -278,11 +298,17 @@ class RecordImporter:
                     repo.remember(conn, plan.source, name, taxon_id)
             previous: dict[int, tuple[SightingDraft, tuple]] = {}
             for row in plan.rows:
+                rec = row.record
+                if row.action == SAME:
+                    if row.existing_id and rec.outing is not None:  # imported before outings
+                        self._group(
+                            conn, row.existing_id, rec, outings, places, plan.source, result
+                        )
+                    continue
                 taxon_id = row.taxon_id or choices.get(row.record.name)
                 if row.action not in (ADD, UPDATE) or taxon_id is None:
-                    result.skipped += row.action != SAME
+                    result.skipped += 1
                     continue
-                rec = row.record
                 draft = self._draft(rec, taxon_id, places)
                 if rec.outing is not None:
                     outing_id = self._outing(conn, rec, outings, places, plan.source, result)
@@ -316,12 +342,25 @@ class RecordImporter:
         log.info("Import (%s) %s: %s", plan.source, plan.file_name, result.describe())
         if result.outings:
             self._events.publish("outings", tuple(result.outings))
-        self._events.publish("sightings", tuple(result.added + result.updated))
+        self._events.publish("sightings", tuple(result.added + result.updated + result.grouped))
         result.undo = Undo(
             f"Import of {len(result.added) + len(result.updated):,} sightings",
             lambda: self._undo(result, previous),
         )
         return result
+
+    def _group(self, conn, sighting_id, rec, outings, places, source, result) -> None:
+        """Put a sighting an earlier import brought in (before checklists became outings)
+        in its checklist's outing, unless it's in one already or in the recycle bin."""
+        state = conn.execute(
+            "SELECT outing_id, deleted_at FROM sighting WHERE id = ?", (sighting_id,)
+        ).fetchone()
+        if state is None or state[0] is not None or state[1] is not None:
+            return
+        outing_id = self._outing(conn, rec, outings, places, source, result)
+        if outing_id is not None:
+            repo.group_in_outing(conn, sighting_id, outing_id)
+            result.grouped.append(sighting_id)
 
     @staticmethod
     def _outing(conn, rec: ImportRecord, outings, places, source: str, result) -> int | None:
@@ -341,7 +380,9 @@ class RecordImporter:
             visit.start_time,
             visit.end_time,
             place_id,
-            visit.title,
+            # At a place of yours it's 'Rainham Marshes · Sun 12 Oct 2026' (no title):
+            # visits to one place then read apart. Otherwise the location's name.
+            None if place_id is not None else visit.title,
             is_complete_list=visit.is_complete_list,
             notes=visit.notes,
         )
@@ -390,12 +431,14 @@ class RecordImporter:
             # Photos fetched for the removed sightings go to the recycle bin
             orphans = [p.id for p in photos_repo.unlinked(conn, photo_ids)]
             photos_repo.soft_delete(conn, orphans)
+            for sid in result.grouped:  # out of the outings again, as they were
+                repo.group_in_outing(conn, sid, None)
             for outing_id in result.outings:  # the outings it made go too
                 outings_repo.link(conn, outings_repo.sighting_ids(conn, outing_id), None)
                 outings_repo.hard_delete(conn, outing_id)
             repo.delete_batch(conn, result.batch_id)
         if result.outings:
             self._events.publish("outings", tuple(result.outings))
-        self._events.publish("sightings", tuple(result.added + result.updated))
+        self._events.publish("sightings", tuple(result.added + result.updated + result.grouped))
         if orphans:
             self._events.publish("photos", tuple(orphans))

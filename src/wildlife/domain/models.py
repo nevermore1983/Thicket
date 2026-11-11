@@ -269,6 +269,8 @@ class Outing:
     notes: str | None
     sightings: int = 0
     species: int = 0
+    source: str | None = None  # 'ebird' for an outing made from a checklist
+    source_id: str | None = None  # the checklist's id
 
     @property
     def display_title(self) -> str:

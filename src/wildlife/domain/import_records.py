@@ -94,6 +94,9 @@ class ImportRecord:
     updated_at: str | None = None  # the other app's "last changed", to spot later edits
     problem: str | None = None  # why this row can't be imported
     outing: ImportOuting | None = None  # the checklist (visit) it was part of
+    # The visit it was recorded on (an eBird checklist), in a list or the full data. With
+    # the species, it recognises a record after the other app renames the species.
+    visit_id: str | None = None
 
     @property
     def name(self) -> str:

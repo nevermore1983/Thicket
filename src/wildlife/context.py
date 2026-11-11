@@ -93,7 +93,7 @@ class AppContext:
         self.export = ExportService(self.paths, self.db, self.settings)
         self.wildlife_import = WildlifeImporter(self.paths, self.db, self.events, self.photos)
         self.health = HealthService(self.paths, self.db, self.backup, self.catalogue)
-        self.import_history = ImportHistory(self.db, self.sightings)
+        self.import_history = ImportHistory(self.db, self.sightings, self.events)
         self.saved_filters = SavedFilters(self.db, self.events)
         self.species_notes = SpeciesNotes(self.db, self.events)
         self.spreadsheet = SpreadsheetImporter(

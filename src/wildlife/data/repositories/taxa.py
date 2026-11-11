@@ -291,12 +291,21 @@ def _name_index(conn: sqlite3.Connection) -> dict[tuple[str, str, str], int]:
 
 # --- your own species ---------------------------------------------------------------------
 def same_name(conn: sqlite3.Connection, scientific_name: str) -> Taxon | None:
-    """A species already in the list under this scientific name (hidden ones too)."""
-    row = conn.execute(
-        f"SELECT {_TAXON_COLS} FROM taxon t WHERE t.scientific_name = ? COLLATE NOCASE "
-        "ORDER BY t.is_custom LIMIT 1",
-        (" ".join(scientific_name.split()),),
-    ).fetchone()
+    """A species already in the list under this scientific name (hidden ones too), or
+    under it as an older name: 'Parus caeruleus' is the Blue Tit, Cyanistes caeruleus."""
+    name = " ".join(scientific_name.split())
+    row = (
+        conn.execute(
+            f"SELECT {_TAXON_COLS} FROM taxon t WHERE t.scientific_name = ? COLLATE NOCASE "
+            "ORDER BY t.is_custom LIMIT 1",
+            (name,),
+        ).fetchone()
+        or conn.execute(
+            f"SELECT {_TAXON_COLS} FROM taxon_name n JOIN taxon t ON t.id = n.taxon_id "
+            "WHERE n.name = ? AND n.kind = 'synonym' ORDER BY t.is_custom, t.priority DESC LIMIT 1",
+            (name,),
+        ).fetchone()
+    )
     return _taxon(row) if row else None
 
 
@@ -333,6 +342,46 @@ def add_own_species(
     )
     exchange.set_species_of_custom(conn, taxon_id)
     return taxon_id
+
+
+def own_species(conn: sqlite3.Connection) -> list[tuple[Taxon, int]]:
+    """The species you added yourself (that no pack has since taken over), with how many
+    sightings use each, those in the recycle bin included."""
+    rows = conn.execute(
+        f"SELECT {_TAXON_COLS}, (SELECT COUNT(*) FROM sighting s WHERE s.taxon_id = t.id) "
+        "AS uses FROM taxon t WHERE t.is_custom = 1 "
+        "AND NOT EXISTS (SELECT 1 FROM taxon_key k WHERE k.taxon_id = t.id) "
+        "ORDER BY COALESCE(t.common_name, t.scientific_name) COLLATE NOCASE"
+    )
+    return [(_taxon(r), r["uses"]) for r in rows]
+
+
+def rename_own_species(
+    conn: sqlite3.Connection,
+    taxon_id: int,
+    scientific_name: str,
+    common_name: str | None,
+    category_id: int,
+) -> None:
+    """New names (and group) for a species of your own, and its search names with them."""
+    conn.execute(
+        "UPDATE taxon SET scientific_name = ?, common_name = ?, category_id = ?, "
+        "category_is_manual = 1, updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') "
+        "WHERE id = ? AND is_custom = 1",
+        (scientific_name, common_name, category_id, taxon_id),
+    )
+    conn.execute("DELETE FROM taxon_name WHERE taxon_id = ? AND pack IS NULL", (taxon_id,))
+    names = [(scientific_name, "scientific"), (common_name, "common")]
+    conn.executemany(
+        "INSERT OR IGNORE INTO taxon_name (taxon_id, name, kind) VALUES (?, ?, ?)",
+        [(taxon_id, name, kind) for name, kind in names if name],
+    )
+
+
+def remove_own_species(conn: sqlite3.Connection, taxon_id: int) -> None:
+    """Remove a species of your own that no sighting uses (its names, any note about it
+    and names matched to it in imports go with it: their tables cascade)."""
+    conn.execute("DELETE FROM taxon WHERE id = ? AND is_custom = 1", (taxon_id,))
 
 
 # --- regions --------------------------------------------------------------------------

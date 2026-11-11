@@ -33,13 +33,24 @@ def test_your_own_species_is_found_counted_and_grouped(ctx):
     [
         ("", "needed"),
         ("Robin", "genus and species"),
+        ("Larus sp.", "genus and species"),  # a genus, not a species
         ("Erithacus rubecula", "in the list already"),  # say so, don't make a second one
+        # An older name of a species in the list: the same species, not a new one
+        ("Argentina anserina", "as Silverweed (Potentilla anserina)"),
     ],
 )
 def test_a_species_needs_a_new_scientific_name(ctx, scientific, problem):
     with pytest.raises(ValidationError) as refused:
         ctx.catalogue.add_species(scientific, None)
     assert problem in refused.value.fields["scientific_name"]
+
+
+@pytest.mark.parametrize(
+    "scientific",
+    ["Larus michahellis atlantis", "Dactylorhiza x grandis", "Anas platyrhynchos × Anas acuta"],
+)
+def test_subspecies_and_hybrids_are_accepted(ctx, scientific):
+    assert ctx.catalogue.add_species(scientific, None).scientific_name == scientific
 
 
 def test_a_group_with_no_relative_goes_in_other(ctx):
@@ -62,3 +73,41 @@ def test_feedback_forms_carry_the_versions_and_nothing_else():
     idea = parse_qs(urlsplit(form_url("idea")).query)
     assert set(idea) == {"template", "version"}
     assert form_url("idea").startswith("https://github.com/nevermore1983/Thicket/issues/new?")
+
+
+def test_your_own_species_can_be_corrected(ctx):
+    """B1: a typo in a species you added isn't permanent."""
+    own = ctx.catalogue.add_species("Erithacus akahigi", "Japanese Robn")
+    fixed = ctx.catalogue.rename_species(
+        own.id, "Erithacus akahige", "Japanese Robin", own.category_id
+    )
+    assert (fixed.scientific_name, fixed.common_name) == ("Erithacus akahige", "Japanese Robin")
+    assert [m.taxon.id for m in ctx.catalogue.search("Japanese Robin")] == [own.id]
+    assert ctx.catalogue.search("Robn") == []  # the old names are gone from search
+    with pytest.raises(ValidationError) as clash:
+        ctx.catalogue.rename_species(own.id, "Erithacus rubecula", None, own.category_id)
+    assert "in the list already" in clash.value.fields["scientific_name"]
+
+
+def test_your_own_species_can_be_removed_only_when_unused(ctx):
+    from wildlife.domain.errors import ConflictError
+
+    unused = ctx.catalogue.add_species("Novagenus inventus", None)
+    used = ctx.catalogue.add_species("Erithacus akahige", "Japanese Robin")
+    sighting = ctx.sightings.save(
+        SightingDraft(taxon_id=used.id, observed_date=ctx.sightings._today())
+    ).sighting
+    ctx.sightings.delete([sighting.id])  # in the recycle bin: still uses it
+    with pytest.raises(ConflictError, match="1 sighting uses"):
+        ctx.catalogue.remove_species(used.id)
+    ctx.catalogue.remove_species(unused.id)
+    assert [t.id for t, _ in ctx.catalogue.own_species()] == [used.id]
+    with pytest.raises(ConflictError):  # never a species from a list
+        ctx.catalogue.remove_species(taxon_id(ctx, "Erithacus rubecula"))
+
+
+def test_one_a_pack_took_over_isnt_listed_as_yours(ctx):
+    ctx.catalogue.add_species("Cardinalis cardinalis", "Redbird")
+    with ctx.db.transaction() as conn:
+        taxa_repo.install_pack(conn, US_PACK, "us-ca", "California", "gbif", "test")
+    assert ctx.catalogue.own_species() == []

@@ -2,6 +2,20 @@
 
 Each version's notes are used for its download page on GitHub (`scripts/release_notes.py`).
 
+## 1.5.1
+
+Fixes and improvements from a check of the code (docs/22-code-audit-3.md).
+
+- Fixed: an eBird **Download My Data** file imported before 1.5.0 never got its outings. Import it again, and the sightings it brought in are grouped into one outing per checklist. (Nothing else changes: they still update from later downloads.)
+- Fixed: when eBird renames a species (it updates its names every year), your next download no longer brings those sightings in a second time.
+- Fixed: removing an eBird import later (Settings › Import & export) now puts away the outings it made, instead of leaving them empty. Undo brings them back.
+- Fixed: an eBird checklist with no duration, imported on the day it was made, no longer looks like an outing in progress.
+- Fixed: adding your own species under an older scientific name of a species in the list (such as *Parus caeruleus*, the Blue Tit) made a second copy of it. Thicket now says which species it is. "Larus sp." isn't accepted as a species any more, and hybrids written with both genus names are.
+- **Change or remove your own species**, in Settings › Region › Your own species. A species can be removed if no sighting uses it.
+- Before an eBird import, the check page says how many outings it will make.
+- Outings made from eBird checklists at one of your places are named by the place and date (such as "Rainham Marshes · Sun 12 Oct 2026"), and link to their checklist on eBird.
+- Updated the libraries that read photos (Pillow 13.0, rawpy 0.28).
+
 ## 1.5.0
 
 - **Add your own species.** If a species isn't in your list (an escape, a new arrival, one from a region whose pack you haven't added), the species box now offers "Add … as your own species" as its last suggestion. Give it a name and its scientific name; its group comes from a known species of the same genus. It works like any other species, travels with your exports, and if a species pack adds it later, the two become one.

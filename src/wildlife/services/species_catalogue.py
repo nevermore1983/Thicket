@@ -13,14 +13,44 @@ from pathlib import Path
 
 from wildlife.data.db import Database
 from wildlife.data.repositories import taxa as repo
-from wildlife.domain.errors import ValidationError
+from wildlife.domain.errors import ConflictError, ValidationError
 from wildlife.domain.models import Category, Taxon, TaxonMatch
 from wildlife.services.events import EventHub
 
 log = logging.getLogger(__name__)
 Progress = Callable[[str, float], None]
-# "Emberiza bruniceps", "Larus michahellis atlantis", "Anas platyrhynchos × acuta"
-_SCIENTIFIC = re.compile(r"^[A-Za-z][a-z]+(?: (?:[a-z][a-z.-]+|×|x))+$")
+_GENUS = re.compile(r"^[A-Z][a-z]+$")
+_EPITHET = re.compile(r"^[a-z][a-z-]+$")  # 'bruniceps', 'novae-angliae'; not 'sp.'
+_RANK_WORDS = {"subsp.", "ssp.", "var.", "f."}
+_CROSS = {"×", "x"}
+
+
+def already_listed(have: Taxon) -> str:
+    """'That's in the list already, as Blue Tit (Cyanistes caeruleus). ...'"""
+    if have.common_name:
+        what = f"{have.common_name} ({have.scientific_name})"
+    else:
+        what = have.scientific_name
+    return f"That's in the list already, as {what}. Search for it instead."
+
+
+def looks_scientific(name: str) -> bool:
+    """A species' scientific name: 'Emberiza bruniceps', 'Larus michahellis atlantis',
+    'Dactylorhiza x grandis', 'Anas platyrhynchos × Anas acuta'. Not just a genus,
+    and not 'Larus sp.' (that's a genus, not a species)."""
+    words = name.split()
+    if len(words) < 2 or not _GENUS.match(words[0][:1].upper() + words[0][1:]):
+        return False
+    after_cross = False
+    for word in words[1:]:
+        if word in _CROSS:
+            after_cross = True
+            continue
+        ok = _EPITHET.match(word) or word in _RANK_WORDS or (after_cross and _GENUS.match(word))
+        if not ok:
+            return False
+        after_cross = False
+    return words[-1] not in _CROSS and words[-1] not in _RANK_WORDS
 
 
 def bundled_catalogue() -> tuple[Path, dict]:
@@ -108,23 +138,10 @@ class SpeciesCatalogue:
         """Add a species that isn't in any list (an escape, a new arrival, one from a
         region whose pack you haven't added). Raises ValidationError if the name is
         missing, doesn't look like a scientific name, or is in the list already."""
-        scientific = " ".join(scientific_name.split())
-        common = " ".join((common_name or "").split()) or None
-        if not scientific:
-            raise ValidationError({"scientific_name": "The scientific name is needed."})
-        if not _SCIENTIFIC.match(scientific):
-            raise ValidationError(
-                {"scientific_name": "Write it as genus and species, like Emberiza bruniceps."}
-            )
-        scientific = scientific[0].upper() + scientific[1:]
+        scientific, common = self._checked_names(scientific_name, common_name)
         with self._db.transaction() as conn:
             if (have := repo.same_name(conn, scientific)) is not None:
-                raise ValidationError(
-                    {
-                        "scientific_name": f"That's in the list already, as "
-                        f"{have.common_name or have.scientific_name}. Search for it instead."
-                    }
-                )
+                raise ValidationError({"scientific_name": already_listed(have)})
             if category_id is None:
                 relative = repo.genus_relative(conn, scientific)
                 category_id = relative["category_id"] if relative else self._fallback_id()
@@ -132,6 +149,50 @@ class SpeciesCatalogue:
         log.info("Added a species of your own: %s", scientific)
         self._events.publish("taxa", (taxon_id,))
         return self.get(taxon_id)
+
+    def own_species(self) -> list[tuple[Taxon, int]]:
+        """Your own species, with how many sightings use each (recycle bin included)."""
+        with self._db.connection() as conn:
+            return repo.own_species(conn)
+
+    def rename_species(
+        self, taxon_id: int, scientific_name: str, common_name: str | None, category_id: int
+    ) -> Taxon:
+        """Correct a species of your own: its names and group. Its sightings follow."""
+        scientific, common = self._checked_names(scientific_name, common_name)
+        with self._db.transaction() as conn:
+            have = repo.same_name(conn, scientific)
+            if have is not None and have.id != taxon_id:
+                raise ValidationError({"scientific_name": already_listed(have)})
+            repo.rename_own_species(conn, taxon_id, scientific, common, category_id)
+        self._events.publish("taxa", (taxon_id,))
+        return self.get(taxon_id)
+
+    def remove_species(self, taxon_id: int) -> None:
+        """Remove a species of your own, if no sighting uses it (recycle bin included)."""
+        uses = dict((t.id, n) for t, n in self.own_species()).get(taxon_id)
+        if uses is None:
+            raise ConflictError("Only a species you added yourself can be removed.")
+        if uses:
+            raise ConflictError(
+                f"{uses:,} sighting{'s use' if uses != 1 else ' uses'} this species, "
+                "including any in the recycle bin. Change their species first."
+            )
+        with self._db.transaction() as conn:
+            repo.remove_own_species(conn, taxon_id)
+        self._events.publish("taxa", (taxon_id,))
+
+    @staticmethod
+    def _checked_names(scientific_name: str, common_name: str | None) -> tuple[str, str | None]:
+        scientific = " ".join(scientific_name.split())
+        common = " ".join((common_name or "").split()) or None
+        if not scientific:
+            raise ValidationError({"scientific_name": "The scientific name is needed."})
+        if not looks_scientific(scientific):
+            raise ValidationError(
+                {"scientific_name": "Write it as genus and species, like Emberiza bruniceps."}
+            )
+        return scientific[0].upper() + scientific[1:], common
 
     def suggested_category(self, scientific_name: str) -> int | None:
         """The group of a known species in the same genus, if there is one."""

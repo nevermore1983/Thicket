@@ -491,6 +491,9 @@ class ImportDialog(QDialog):
             parts.append(f"{plan.count(SAME):,} already in Thicket")
         if plan.count(SKIP):
             parts.append(f"{plan.count(SKIP):,} can't be imported")
+        if plan.new_outings:
+            n = plan.new_outings
+            parts.append(f"<b>{n:,}</b> outing{'s' if n != 1 else ''}, one per checklist")
         self.summary.setText(" · ".join(parts))
         unmatched = plan.unmatched
         if unmatched:

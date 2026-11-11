@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from wildlife.context import AppContext
+from wildlife.domain import ebird
 from wildlife.domain.dates import fmt_date
 from wildlife.domain.filters import SightingFilter
 from wildlife.domain.models import Outing
@@ -128,6 +129,17 @@ class OutingDetail(PanelView):
             facts.addWidget(val, r, 1)
         facts.setColumnStretch(1, 1)
         b.addLayout(facts)
+        if o.source == ebird.SOURCE and o.source_id:  # made from an eBird checklist
+            link = ebird.CHECKLIST_URL.format(o.source_id)
+            origin = QLabel(
+                f'Imported from eBird · <a href="{link}" style="color:{t.accent}">'
+                "Open the checklist on eBird</a>"
+            )
+            origin.setTextFormat(Qt.TextFormat.RichText)
+            origin.setOpenExternalLinks(True)
+            origin.setToolTip(link)
+            origin.setProperty("role", "caption")
+            b.addWidget(origin)
 
         heading = QLabel("Sightings")
         heading.setProperty("role", "sectionTitle")
