@@ -250,6 +250,8 @@ def install_pack(
         if rec.get("c"):
             names.append((tid, rec["c"], "common", region))
         names.extend((tid, n, "common", region) for n in rec.get("en", ()))
+        # Local-language names (a European pack): searchable, never the one shown
+        names.extend((tid, n, "common", region) for n in rec.get("ln", ()))
         names.extend((tid, n, "synonym", region) for n in rec.get("sy", ()))
         if (bare := SUBGENUS.sub("", rec["s"])) != rec["s"]:
             names.append((tid, bare, "synonym", region))

@@ -499,11 +499,13 @@ class SettingsPage(QWidget):
         self.refresh()
 
     def _pack_credit(self) -> str:
-        """GBIF's credit, once a US state's species pack is added (its licence asks for it)."""
+        """GBIF's credit, once a region's species pack is added (its licence asks for it)."""
         states = [p for p in self.ctx.catalogue.packs() if p["source"] == "gbif"]
         if not states:
             return ""
-        return f". US states ({len(states)}): GBIF.org and the GBIF Backbone Taxonomy, CC BY 4.0"
+        return (
+            f". Species packs ({len(states)}): GBIF.org and the GBIF Backbone Taxonomy, CC BY 4.0"
+        )
 
     # ---- region (docs/16-regions-plan.md) ---------------------------------------
     def _region_rows(self) -> list[QWidget]:
@@ -513,7 +515,7 @@ class SettingsPage(QWidget):
             region.addItem(pack["name"], pack["region"])
         region.setCurrentIndex(max(0, region.findData(current)))
         region.activated.connect(lambda i: self._choose_region(region.itemData(i)))
-        add = button("Add a US state…", "secondary", "plus", self.theme, self._add_pack)
+        add = button("Add a region…", "secondary", "plus", self.theme, self._add_pack)
         packs = len(self.ctx.catalogue.packs())
         own = len(self.ctx.catalogue.own_species())
         manage = button("Change or remove…", "secondary", None, None, self._own_species)
@@ -526,8 +528,8 @@ class SettingsPage(QWidget):
             ),
             _row(
                 "Species packs",
-                f"{plural(packs, 'region')} added. A US state's species come from GBIF; "
-                "adding one needs the internet once.",
+                f"{plural(packs, 'region')} added. A European country's or US state's species "
+                "come from GBIF; adding one needs the internet once.",
                 add,
             ),
             _row(

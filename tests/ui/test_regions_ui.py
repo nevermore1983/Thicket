@@ -4,7 +4,7 @@
 
 from PySide6.QtWidgets import QApplication, QComboBox, QPushButton
 
-from helpers import MINI_CATALOGUE, serve_us_pack
+from helpers import FRANCE_PACK, MINI_CATALOGUE, US_PACK, serve_packs, serve_us_pack
 from wildlife.data.repositories import taxa as taxa_repo
 from wildlife.ui.dialogs import FirstRunDialog
 from wildlife.ui.regions import AddPackDialog
@@ -13,13 +13,14 @@ from wildlife.ui.regions import AddPackDialog
 def add_california(window, qtbot, use_it=True) -> AddPackDialog:
     serve_us_pack(window.ctx)
     dialog = AddPackDialog(window.ctx, window)
-    qtbot.waitUntil(lambda: dialog.list.count() == 1, timeout=10_000)
-    assert dialog.list.item(0).text().startswith("California  ·  5 species  ·  ")
-    assert dialog.list.item(0).text().endswith(" KB") and dialog.status.text().startswith(
-        "1 state."
+    qtbot.waitUntil(lambda: dialog.list.count() == 2, timeout=10_000)
+    assert dialog.list.item(0).text() == "United States"  # a heading, not a choice
+    assert dialog.list.item(1).text().strip().startswith("California  ·  5 species  ·  ")
+    assert dialog.list.item(1).text().endswith(" KB") and dialog.status.text().startswith(
+        "1 region."
     )
     dialog.use_it.setChecked(use_it)
-    dialog.list.setCurrentRow(0)
+    dialog.list.setCurrentRow(1)
     dialog._install()
     qtbot.waitUntil(lambda: dialog.installed_region == "us-ca", timeout=10_000)
     return dialog
@@ -50,7 +51,7 @@ def test_settings_switches_between_the_regions_added(window, qtbot):
     assert window.ctx.catalogue.region() == "us-ca"
     page._choose_region("uk")
     assert window.ctx.catalogue.search("robin")[0].taxon.display_name == "Robin"
-    assert any(b.text() == "Add a US state…" for b in page.findChildren(QPushButton))
+    assert any(b.text() == "Add a region…" for b in page.findChildren(QPushButton))
 
 
 def test_no_internet_in_the_dialog_is_explained(window, qtbot):
@@ -169,4 +170,60 @@ def test_gbif_is_credited_once_a_state_is_added(window, qtbot):
 
     assert "GBIF.org" not in credits()
     add_california(window, qtbot)
-    assert "US states (1): GBIF.org" in credits()
+    assert "Species packs (1): GBIF.org" in credits()
+
+
+# ---- Europe (docs/23-europe-packs-plan.md) --------------------------------------------
+def serve_france_and_california(ctx) -> None:
+    serve_packs(ctx, [("fr", "France", FRANCE_PACK), ("us-ca", "California", US_PACK)])
+
+
+def test_the_list_has_europe_and_the_us_under_headings(window, qtbot):
+    serve_france_and_california(window.ctx)
+    dialog = AddPackDialog(window.ctx, window)
+    qtbot.waitUntil(lambda: dialog.list.count() == 4, timeout=10_000)
+    texts = [dialog.list.item(i).text().strip() for i in range(4)]
+    assert texts[0] == "Europe" and texts[1].startswith("France")
+    assert texts[2] == "United States" and texts[3].startswith("California")
+    dialog.filter.setText("fra")  # finds France; the US heading goes with its states
+    hidden = [dialog.list.item(i).isHidden() for i in range(4)]
+    assert hidden == [False, False, True, True]
+    dialog.reject()
+
+
+def test_adding_france_shows_english_names_and_finds_french_ones(window, qtbot):
+    serve_france_and_california(window.ctx)
+    dialog = AddPackDialog(window.ctx, window)
+    qtbot.waitUntil(lambda: dialog.list.count() == 4, timeout=10_000)
+    dialog.list.setCurrentRow(1)
+    dialog._install()
+    qtbot.waitUntil(lambda: dialog.installed_region == "fr", timeout=10_000)
+    catalogue = window.ctx.catalogue
+    assert catalogue.region() == "fr"
+    redstart = catalogue.search("rougequeue")[0]
+    assert redstart.taxon.display_name == "Black Redstart"
+    assert redstart.matched_name == "Rougequeue noir"
+    assert catalogue.search("rougegorge")[0].taxon.display_name == "Robin"
+    # Linked, never copied: one Robin and one Red Fox, whichever pack they came from
+    assert len({m.taxon.id for m in catalogue.search("Erithacus rubecula")}) == 1
+
+
+def test_the_welcome_can_set_up_a_european_country(ctx, monkeypatch, qtbot):
+    serve_france_and_california(ctx)
+    dialog = _welcome(ctx, monkeypatch, qtbot)
+    dialog.in_europe.setChecked(True)
+    qtbot.waitUntil(lambda: dialog.country.count() == 1, timeout=10_000)
+    assert dialog.state.count() == 1  # California, under the US choice
+    assert dialog.chosen_pack().region == "fr"
+    dialog._next()
+    qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
+    assert "France" in dialog.progress_text.text() and ctx.catalogue.region() == "fr"
+
+
+def test_the_welcome_waits_for_a_country_too(ctx, monkeypatch, qtbot):
+    dialog = _welcome(ctx, monkeypatch, qtbot)
+    monkeypatch.setattr(dialog, "_ask_for_states", lambda: None)  # the list hasn't come yet
+    dialog.in_europe.setChecked(True)
+    dialog._next()
+    assert dialog.pages.currentIndex() == dialog.region_index
+    assert "Choose your country first" in dialog.state_note.text()

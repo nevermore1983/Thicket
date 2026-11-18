@@ -1,4 +1,5 @@
-"""Choosing where you record, and adding a US state's species pack (docs/16-regions-plan.md).
+"""Choosing where you record, and adding a region's species pack: a European country or a
+US state (docs/16-regions-plan.md, docs/23-europe-packs-plan.md).
 
 AddPackDialog lists the packs Thicket offers (from the internet, in the background),
 then downloads, checks and installs the one you choose, with progress. Nothing changes
@@ -23,6 +24,7 @@ from PySide6.QtWidgets import (
 
 from wildlife.context import AppContext
 from wildlife.domain.errors import WildlifeError
+from wildlife.domain.regions import EUROPE, US, group_of
 from wildlife.services.species_packs import Pack
 from wildlife.ui.components.visuals import plural
 from wildlife.ui.workers import run_in_background
@@ -51,33 +53,36 @@ def problem_text(exc: BaseException) -> str:
     return "Something went wrong. Nothing was changed; details are in the log."
 
 
+GROUPS = (EUROPE, US)  # how the list is arranged; a region this version doesn't know is last
+
+
 class AddPackDialog(QDialog):
-    """Add a US state's species: choose it, then it's downloaded, checked and installed."""
+    """Add a region's species: choose it, then it's downloaded, checked and installed."""
 
     def __init__(self, ctx: AppContext, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.ctx = ctx
         self.installed_region: str | None = None
         self._busy = False
-        self.setWindowTitle("Add a US state")
+        self.setWindowTitle("Add a region")
         self.setMinimumSize(480, 480)
         v = QVBoxLayout(self)
         v.setContentsMargins(20, 18, 20, 16)
         v.setSpacing(10)
         intro = QLabel(
-            "Species recorded in a state, with their American names, from GBIF (the Global "
+            "The species recorded in a European country or a US state, from GBIF (the Global "
             "Biodiversity Information Facility). Downloaded once; the UK list stays as it is."
         )
         intro.setWordWrap(True)
         intro.setProperty("role", "muted")
         v.addWidget(intro)
         self.filter = QLineEdit()
-        self.filter.setPlaceholderText("Type to find a state")
-        self.filter.setAccessibleName("Find a state")
+        self.filter.setPlaceholderText("Type to find a country or state")
+        self.filter.setAccessibleName("Find a region")
         self.filter.textChanged.connect(self._filter)
         v.addWidget(self.filter)
         self.list = QListWidget()
-        self.list.setAccessibleName("US states")
+        self.list.setAccessibleName("Regions")
         self.list.itemDoubleClicked.connect(lambda _item: self._install())
         self.list.currentItemChanged.connect(lambda *_: self._update_buttons())
         v.addWidget(self.list, 1)
@@ -89,7 +94,7 @@ class AddPackDialog(QDialog):
         self.progress.setTextVisible(False)
         self.progress.hide()
         v.addWidget(self.progress)
-        self.status = QLabel("Getting the list of states…")
+        self.status = QLabel("Getting the list of regions…")
         self.status.setWordWrap(True)
         self.status.setProperty("role", "muted")
         v.addWidget(self.status)
@@ -107,16 +112,27 @@ class AddPackDialog(QDialog):
 
     def _show(self, packs: list[Pack]) -> None:
         installed = {p["region"]: p["version"] for p in self.ctx.catalogue.packs()}
+        by_group: dict[str, list[Pack]] = {}
         for pack in packs:
-            text = describe(pack)
-            if pack.region in installed:
-                text += "  ·  added" + (
-                    "" if installed[pack.region] == pack.version else ": update available"
-                )
-            item = QListWidgetItem(text)
-            item.setData(Qt.ItemDataRole.UserRole, pack)
-            self.list.addItem(item)
-        self.status.setText(f"{plural(len(packs), 'state')}. Choose one, then Download and add.")
+            by_group.setdefault(group_of(pack.region), []).append(pack)
+        order = [g for g in GROUPS if g in by_group] + sorted(set(by_group) - set(GROUPS))
+        for group in order:
+            heading = QListWidgetItem(group)
+            heading.setFlags(Qt.ItemFlag.NoItemFlags)  # a heading, not a choice
+            font = heading.font()
+            font.setBold(True)
+            heading.setFont(font)
+            self.list.addItem(heading)
+            for pack in by_group[group]:
+                text = "    " + describe(pack)
+                if pack.region in installed:
+                    text += "  ·  added" + (
+                        "" if installed[pack.region] == pack.version else ": update available"
+                    )
+                item = QListWidgetItem(text)
+                item.setData(Qt.ItemDataRole.UserRole, pack)
+                self.list.addItem(item)
+        self.status.setText(f"{plural(len(packs), 'region')}. Choose one, then Download and add.")
         self._update_buttons()
 
     def _failed(self, exc: BaseException) -> None:
@@ -125,10 +141,21 @@ class AddPackDialog(QDialog):
         self.status.style().polish(self.status)
 
     def _filter(self, text: str) -> None:
+        """Show the regions whose name has the text, under their headings."""
         wanted = text.strip().lower()
+        heading, shown = None, False
         for i in range(self.list.count()):
             item = self.list.item(i)
-            item.setHidden(bool(wanted) and wanted not in item.text().lower())
+            if item.data(Qt.ItemDataRole.UserRole) is None:  # a heading
+                if heading is not None:
+                    heading.setHidden(not shown)
+                heading, shown = item, False
+                continue
+            hide = bool(wanted) and wanted not in item.text().lower()
+            item.setHidden(hide)
+            shown = shown or not hide
+        if heading is not None:
+            heading.setHidden(not shown)
 
     def _chosen(self) -> Pack | None:
         item = self.list.currentItem()

@@ -22,8 +22,10 @@ from wildlife.services.settings import SettingsService
 from wildlife.services.species_catalogue import SpeciesCatalogue
 
 log = logging.getLogger(__name__)
+# manifest-2.json lists the US states and the European countries (from 1.6.0);
+# manifest.json lists only the US states, for older versions, which don't know Europe.
 MANIFEST_URL = (
-    "https://github.com/nevermore1983/Thicket/releases/download/species-packs/manifest.json"
+    "https://github.com/nevermore1983/Thicket/releases/download/species-packs/manifest-2.json"
 )
 FORMAT = 1  # the newest manifest format this version understands
 MAX_PACK = 30 * 1024 * 1024  # the biggest state's pack is ~2 MB
@@ -36,7 +38,7 @@ class PackError(WildlifeError):
 
 @dataclass(frozen=True, slots=True)
 class Pack:
-    region: str  # 'us-ca'
+    region: str  # 'fr', 'us-ca'
     name: str  # 'California'
     species: int
     bytes: int

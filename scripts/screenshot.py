@@ -167,6 +167,28 @@ def main() -> int:
             page.table.selectRow(0)
         elif target.startswith("inat"):  # inat-start / inat-check / inat-done (invented rows)
             return import_dialog(target)
+        elif target in ("add-region", "welcome-region"):  # invented packs, never online
+            sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tests"))
+            from helpers import FRANCE_PACK, US_PACK, serve_packs
+
+            serve_packs(ctx, [("fr", "France", FRANCE_PACK), ("us-ca", "California", US_PACK)])
+            ctx.species_packs._offered = None
+            if target == "add-region":
+                from wildlife.ui.regions import AddPackDialog
+
+                window.go("settings")
+                dialog = AddPackDialog(ctx, window)
+                dialog.resize(520, 480)
+            else:
+                from wildlife.ui.dialogs import FirstRunDialog
+
+                dialog = FirstRunDialog(ctx, theme)
+                dialog.pages.setCurrentIndex(dialog.region_index)
+                dialog._update_step()
+                dialog.in_europe.setChecked(True)
+            dialog.show()
+            wait(lambda: False, 1.5)
+            return dialog
         elif target == "own-species":  # "Add your own species", from a name that isn't listed
             from wildlife.ui.own_species import AddSpeciesDialog
 

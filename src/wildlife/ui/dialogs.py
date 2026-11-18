@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 from wildlife.context import AppContext
 from wildlife.domain.dates import DateQuery, parse_date_query
 from wildlife.domain.filters import SightingFilter
+from wildlife.domain.regions import EUROPE, US, group_of
 from wildlife.ui.components.visuals import fmt_date, plural, swatch
 from wildlife.ui.regions import describe, problem_text
 from wildlife.ui.theme.icons import pixmap
@@ -129,8 +130,9 @@ class FirstRunDialog(QDialog):
         if hasattr(self, "name") and self.pages.currentWidget() is self.name.parentWidget():
             self.ctx.settings.update(recorder_name=self.name.text().strip())
         on_region_page = self.pages.currentIndex() == self.region_index
-        if on_region_page and self.in_us.isChecked() and self.state.currentData() is None:
-            self.state_note.setText("Choose your state first: the list is on its way.")
+        if on_region_page and not self.in_uk.isChecked() and self.chosen_pack() is None:
+            what = "country" if self.in_europe.isChecked() else "state"
+            self.state_note.setText(f"Choose your {what} first: the list is on its way.")
             return  # (the list hasn't come yet)
         if self.pages.currentIndex() == self.pages.count() - 1:
             self.accept()
@@ -145,7 +147,7 @@ class FirstRunDialog(QDialog):
 
         def done(count: int) -> None:
             pack = self.chosen_pack()
-            if pack is not None:  # the UK list is in: now the state's pack
+            if pack is not None:  # the UK list is in: now the country's or state's pack
                 self._install_pack(pack, count)
                 return
             self._finished(f"Done: {count:,} names installed.")
@@ -178,7 +180,7 @@ class FirstRunDialog(QDialog):
         if self.pages.currentIndex() == self.pages.count() - 1:
             self.next_btn.setText("Finish")
 
-    # ---- where you record (docs/16-regions-plan.md) ------------------------------------
+    # ---- where you record (docs/16-regions-plan.md, docs/23-europe-packs-plan.md) ------
     def _region_page(self) -> QWidget:
         page = self._page(
             "Where do you record?",
@@ -189,49 +191,67 @@ class FirstRunDialog(QDialog):
         layout.takeAt(layout.count() - 1)  # the stretch: the choices go above it
         self.in_uk = QRadioButton("United Kingdom")
         self.in_uk.setChecked(True)
+        self.in_europe = QRadioButton(
+            "Elsewhere in Europe: a country's species from GBIF (downloaded once)"
+        )
+        self.country = QComboBox()
+        self.country.setAccessibleName("European country")
         self.in_us = QRadioButton("United States: a state's species from GBIF (downloaded once)")
         self.state = QComboBox()
         self.state.setAccessibleName("US state")
-        self.state.setEnabled(False)
         self.state_note = QLabel()
         self.state_note.setWordWrap(True)
         self.state_note.setProperty("role", "muted")
-        self.in_us.toggled.connect(lambda on: self.state.setEnabled(on and self.state.count() > 0))
-        # Only asked for if you choose the US: choosing the UK never goes online
-        self.in_us.toggled.connect(lambda on: on and self._ask_for_states())
-        for w in (self.in_uk, self.in_us, self.state, self.state_note):
+        for choice, box in ((self.in_europe, self.country), (self.in_us, self.state)):
+            box.setEnabled(False)
+            choice.toggled.connect(lambda on, b=box: b.setEnabled(on and b.count() > 0))
+            # Only asked for if you choose one: choosing the UK never goes online
+            choice.toggled.connect(lambda on: on and self._ask_for_states())
+        for w in (
+            self.in_uk,
+            self.in_europe,
+            self.country,
+            self.in_us,
+            self.state,
+            self.state_note,
+        ):
             layout.addWidget(w)
         layout.addStretch(1)
         return page
 
     def _ask_for_states(self) -> None:
-        """Fetch the states offered, once, when you first choose the United States."""
+        """Fetch the countries and states offered, once, when you first choose Europe or
+        the United States."""
         if self._states_asked:
             return
         self._states_asked = True
-        self.state_note.setText("Getting the list of states…")
+        self.state_note.setText("Getting the list of regions…")
 
         def show(packs) -> None:
             for pack in packs:
-                self.state.addItem(describe(pack), pack)
+                box = {EUROPE: self.country, US: self.state}.get(group_of(pack.region))
+                if box is not None:
+                    box.addItem(describe(pack), pack)
             self.state_note.setText("")
-            self.state.setEnabled(self.in_us.isChecked())
+            self.country.setEnabled(self.in_europe.isChecked() and self.country.count() > 0)
+            self.state.setEnabled(self.in_us.isChecked() and self.state.count() > 0)
 
         def failed(exc: BaseException) -> None:
             self.in_uk.setChecked(True)  # nothing to choose from: back to the UK list
+            self.in_europe.setEnabled(False)
             self.in_us.setEnabled(False)
             self.state_note.setText(
-                f"{problem_text(exc)} You can carry on with the UK list and add a state later "
-                "in Settings › Region."
+                f"{problem_text(exc)} You can carry on with the UK list and add a region "
+                "later in Settings › Region."
             )
 
         run_in_background(self.ctx.species_packs.offered, on_done=show, on_error=failed)
 
     def chosen_pack(self):
-        """The state chosen on the region page, or None (the UK)."""
-        if self.region_index < 0 or not self.in_us.isChecked():
+        """The country or state chosen on the region page, or None (the UK)."""
+        if self.region_index < 0 or self.in_uk.isChecked():
             return None
-        return self.state.currentData()
+        return (self.country if self.in_europe.isChecked() else self.state).currentData()
 
     def _install_pack(self, pack, uk_count: int) -> None:
         def progress(step: str, fraction: float) -> None:

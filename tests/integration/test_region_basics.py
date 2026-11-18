@@ -11,17 +11,22 @@ from wildlife.domain.csv_import import (
     read_table_text,
 )
 from wildlife.domain.dates import local_clock, pc_local, uk_local
-from wildlife.domain.regions import POSTAL_CODES, REGIONS, region
+from wildlife.domain.regions import COUNTRY_CODES, POSTAL_CODES, REGIONS, group_of, region
 
 
 def test_the_regions_wildlife_knows():
-    assert len(POSTAL_CODES) == 51 and len(REGIONS) == 52  # 50 states, DC and the UK
+    assert len(POSTAL_CODES) == 51 and len(COUNTRY_CODES) == 46
+    assert len(REGIONS) == 98  # 50 states, DC, 46 European countries and the UK
     ohio = region("us-oh")
     assert (ohio.name, ohio.is_uk, ohio.month_first) == ("Ohio", False, True)
     assert region("uk").is_uk and not region("uk").month_first
     assert region("somewhere-unknown").code == "uk"
+    france = region("fr")
+    assert (france.name, france.group, france.month_first) == ("France", "Europe", False)
+    assert region("be").languages == ("fr", "nl", "de") and not region("fr").is_uk
+    assert group_of("us-oh") == "United States" and group_of("zz") == "Elsewhere"
     for r in REGIONS.values():  # every start view is on the map, at a sensible zoom
-        assert -90 < r.lat < 90 and -180 < r.lon < 180 and 3 <= r.zoom <= 11
+        assert -90 < r.lat < 90 and -180 < r.lon < 180 and 3 <= r.zoom <= 15
 
 
 def test_each_region_has_its_clock():

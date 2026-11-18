@@ -387,35 +387,68 @@ US_PACK = [
 ]
 
 
-def serve_us_pack(ctx, records=None) -> list[str]:
-    """Make ctx.species_packs fetch from a pretend internet offering one pack, California,
-    built from US_PACK (never the real internet). Returns the list of urls asked for."""
+# A made-up pack for France: English names shown (the UK's where it has the species),
+# French names searchable ("ln", docs/23-europe-packs-plan.md)
+FRANCE_PACK = [
+    {
+        "k": "gbif:2492462",
+        "r": "species",
+        "s": "Erithacus rubecula",
+        "c": "Robin",
+        "ln": ["Rougegorge familier"],
+        "l": [*_BIRD, "Muscicapidae"],
+        "pr": 9000,
+    },
+    {
+        "k": "gbif:2492546",
+        "r": "species",
+        "s": "Phoenicurus ochruros",
+        "c": "Black Redstart",
+        "ln": ["Rougequeue noir"],
+        "l": [*_BIRD, "Muscicapidae"],
+        "pr": 6000,
+    },
+    {
+        "k": "gbif:5219243",
+        "r": "species",
+        "s": "Vulpes vulpes",
+        "c": "Red Fox",
+        "ln": ["Renard roux"],
+        "l": ["Animalia", "Chordata", "Mammalia", "Carnivora", "Canidae"],
+        "pr": 700,
+    },
+]
+
+
+def serve_packs(ctx, packs: list[tuple[str, str, list[dict]]]) -> list[str]:
+    """Make ctx.species_packs fetch from a pretend internet offering these packs, each
+    (region, name, records) (never the real internet). Returns the urls asked for."""
     import gzip
     import hashlib
     import json
 
     from wildlife.services.species_packs import MANIFEST_URL
 
-    data = gzip.compress("".join(json.dumps(r) + "\n" for r in records or US_PACK).encode("utf-8"))
-    pack_url = (
-        "https://github.com/nevermore1983/Thicket/releases/download/packs-test/us-ca.jsonl.gz"
-    )
-    manifest = {
-        "format": 1,
-        "created": "2026-10-18",
-        "packs": [
+    base = "https://github.com/nevermore1983/Thicket/releases/download/packs-test/"
+    served: dict[str, bytes] = {}
+    listed = []
+    for region, name, records in packs:
+        data = gzip.compress("".join(json.dumps(r) + "\n" for r in records).encode("utf-8"))
+        url = f"{base}{region}.jsonl.gz"
+        served[url] = data
+        listed.append(
             {
-                "region": "us-ca",
-                "name": "California",
-                "file": "us-ca.jsonl.gz",
-                "species": len(records or US_PACK),
+                "region": region,
+                "name": name,
+                "file": f"{region}.jsonl.gz",
+                "species": len(records),
                 "bytes": len(data),
                 "sha256": hashlib.sha256(data).hexdigest(),
-                "url": pack_url,
+                "url": url,
             }
-        ],
-    }
-    served = {MANIFEST_URL: json.dumps(manifest).encode("utf-8"), pack_url: data}
+        )
+    manifest = {"format": 1, "created": "2026-10-18", "packs": listed}
+    served[MANIFEST_URL] = json.dumps(manifest).encode("utf-8")
     asked: list[str] = []
 
     def fetch(url: str) -> bytes:
@@ -424,6 +457,11 @@ def serve_us_pack(ctx, records=None) -> list[str]:
 
     ctx.species_packs._fetch = fetch
     return asked
+
+
+def serve_us_pack(ctx, records=None) -> list[str]:
+    """One pack on offer, California, built from US_PACK (see serve_packs)."""
+    return serve_packs(ctx, [("us-ca", "California", records or US_PACK)])
 
 
 # ---- eBird: invented rows of its two exports (Download My Data, a life list) ----------
