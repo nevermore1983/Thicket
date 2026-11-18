@@ -162,3 +162,14 @@ Nothing is published yet: until step 3 there's no `manifest-2.json` on GitHub, s
 - **Gaps:** GBIF has few Irish-language names, and a few species lack a local name (Red Fox in France). This affects search only. Most insects and fungi have no English name anywhere, as in the US packs (29% named overall, like the large US states).
 - **Islands:** Spain with the Canary Islands is 3.3 MB, so they stay in.
 - **Checks:** all three packs pass. Fewer than 1% of animals, plants and fungi end up in "Other".
+
+## Step 3 results (18 Nov 2026)
+
+Published. The `packs-2026-11` tag built every pack on GitHub in about 45 minutes (Actions run 44305601627), checked them all, and published them.
+
+- **`manifest-2.json`** (Thicket 1.6+) lists 97 packs: 46 European countries and 51 US states.
+- **`manifest.json`** (older versions) lists the 51 US states only, so Thicket 1.5 and earlier carry on as before.
+- **Sizes:** the European packs total 52.7 MB. The biggest are France (61,533 species, 4.0 MB), Sweden (53,797, 3.5 MB), Spain (51,126, 3.3 MB) and Germany (49,517, 3.4 MB). The smallest are Monaco (345 species), San Marino (189) and Vatican City (43).
+- **End-to-end check:** the app's own download code, with the real internet, listed 97 packs and installed Ireland's (12,420 species), checked against its checksum. "Robin" then finds Robin, and "Irish Hare" finds Irish Hare.
+
+Next: step 4, releasing Thicket 1.6.0, which reads `manifest-2.json`.
