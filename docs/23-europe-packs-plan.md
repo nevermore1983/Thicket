@@ -138,3 +138,27 @@ Done, with tests (684 pass, 4 more than before):
 - **Tests** use an invented French pack (`helpers.FRANCE_PACK`): adding France shows "Black Redstart", typing "rougequeue" finds it, and a species in both packs stays one species.
 
 Nothing is published yet: until step 3 there's no `manifest-2.json` on GitHub, so this version would find no packs. That's why step 3 comes before the release.
+
+## Step 2 results (18 Nov 2026)
+
+**The builder** (`scripts/build_species_packs.py`) builds European countries as well as US states:
+- `--regions fr,es,ie` (or `europe`, `us`) picks which regions; by default it builds all of them.
+- For Europe, English names come in this order: the UK list's name (read from the list built into Thicket), then names GBIF marks as used in Britain or Ireland, with the IOC bird list before Clements. US packs are built exactly as before.
+- Local names: up to three per language of the country, tidied and never repeating an English one.
+- It writes both lists: `manifest-2.json` (every pack) and `manifest.json` (US states only).
+
+**The checker** reads `manifest-2.json`, checks that `manifest.json` is its US part, and has lower minimums for the tiny countries. With `--complete` (the workflow) it fails if any region has no pack. The workflow builds Europe too, and publishes both lists.
+
+**Trial build** (France, Spain, Ireland; 7 minutes, mostly reading the Backbone):
+
+| Pack | Species | Linked to UK species | Size | English name | Local names | Installs in |
+|---|---|---|---|---|---|---|
+| France | 61,532 | 28,673 | 4.0 MB | 29% | 12% | 13.5 s |
+| Spain | 51,126 | 19,956 | 3.3 MB | 29% | 7.5% | 11.1 s |
+| Ireland | 12,420 | 10,229 | 0.9 MB | 53% | 0.6% | 3.4 s |
+
+- **Names are good.** Of France's 750 bird species, 747 have an English name and 734 French ones. Birds on the UK list keep their UK names (Blackbird, Woodpigeon, Pied Wagtail); the others get IOC names (Western Swamphen, Iberian Grey Shrike). Plants and mammals are just as good: Ivy, Hawthorn and Roe Deer, with "Lierre", "Aubépine" and "Chevreuil" searchable.
+- **Spain** finds Spanish and Catalan names ("Petirrojo", "Pit-roig").
+- **Gaps:** GBIF has few Irish-language names, and a few species lack a local name (Red Fox in France). This affects search only. Most insects and fungi have no English name anywhere, as in the US packs (29% named overall, like the large US states).
+- **Islands:** Spain with the Canary Islands is 3.3 MB, so they stay in.
+- **Checks:** all three packs pass. Fewer than 1% of animals, plants and fungi end up in "Other".

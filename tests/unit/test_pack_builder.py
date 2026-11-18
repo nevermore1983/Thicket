@@ -122,3 +122,72 @@ def test_only_vertebrates_and_dragonflies_get_a_name_looked_up():
         "order": "Coleoptera",
     }
     assert wants_a_name(bird) and wants_a_name(darter) and not wants_a_name(beetle)
+
+
+# ---- Europe (docs/23-europe-packs-plan.md) --------------------------------------------
+def test_europe_uses_the_uk_name_first_then_british_and_irish_ones():
+    from build_species_packs import EUROPE_NAMES
+
+    robin = [
+        Candidate("European Robin", "IOC World Bird List"),
+        Candidate("Robin Redbreast", "Some list", "GB"),
+    ]
+    name, others = choose_names(robin, True, EUROPE_NAMES, uk_name="Robin")
+    assert name == "Robin" and others == ["Robin Redbreast", "European Robin"]
+    redstart = [
+        Candidate("Black Redstart", "The Clements Checklist"),
+        Candidate("Black redstart", "Catalogue of Life Checklist", "GB"),
+    ]
+    assert choose_names(redstart, True, EUROPE_NAMES)[0] == "Black redstart"  # used in GB
+    wren = [
+        Candidate("Eurasian Wren", "The Clements Checklist"),
+        Candidate("Northern Wren", "IOC World Bird List"),
+    ]
+    assert choose_names(wren, True, EUROPE_NAMES)[0] == "Northern Wren"  # IOC before Clements
+    assert choose_names(wren, True)[0] == "Eurasian Wren"  # the US keeps Clements first
+
+
+def test_local_names_for_search():
+    from build_species_packs import local_names
+
+    by_language = {
+        "fr": ["rougequeue noir", "Rougequeue noir", "Rougequeue Noir / Titys", "Rossignol"],
+        "nl": ["Zwarte Roodstaart"],
+        "de": ["Hausrotschwanz"],
+    }
+    assert local_names(by_language, ("fr", "nl"), {"Black Redstart"}) == [
+        "Rougequeue noir",  # only the first letter capitalised, and only once
+        "Rossignol",
+        "Zwarte Roodstaart",
+    ]
+    assert local_names(by_language, (), set()) == []  # Gibraltar: English only
+
+
+def test_a_european_record_carries_its_local_names(tmp_path):
+    from build_species_packs import EUROPE_NAMES, write_manifests
+
+    taxon = {
+        "canonicalName": "Phoenicurus ochruros",
+        "scientificName": "Phoenicurus ochruros (S.G.Gmelin, 1774)",
+        "kingdom": "Animalia",
+        "class": "Aves",
+    }
+    rec = record(2492546, 50, taxon, [], [], EUROPE_NAMES, "Black Redstart", ["Rougequeue noir"])
+    assert rec["c"] == "Black Redstart" and rec["ln"] == ["Rougequeue noir"]
+    # Two lists: every pack for 1.6+, only the US for older versions
+    packs = [{"region": "fr"}, {"region": "us-oh"}]
+    write_manifests(tmp_path, {"format": 1, "packs": packs})
+    import json
+
+    newer = json.loads((tmp_path / "manifest-2.json").read_text(encoding="utf-8"))
+    older = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
+    assert [p["region"] for p in newer["packs"]] == ["fr", "us-oh"]
+    assert [p["region"] for p in older["packs"]] == ["us-oh"]
+
+
+def test_the_uk_lists_names_are_read_by_species_and_kingdom():
+    from build_species_packs import uk_names
+
+    names = uk_names()  # the UK list built into Thicket
+    assert names[("erithacus rubecula", "animalia")] == "Robin"
+    assert len(names) > 10_000
