@@ -173,3 +173,7 @@ Published. The `packs-2026-11` tag built every pack on GitHub in about 45 minute
 - **End-to-end check:** the app's own download code, with the real internet, listed 97 packs and installed Ireland's (12,420 species), checked against its checksum. "Robin" then finds Robin, and "Irish Hare" finds Irish Hare.
 
 Next: step 4, releasing Thicket 1.6.0, which reads `manifest-2.json`.
+
+## Step 4 (18 Nov 2026)
+
+Thicket 1.6.0: changelog entry; the website's home, features, Help ("The first start", "Changing region") and privacy pages, and the README, now mention Europe. The `v1.6.0` tag publishes it.

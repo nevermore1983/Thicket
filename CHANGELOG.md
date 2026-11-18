@@ -2,6 +2,16 @@
 
 Each version's notes are used for its download page on GitHub (`scripts/release_notes.py`).
 
+## 1.6.0
+
+**Species packs for Europe.** Every European country, from Ireland and Iceland to Greece and Ukraine, has its own species pack (46 in all; Russia and Turkey may follow later).
+
+- **Where you record:** the welcome screen offers the United Kingdom, **Elsewhere in Europe** (then a country) or the United States. In Settings › Region, **Add a region…** lists Europe's countries and the US states, with a search box.
+- **Names in British English:** a species that's also in the UK list keeps its UK name, so a Robin is "Robin" in France too. Other species get English names from GBIF, preferring those used in Britain and Ireland.
+- **Search in the local language:** typing "rougequeue noir" finds Black Redstart in France, and "pit-roig" finds Robin in Spain. Each pack carries names in its country's languages.
+- Suggestions put the species most recorded in that country first. The map opens on the country, and spreadsheet dates are read day-first, as in the UK.
+- As before, packs only add species: your sightings never change, and a species you already have (from the UK list, a US pack or one of your own) stays one species.
+
 ## 1.5.1
 
 Fixes and improvements from a check of the code (docs/22-code-audit-3.md).
