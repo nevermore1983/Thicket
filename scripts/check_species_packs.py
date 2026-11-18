@@ -2,9 +2,10 @@
 
     uv run python scripts/check_species_packs.py build/packs [--complete]
 
-Each pack is checked against manifest-2.json (size, SHA-256), then installed into a fresh
+Each pack is checked against manifest-3.json (size, SHA-256), then installed into a fresh
 Thicket database with the app's own code (on top of the UK list, as for a UK user who
-adds a region). manifest.json must list exactly its US states (for older versions), and
+adds a region). manifest-2.json and manifest.json must list exactly the packs the older
+versions know (see build_species_packs.write_manifests), and
 with --complete (the workflow) every region Thicket knows must have a pack. Reports, per pack, how many species Thicket couldn't sort into one of
 its categories ("Other"), how many have no English name, how many were linked to a UK
 species instead of being added, and how long installing took. Exits 1 if anything is
@@ -26,6 +27,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from build_species_packs import AFTER_1_6_0  # noqa: E402
 from ci_report import note, report_failures  # noqa: E402
 
 from wildlife.data.migrate import migrate  # noqa: E402
@@ -44,12 +46,16 @@ TINY = {"va": 20, "mc": 50, "sm": 100, "gi": 100, "li": 300, "ad": 300}
 
 def check(folder: Path, complete: bool = False) -> list[str]:
     """Problems found (none: all good)."""
-    manifest = json.loads((folder / "manifest-2.json").read_text(encoding="utf-8"))
+    manifest = json.loads((folder / "manifest-3.json").read_text(encoding="utf-8"))
+    v2 = json.loads((folder / "manifest-2.json").read_text(encoding="utf-8"))
     older = json.loads((folder / "manifest.json").read_text(encoding="utf-8"))
     problems = []
     us = [p for p in manifest["packs"] if p["region"].startswith("us-")]
     if older["packs"] != us:
-        problems.append("manifest.json isn't manifest-2.json's US states")
+        problems.append("manifest.json isn't manifest-3.json's US states")
+    known_to_1_6_0 = [p for p in manifest["packs"] if p["region"] not in AFTER_1_6_0]
+    if v2["packs"] != known_to_1_6_0:
+        problems.append("manifest-2.json isn't the packs Thicket 1.6.0 knows")
     if complete:
         missing = sorted(set(REGIONS) - {UK} - {p["region"] for p in manifest["packs"]})
         if missing:

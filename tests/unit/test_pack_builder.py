@@ -174,15 +174,27 @@ def test_a_european_record_carries_its_local_names(tmp_path):
     }
     rec = record(2492546, 50, taxon, [], [], EUROPE_NAMES, "Black Redstart", ["Rougequeue noir"])
     assert rec["c"] == "Black Redstart" and rec["ln"] == ["Rougequeue noir"]
-    # Two lists: every pack for 1.6+, only the US for older versions
-    packs = [{"region": "fr"}, {"region": "us-oh"}]
+    # Three lists, each with only the regions its versions know
+    packs = [{"region": "fr"}, {"region": "tr"}, {"region": "us-oh"}]
     write_manifests(tmp_path, {"format": 1, "packs": packs})
     import json
 
-    newer = json.loads((tmp_path / "manifest-2.json").read_text(encoding="utf-8"))
-    older = json.loads((tmp_path / "manifest.json").read_text(encoding="utf-8"))
-    assert [p["region"] for p in newer["packs"]] == ["fr", "us-oh"]
-    assert [p["region"] for p in older["packs"]] == ["us-oh"]
+    def regions(name: str) -> list[str]:
+        listed = json.loads((tmp_path / name).read_text(encoding="utf-8"))["packs"]
+        return [p["region"] for p in listed]
+
+    assert regions("manifest-3.json") == ["fr", "tr", "us-oh"]  # 1.6.1 and later
+    assert regions("manifest-2.json") == ["fr", "us-oh"]  # 1.6.0: no Turkey
+    assert regions("manifest.json") == ["us-oh"]  # 1.1 to 1.5
+
+
+def test_european_russia_is_west_of_the_urals():
+    from build_species_packs import european_countries
+
+    areas = {a.region: a for a in european_countries()}
+    assert areas["ru-eu"].filters == (("country", "RU"), ("decimalLongitude", "19,60"))
+    assert areas["ru"].filters == (("country", "RU"),)  # all of Russia
+    assert areas["tr"].filters == (("country", "TR"),) and areas["tr"].languages == ("tr",)
 
 
 def test_the_uk_lists_names_are_read_by_species_and_kingdom():
@@ -191,3 +203,23 @@ def test_the_uk_lists_names_are_read_by_species_and_kingdom():
     names = uk_names()  # the UK list built into Thicket
     assert names[("erithacus rubecula", "animalia")] == "Robin"
     assert len(names) > 10_000
+
+
+def test_the_uk_name_is_found_when_the_genus_differs():
+    """GBIF's Sylvia curruca is the UK list's Curruca curruca: Lesser Whitethroat, not
+    GBIF's Grey Whitethroat (the rule Thicket links them by, taxa.link_renamed)."""
+    from build_species_packs import uk_name_for, uk_names
+
+    uk = uk_names()
+    assert uk_name_for(uk, "Sylvia curruca", "Animalia", ["Curruca curruca curruca"]) == (
+        "Lesser Whitethroat"
+    )
+    assert uk_name_for(uk, "Erithacus rubecula", "Animalia", []) == "Robin"
+    invented = {
+        ("curruca communis", "animalia"): "Whitethroat",
+        ("synonym", "sylvia communis", "animalia"): {"Whitethroat"},
+        ("jasminum humile", "plantae"): "Italian Jasmine",
+    }
+    assert uk_name_for(invented, "Sylvia communis", "Animalia", []) == "Whitethroat"
+    # a synonym that changes the species' own word isn't trusted
+    assert uk_name_for(invented, "Chrysojasminum fruticans", "Plantae", ["Jasminum humile"]) is None

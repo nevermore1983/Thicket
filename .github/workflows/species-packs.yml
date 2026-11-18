@@ -4,9 +4,9 @@
 # and every US state (and DC) from GBIF, checks each one installs properly with Thicket's
 # own code, and publishes them as a release (never marked "latest", so the app's download
 # page is unchanged). Only then is Thicket pointed at them: the lists in the
-# "species-packs" release are replaced. manifest-2.json lists every pack (Thicket 1.6+);
-# manifest.json only the US states, for older versions. If anything fails, nothing is
-# published or changed.
+# "species-packs" release are replaced: manifest-3.json lists every pack (Thicket 1.6.1+),
+# manifest-2.json those 1.6.0 knows, manifest.json only the US states (older versions).
+# If anything fails, nothing is published or changed.
 #
 # The GBIF Backbone file is pinned by its SHA-256: if GBIF replaces it, this stops
 # instead of quietly building from different data (update the checksum on purpose).
@@ -64,7 +64,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$TAG" build/packs/*.jsonl.gz build/packs/manifest-2.json build/packs/manifest.json \
+          gh release create "$TAG" build/packs/*.jsonl.gz build/packs/manifest-3.json build/packs/manifest-2.json build/packs/manifest.json \
             --title "Species packs ($TAG)" --latest=false \
             --notes "Species packs for Thicket: one per European country and US state, from GBIF. Thicket downloads them itself (Settings › Region); there's nothing to download here by hand. $(uv run python -c 'import json; print(json.load(open("build/packs/manifest.json"))["citation"])')"
 
@@ -74,5 +74,5 @@ jobs:
         run: |
           gh release view species-packs > /dev/null 2>&1 || gh release create species-packs \
             --title "Species packs (current)" --latest=false \
-            --notes "Holds manifest-2.json (Thicket 1.6+) and manifest.json (US states only, for older versions): which species packs Thicket offers, with each pack's address and SHA-256. Updated by the Species packs workflow."
-          gh release upload species-packs build/packs/manifest-2.json build/packs/manifest.json --clobber
+            --notes "Holds manifest-3.json (Thicket 1.6.1+), manifest-2.json (1.6.0) and manifest.json (US states only, for older versions): which species packs Thicket offers, with each pack's address and SHA-256. Updated by the Species packs workflow."
+          gh release upload species-packs build/packs/manifest-3.json build/packs/manifest-2.json build/packs/manifest.json --clobber

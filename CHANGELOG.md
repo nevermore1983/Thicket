@@ -2,6 +2,12 @@
 
 Each version's notes are used for its download page on GitHub (`scripts/release_notes.py`).
 
+## 1.6.1
+
+**Species packs for Russia, Turkey and the Caucasus.** Six more regions in **Add a region…**: European Russia (west of the Urals), all of Russia, Turkey, Georgia, Armenia and Azerbaijan. Russian names are searchable in both Russia packs.
+
+- Fixed: a European or US pack could add a second copy of a species the UK list calls by a newer name, such as the Lesser Whitethroat (*Curruca curruca*, still *Sylvia curruca* in GBIF's list), which showed as "Grey Whitethroat". Packs now link to the UK species through its older names, and keep its UK name. If you installed a pack in 1.6.0, the copies are merged when Thicket 1.6.1 first starts: any sightings, notes and saved filters on them move to the UK species.
+
 ## 1.6.0
 
 **Species packs for Europe.** Every European country, from Ireland and Iceland to Greece and Ukraine, has its own species pack (46 in all; Russia and Turkey may follow later).

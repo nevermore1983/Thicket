@@ -15,10 +15,10 @@ For each region:
    first (Thicket is in British English), then names used in Britain or Ireland.
    European packs also carry names in the country's languages ("ln"), for search.
 Output (in --out, default build/packs): fr.jsonl.gz, us-ca.jsonl.gz ... in the same
-record format as the UK list (so Thicket installs them with the same code), and two
-lists of them with each pack's species count, size and SHA-256, which Thicket checks
-before installing: manifest-2.json (every pack, read by Thicket 1.6 and later) and
-manifest.json (the US states only, for older versions, which don't know Europe).
+record format as the UK list (so Thicket installs them with the same code), and lists
+of them with each pack's species count, size and SHA-256, which Thicket checks before
+installing: manifest-3.json (every pack), manifest-2.json (those Thicket 1.6.0 knows)
+and manifest.json (the US states only, for older versions): see write_manifests().
 """
 
 from __future__ import annotations
@@ -43,6 +43,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+from wildlife.data.repositories.taxa import binomial_of, same_species_word  # noqa: E402
 from wildlife.domain.regions import (  # noqa: E402  (one list of regions, shared with the app)
     EUROPE,
     POSTAL_CODES,
@@ -189,18 +190,42 @@ def local_names(
     return out
 
 
-def uk_names(path: Path | None = None) -> dict[tuple[str, str], str]:
+def uk_names(path: Path | None = None) -> dict:
     """The UK list's common names (the one built into Thicket), by (scientific name,
     kingdom): a species in it keeps its UK name in a European pack."""
     path = path or ROOT / "src" / "wildlife" / "resources" / "species" / "uksi_taxa.jsonl.gz"
-    names: dict[tuple[str, str], str] = {}
+    names: dict = {}  # (name, kingdom) -> its UK name; (SYNONYM, name, kingdom) -> {names}
     with gzip.open(path, "rt", encoding="utf-8") as f:
         for line in f:
             rec = json.loads(line)
             if rec.get("r") == "species" and rec.get("c"):
                 kingdom = ((rec.get("l") or [None])[0] or "").lower()
                 names.setdefault((rec["s"].lower(), kingdom), rec["c"])
+                for synonym in rec.get("sy", ()):
+                    if (binomial := binomial_of(synonym)) and same_species_word(synonym, rec["s"]):
+                        names.setdefault((SYNONYM, binomial, kingdom), set()).add(rec["c"])
     return names
+
+
+SYNONYM = "synonym"  # uk_names()'s keys for the UK list's older names: (SYNONYM, name, kingdom)
+
+
+def uk_name_for(uk: dict, canonical: str, kingdom: str, synonyms: list[str]) -> str | None:
+    """The UK list's name for a species, also when the two disagree on its genus (GBIF's
+    Sylvia curruca is the UK list's Curruca curruca, Lesser Whitethroat): by the GBIF
+    species' synonyms, or the UK list's. The same rule Thicket links them by
+    (taxa.link_renamed): only one fits, and the species' own word is the same."""
+    kingdom = kingdom.lower()
+    if found := uk.get((canonical.lower(), kingdom)):
+        return found
+    fits = {
+        uk[(b, kingdom)]
+        for s in synonyms
+        if (b := binomial_of(s)) and (b, kingdom) in uk and same_species_word(s, canonical)
+    }
+    if not fits and (b := binomial_of(canonical)):
+        fits = set(uk.get((SYNONYM, b, kingdom), ()))
+    return fits.pop() if len(fits) == 1 else None
 
 
 def wants_a_name(taxon: dict) -> bool:
@@ -270,10 +295,25 @@ def us_states() -> list[Area]:
     return states
 
 
+# Regions that aren't a whole country: GBIF's search filters for them
+SPECIAL_FILTERS = {
+    # Russia west of the Urals (about 60°E): Moscow, St Petersburg, the Volga, Kaliningrad
+    "ru-eu": (("country", "RU"), ("decimalLongitude", "19,60")),
+}
+# Packs Thicket 1.6.0 doesn't know (it reads manifest-2.json, which leaves them out)
+AFTER_1_6_0 = {"ru", "ru-eu", "tr", "ge", "am", "az"}
+
+
 def european_countries() -> list[Area]:
     """The countries of Europe Thicket offers (domain/regions.py), by GBIF's country code."""
     return [
-        Area(r.code, r.name, (("country", r.code.upper()),), EUROPE, r.languages)
+        Area(
+            r.code,
+            r.name,
+            SPECIAL_FILTERS.get(r.code, (("country", r.code.upper()),)),
+            EUROPE,
+            r.languages,
+        )
         for r in REGIONS.values()
         if r.group == EUROPE
     ]
@@ -500,7 +540,9 @@ def main() -> None:
                 continue
             uk_name = None
             if area.group == EUROPE:
-                uk_name = uk.get((canonical.lower(), (taxon.get("kingdom") or "").lower()))
+                uk_name = uk_name_for(
+                    uk, canonical, taxon.get("kingdom") or "", synonyms.get(k, [])
+                )
             english = {c.name for c in names.get(k, [])} | ({uk_name} if uk_name else set())
             ln = local_names(local.get(k, {}), area.languages, english) or None
             records.append(
@@ -532,12 +574,21 @@ def main() -> None:
 
 
 def write_manifests(out: Path, manifest: dict) -> None:
-    """manifest-2.json lists every pack (Thicket 1.6 and later); manifest.json only the
-    US states, for older versions, which would take a European country for the UK."""
+    """Three lists, each for the versions that know its regions:
+    manifest-3.json every pack (Thicket 1.6.1+, which skips regions it doesn't know);
+    manifest-2.json those 1.6.0 knows (it would take an unknown region for the UK);
+    manifest.json the US states only (1.1 to 1.5)."""
     out.mkdir(parents=True, exist_ok=True)
-    (out / "manifest-2.json").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
-    older = {**manifest, "packs": [p for p in manifest["packs"] if p["region"].startswith("us-")]}
-    (out / "manifest.json").write_text(json.dumps(older, indent=1), encoding="utf-8")
+
+    def write(name: str, keep) -> None:
+        packs = [p for p in manifest["packs"] if keep(p["region"])]
+        (out / name).write_text(
+            json.dumps({**manifest, "packs": packs}, indent=1), encoding="utf-8"
+        )
+
+    write("manifest-3.json", lambda region: True)
+    write("manifest-2.json", lambda region: region not in AFTER_1_6_0)
+    write("manifest.json", lambda region: region.startswith("us-"))
 
 
 if __name__ == "__main__":

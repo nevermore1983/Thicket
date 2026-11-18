@@ -177,3 +177,33 @@ Next: step 4, releasing Thicket 1.6.0, which reads `manifest-2.json`.
 ## Step 4 (18 Nov 2026)
 
 Thicket 1.6.0: changelog entry; the website's home, features, Help ("The first start", "Changing region") and privacy pages, and the README, now mention Europe. The `v1.6.0` tag publishes it.
+
+## Addendum: Russia, Turkey and the Caucasus (1.6.1)
+
+Asked for after 1.6.0. Six more regions, all in the Europe group with British English names:
+
+| Region | Code | Area | Local names |
+|---|---|---|---|
+| European Russia | `ru-eu` | Russia west of 60°E (the Urals) | Russian |
+| Russia (all) | `ru` | all of Russia, Siberia and the Far East too | Russian |
+| Turkey | `tr` | all of Turkey, Asian part too | Turkish |
+| Georgia | `ge` | the whole country | Georgian |
+| Armenia | `am` | the whole country | Armenian |
+| Azerbaijan | `az` | the whole country | Azerbaijani |
+
+- **European Russia** is the only pack not cut by country alone: GBIF's `decimalLongitude` filter (19 to 60) keeps it west of the Urals. Both Russia packs exist so someone in Moscow gets suggestions without Kamchatka's species, and someone travelling further can have them all.
+- **A third list.** 1.6.0 would show a region it doesn't know with the UK's map and grid squares, so the new packs are only in `manifest-3.json`, which 1.6.1 reads. `manifest-2.json` stays as 1.6.0 knows it (the builder's `AFTER_1_6_0`), and 1.6.1 also leaves out any pack whose region it doesn't know, so later regions can be added the same way without waiting.
+- **Local names are sparse.** GBIF has Russian names for most birds (441 of European Russia's 467) but few Turkish, Georgian, Armenian or Azerbaijani names (1 to 4% of species). Search by English or scientific name works everywhere.
+
+### One species under two names
+
+While checking Turkey's birds: GBIF's Backbone (2023) still has the Lesser Whitethroat as *Sylvia curruca*; the UK list has it as *Curruca curruca*. Packs linked to UK species only by key or the same scientific name, so a European pack added a **second** Lesser Whitethroat (named "Grey Whitethroat"), and so for about 1,200 of France's species (genus moves in birds, plants, fungi, insects).
+
+The fix, in the app and the builder alike (`taxa.link_renamed`, `uk_name_for`):
+
+- A pack species links to a UK species through synonyms: the pack's own (`sy`, a nominate subspecies such as *Curruca curruca curruca* counting as its species) or the UK list's.
+- Only when it's safe: exactly one UK species fits, same kingdom, the species' own word is the same give or take its Latin ending (*Bromus erectus* → *Bromopsis erecta*), no other GBIF species is linked to it, and no other species in the pack wants it. Synonyms that change that word are too often a name once misapplied to another species (GBIF lists *Jasminum humile* as a synonym of *Chrysojasminum fruticans*), so those stay two species. A missed pair is no worse than before; a wrong merge would be.
+- **Repair:** on its first start, 1.6.1 merges the copies 1.6.0 added. Sightings, notes, names, region details and saved filters move to the UK species; an imported sighting isn't marked as edited by the move.
+- European packs now show the UK name for these (Lesser Whitethroat, not Grey Whitethroat).
+
+With the real UK list and France's pack: 1,202 merged, in 1.4 s.

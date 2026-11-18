@@ -70,11 +70,14 @@ _STATES = (
     ("Wyoming", "WY", 43.0, -107.6, 5.8),
 )  # fmt: skip
 
-# name, country code (as GBIF uses it), centre (lat, lon), zoom, languages
+# name, country code (as GBIF uses it; RU-EU is Russia west of the Urals), centre (lat,
+# lon), zoom, languages. Russia, Turkey and the Caucasus came in version 1.6.1.
 _COUNTRIES = (
     ("Albania", "AL", 41.15, 20.17, 7.0, ("sq",)),
     ("Andorra", "AD", 42.55, 1.58, 10.5, ("ca",)),
+    ("Armenia", "AM", 40.2, 45.0, 7.6, ("hy",)),
     ("Austria", "AT", 47.6, 14.1, 6.6, ("de",)),
+    ("Azerbaijan", "AZ", 40.3, 47.7, 6.8, ("az",)),
     ("Belarus", "BY", 53.7, 28.0, 5.8, ("be", "ru")),
     ("Belgium", "BE", 50.6, 4.6, 7.3, ("fr", "nl", "de")),
     ("Bosnia and Herzegovina", "BA", 44.2, 17.8, 6.9, ("bs", "hr", "sr")),
@@ -85,8 +88,10 @@ _COUNTRIES = (
     ("Denmark", "DK", 56.0, 10.4, 6.4, ("da",)),
     ("Estonia", "EE", 58.7, 25.0, 6.8, ("et",)),
     ("Faroe Islands", "FO", 62.0, -6.9, 8.0, ("fo", "da")),
+    ("European Russia", "RU-EU", 55.8, 42.0, 4.2, ("ru",)),  # west of the Urals (60°E)
     ("Finland", "FI", 64.5, 26.0, 4.8, ("fi", "sv")),
     ("France", "FR", 46.6, 2.4, 5.2, ("fr",)),
+    ("Georgia", "GE", 42.3, 43.4, 6.8, ("ka",)),
     ("Germany", "DE", 51.2, 10.4, 5.5, ("de",)),
     ("Gibraltar", "GI", 36.14, -5.35, 12.5, ()),
     ("Greece", "GR", 39.0, 22.9, 5.9, ("el",)),
@@ -109,6 +114,7 @@ _COUNTRIES = (
     ("Poland", "PL", 52.0, 19.4, 5.8, ("pl",)),
     ("Portugal", "PT", 39.6, -8.0, 6.2, ("pt",)),
     ("Romania", "RO", 45.9, 25.0, 6.0, ("ro",)),
+    ("Russia (all)", "RU", 62.0, 95.0, 3.0, ("ru",)),
     ("San Marino", "SM", 43.94, 12.46, 11.5, ("it",)),
     ("Serbia", "RS", 44.0, 20.9, 6.7, ("sr",)),
     ("Slovakia", "SK", 48.7, 19.7, 7.0, ("sk",)),
@@ -116,6 +122,7 @@ _COUNTRIES = (
     ("Spain", "ES", 40.2, -3.6, 5.4, ("es", "ca", "eu", "gl")),
     ("Sweden", "SE", 62.5, 16.5, 4.4, ("sv",)),
     ("Switzerland", "CH", 46.8, 8.2, 7.2, ("de", "fr", "it")),
+    ("Turkey", "TR", 39.0, 35.2, 5.6, ("tr",)),
     ("Ukraine", "UA", 48.8, 31.4, 5.2, ("uk",)),
     ("Vatican City", "VA", 41.903, 12.453, 14.5, ("it",)),
 )

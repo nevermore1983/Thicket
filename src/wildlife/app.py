@@ -220,6 +220,7 @@ def _after_start(ctx: AppContext, theme, window, restored=None) -> None:
 
     if ctx.catalogue.needs_install():
         FirstRunDialog(ctx, theme, updating=ctx.catalogue.installed_version() is not None).exec()
+    ctx.catalogue.link_renamed_once()
     removed = ctx.sightings.purge_recycle_bin()
     if removed:
         log.info("Emptied %d old sightings from the recycle bin", removed)

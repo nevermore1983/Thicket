@@ -17,15 +17,18 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from wildlife.domain.errors import OnlineServiceError, WildlifeError
+from wildlife.domain.regions import REGIONS
 from wildlife.services import online
 from wildlife.services.settings import SettingsService
 from wildlife.services.species_catalogue import SpeciesCatalogue
 
 log = logging.getLogger(__name__)
-# manifest-2.json lists the US states and the European countries (from 1.6.0);
-# manifest.json lists only the US states, for older versions, which don't know Europe.
+# manifest-3.json lists every pack (from 1.6.1, which skips any region it doesn't know,
+# so later packs can join it); manifest-2.json the ones 1.6.0 knows (Europe without
+# Russia, Turkey and the Caucasus, and the US); manifest.json only the US states, for
+# older versions still.
 MANIFEST_URL = (
-    "https://github.com/nevermore1983/Thicket/releases/download/species-packs/manifest-2.json"
+    "https://github.com/nevermore1983/Thicket/releases/download/species-packs/manifest-3.json"
 )
 FORMAT = 1  # the newest manifest format this version understands
 MAX_PACK = 30 * 1024 * 1024  # the biggest state's pack is ~2 MB
@@ -92,6 +95,11 @@ class SpeciesPacks:
                 )
             except (KeyError, TypeError, ValueError):
                 log.warning("Skipped a species pack the list describes badly: %r", p)
+                continue
+            if packs[-1].region not in REGIONS:  # added after this version: it needs an update
+                log.info(
+                    "Skipped the %s pack: a region this version doesn't know", packs.pop().name
+                )
         self._offered = sorted(packs, key=lambda p: p.name)
         return self._offered
 

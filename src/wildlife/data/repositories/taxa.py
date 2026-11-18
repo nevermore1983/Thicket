@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
+from collections import defaultdict
 from collections.abc import Callable, Iterable
 
 from wildlife.data.repositories import exchange
@@ -269,6 +271,7 @@ def install_pack(
         "installed_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
         (region, name, source, version, len(records)),
     )
+    link_renamed(conn)  # the UK list's Curruca curruca is GBIF's Sylvia curruca
     progress("Showing your region's names", 0.95)
     apply_region(conn, current_region(conn))
     progress("Done", 1.0)
@@ -289,6 +292,114 @@ def _name_index(conn: sqlite3.Connection) -> dict[tuple[str, str, str], int]:
     ):
         index[_name_key(name, rank, kingdom)] = taxon_id  # the last one written wins
     return index
+
+
+# --- one species under two names ----------------------------------------------------------
+def binomial_of(name: str) -> str | None:
+    """'Curruca curruca' as it's compared: lower case, no subgenus. The nominate
+    subspecies ('Curruca curruca curruca') counts as its species; other names don't."""
+    words = SUBGENUS.sub("", name).lower().split()
+    if len(words) == 3 and words[1] == words[2]:
+        words = words[:2]
+    return " ".join(words) if len(words) == 2 else None
+
+
+def same_species_word(a: str, b: str) -> bool:
+    """A genus move keeps the species' own word, give or take its Latin ending
+    ('Bromus erectus' -> 'Bromopsis erecta'). Synonyms that change it are too often a
+    name once misapplied to a different species, so they're never trusted to merge."""
+    return a.lower().split()[-1][:4] == b.lower().split()[-1][:4]
+
+
+def link_renamed(conn: sqlite3.Connection) -> int:
+    """Merge species a GBIF pack added that the UK list already has under another name.
+
+    GBIF's Backbone and the UK list don't always agree on the genus: GBIF's Sylvia
+    curruca is the UK list's Curruca curruca (Lesser Whitethroat). Packs link by key
+    or by the same scientific name, so a pack could add a second Lesser Whitethroat.
+    This finds them by synonyms (the pack's own, or the UK list's), and merges the
+    pack's copy into the UK species: sightings, notes, names and region details move
+    across. Cautious on purpose: a missed pair stays two species as before; a wrong
+    merge would be worse. Only when exactly one UK species fits, both are species in
+    the same kingdom, the species' own word matches, and no other GBIF species is
+    linked to it. Runs inside the caller's transaction; returns how many were merged."""
+    gbif_linked = {
+        tid for (tid,) in conn.execute("SELECT taxon_id FROM taxon_key WHERE key LIKE 'gbif:%'")
+    }
+    name_of: dict[int, str] = {}
+    added: list[tuple[int, str, str]] = []  # (id, binomial, kingdom) of species a pack added
+    listed: dict[tuple[str, str], list[int]] = defaultdict(list)  # the UK list's species
+    for tid, name, kingdom, key in conn.execute(
+        "SELECT id, scientific_name, coalesce(lower(tax_kingdom), ''), catalogue_key FROM taxon "
+        "WHERE rank = 'species' AND is_custom = 0"
+    ):
+        if (binomial := binomial_of(name)) is None:
+            continue
+        name_of[tid] = name
+        if key and key.startswith("gbif:"):
+            added.append((tid, binomial, kingdom))
+        else:
+            listed[(binomial, kingdom)].append(tid)
+    if not added:
+        return 0
+    kingdom_of = {tid: k for (_, k), tids in listed.items() for tid in tids}
+    added_ids = {tid for tid, _, _ in added}
+    synonyms: dict[int, set[str]] = defaultdict(set)  # a pack species' own synonyms
+    known_as: dict[tuple[str, str], set[int]] = defaultdict(set)  # UK species by synonym
+    for tid, name in conn.execute("SELECT taxon_id, name FROM taxon_name WHERE kind = 'synonym'"):
+        if (binomial := binomial_of(name)) is None:
+            continue
+        if tid in added_ids:
+            synonyms[tid].add(binomial)
+        elif tid in kingdom_of:
+            known_as[(binomial, kingdom_of[tid])].add(tid)
+
+    claims: dict[int, list[int]] = defaultdict(list)
+    for tid, binomial, kingdom in added:
+        if (binomial, kingdom) in listed:
+            continue  # the same name: linked already, or deliberately kept apart
+        fits = {t for s in synonyms[tid] for t in listed.get((s, kingdom), ())}
+        fits = fits or known_as.get((binomial, kingdom), set())
+        fits = {
+            t for t in fits if t not in gbif_linked and same_species_word(name_of[tid], name_of[t])
+        }
+        if len(fits) == 1:
+            claims[fits.pop()].append(tid)
+    pairs = [(copies[0], uk) for uk, copies in claims.items() if len(copies) == 1]
+    for copy, uk in pairs:
+        _merge(conn, copy, uk)
+    return len(pairs)
+
+
+def _merge(conn: sqlite3.Connection, copy: int, into: int) -> None:
+    """Move everything of one species onto another, then remove it."""
+    # Moving a sighting isn't you editing it: keep an import's "not edited" mark
+    untouched = conn.execute(
+        "SELECT id FROM sighting WHERE taxon_id = ? AND source_edited = 0", (copy,)
+    ).fetchall()
+    conn.execute("UPDATE sighting SET taxon_id = ? WHERE taxon_id = ?", (into, copy))
+    conn.executemany("UPDATE sighting SET source_edited = 0 WHERE id = ?", untouched)
+    for table in ("taxon_key", "name_match"):
+        conn.execute(f"UPDATE {table} SET taxon_id = ? WHERE taxon_id = ?", (into, copy))
+    for table in ("taxon_region", "taxon_name"):  # what the other has already, it keeps
+        conn.execute(f"UPDATE OR IGNORE {table} SET taxon_id = ? WHERE taxon_id = ?", (into, copy))
+    conn.execute(
+        "UPDATE species_note SET notes = substr(notes || char(10, 10) || "
+        "(SELECT notes FROM species_note WHERE taxon_id = :copy), 1, 10000) "
+        "WHERE taxon_id = :into AND EXISTS (SELECT 1 FROM species_note WHERE taxon_id = :copy)",
+        {"copy": copy, "into": into},
+    )
+    conn.execute("UPDATE OR IGNORE species_note SET taxon_id = ? WHERE taxon_id = ?", (into, copy))
+    conn.execute("UPDATE taxon SET parent_id = ? WHERE parent_id = ?", (into, copy))
+    conn.execute("UPDATE taxon SET species_id = ? WHERE species_id = ?", (into, copy))
+    for fid, text in conn.execute("SELECT id, filter FROM saved_filter").fetchall():
+        saved = json.loads(text)
+        if copy in saved.get("taxon_ids", ()):
+            saved["taxon_ids"] = sorted({into if t == copy else t for t in saved["taxon_ids"]})
+            conn.execute(
+                "UPDATE saved_filter SET filter = ? WHERE id = ?", (json.dumps(saved), fid)
+            )
+    conn.execute("DELETE FROM taxon WHERE id = ?", (copy,))
 
 
 # --- your own species ---------------------------------------------------------------------

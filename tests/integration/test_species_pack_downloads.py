@@ -137,3 +137,13 @@ def test_only_wildlifes_github_releases_are_approved():
     )
     assert not is_allowed("http://github.com/nevermore1983/Thicket")  # https only
     assert not is_allowed("https://raw.githubusercontent.com/someone/else/main/pack.gz")
+
+
+def test_a_pack_for_a_region_this_version_doesnt_know_is_left_out(ctx):
+    """A newer list can offer regions added later: offering them would show the UK's map
+    and grid squares for them, so they wait for an update."""
+    from helpers import FRANCE_PACK, serve_packs
+
+    ctx.settings.update(allow_online=True)
+    serve_packs(ctx, [("fr", "France", FRANCE_PACK), ("xx-new", "Somewhere new", FRANCE_PACK)])
+    assert [p.region for p in ctx.species_packs.offered(refresh=True)] == ["fr"]

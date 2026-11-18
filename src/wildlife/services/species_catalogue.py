@@ -93,6 +93,21 @@ class SpeciesCatalogue:
         self._events.publish("taxa")
         return n
 
+    def link_renamed_once(self) -> int:
+        """Merge the second copies 1.6.0's European packs could add (Sylvia curruca next
+        to the UK list's Curruca curruca): once, on the first start of 1.6.1."""
+        with self._db.transaction() as conn:
+            if repo.get_meta(conn, "renamed_linked"):
+                return 0
+            merged = repo.link_renamed(conn)
+            if merged:
+                repo.apply_region(conn, repo.current_region(conn))
+            repo.set_meta(conn, "renamed_linked", "1")
+        if merged:
+            log.info("Merged %d species a pack had added twice under another name", merged)
+            self._events.publish("taxa")
+        return merged
+
     # ---- species packs and regions (docs/16-regions-plan.md) ------------------
     def install_pack(
         self,

@@ -15,8 +15,18 @@ from wildlife.domain.regions import COUNTRY_CODES, POSTAL_CODES, REGIONS, group_
 
 
 def test_the_regions_wildlife_knows():
-    assert len(POSTAL_CODES) == 51 and len(COUNTRY_CODES) == 46
-    assert len(REGIONS) == 98  # 50 states, DC, 46 European countries and the UK
+    assert len(POSTAL_CODES) == 51 and len(COUNTRY_CODES) == 52
+    assert len(REGIONS) == 104  # 50 states, DC, 52 European regions and the UK
+    # Russia twice (west of the Urals, and all of it), Turkey and the Caucasus (1.6.1)
+    assert {region(c).name for c in ("ru-eu", "ru", "tr", "ge", "am", "az")} == {
+        "European Russia",
+        "Russia (all)",
+        "Turkey",
+        "Georgia",
+        "Armenia",
+        "Azerbaijan",
+    }
+    assert region("ru").languages == ("ru",) and region("ru-eu").group == "Europe"
     ohio = region("us-oh")
     assert (ohio.name, ohio.is_uk, ohio.month_first) == ("Ohio", False, True)
     assert region("uk").is_uk and not region("uk").month_first
