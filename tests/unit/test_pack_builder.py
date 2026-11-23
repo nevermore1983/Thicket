@@ -175,7 +175,7 @@ def test_a_european_record_carries_its_local_names(tmp_path):
     rec = record(2492546, 50, taxon, [], [], EUROPE_NAMES, "Black Redstart", ["Rougequeue noir"])
     assert rec["c"] == "Black Redstart" and rec["ln"] == ["Rougequeue noir"]
     # Three lists, each with only the regions its versions know
-    packs = [{"region": "fr"}, {"region": "tr"}, {"region": "us-oh"}]
+    packs = [{"region": r} for r in ("fr", "tr", "us-oh", "ca-on", "au-tas", "nz")]
     write_manifests(tmp_path, {"format": 1, "packs": packs})
     import json
 
@@ -183,8 +183,8 @@ def test_a_european_record_carries_its_local_names(tmp_path):
         listed = json.loads((tmp_path / name).read_text(encoding="utf-8"))["packs"]
         return [p["region"] for p in listed]
 
-    assert regions("manifest-3.json") == ["fr", "tr", "us-oh"]  # 1.6.1 and later
-    assert regions("manifest-2.json") == ["fr", "us-oh"]  # 1.6.0: no Turkey
+    assert regions("manifest-3.json") == ["fr", "tr", "us-oh", "ca-on", "au-tas", "nz"]
+    assert regions("manifest-2.json") == ["fr", "us-oh"]  # 1.6.0: no Turkey, no Canada...
     assert regions("manifest.json") == ["us-oh"]  # 1.1 to 1.5
 
 
@@ -223,3 +223,120 @@ def test_the_uk_name_is_found_when_the_genus_differs():
     assert uk_name_for(invented, "Sylvia communis", "Animalia", []) == "Whitethroat"
     # a synonym that changes the species' own word isn't trusted
     assert uk_name_for(invented, "Chrysojasminum fruticans", "Plantae", ["Jasminum humile"]) is None
+
+
+# ---- Canada, Australia and New Zealand (docs/24-canada-australia-nz-plan.md) ---------
+def pretend_gbif(monkeypatch, areas: dict[str, str]):
+    """GBIF's GADM areas: id -> name (a made-up answer, never the internet)."""
+    import build_species_packs
+
+    def get_json(path, params=None):
+        if path == "occurrence/search":
+            counts = [{"name": gid, "count": 1} for gid in [*areas, "USA.27_1"]]
+            return {"facets": [{"counts": counts}]}
+        return {"name": areas[path.removeprefix("geocode/gadm/")]}
+
+    monkeypatch.setattr(build_species_packs, "get_json", get_json)
+
+
+def test_australias_states_with_jervis_bay_in_new_south_wales(monkeypatch):
+    from build_species_packs import australian_states
+
+    names = [
+        "Ashmore and Cartier Islands",
+        "Australian Capital Territory",
+        "Coral Sea Islands Territory",
+        "Jervis Bay Territory",
+        "New South Wales",
+        "Northern Territory",
+        "Queensland",
+        "South Australia",
+        "Tasmania",
+        "Victoria",
+        "Western Australia",
+    ]
+    pretend_gbif(monkeypatch, {f"AUS.{i + 1}_1": n for i, n in enumerate(names)})
+    areas = {a.region: a for a in australian_states()}
+    assert len(areas) == 8  # the remote reefs are left out
+    assert areas["au-nsw"].filters == (
+        ("country", "AU"),
+        ("gadmLevel1Gid", "AUS.4_1"),  # Jervis Bay Territory
+        ("gadmLevel1Gid", "AUS.5_1"),
+    )
+    assert areas["au-tas"].name == "Tasmania" and areas["au-tas"].group == "Australia"
+
+
+def test_canadas_provinces_match_gadms_accented_names(monkeypatch):
+    from build_species_packs import canadian_provinces
+
+    from wildlife.domain.regions import PROVINCE_CODES
+
+    names = [n if n != "Quebec" else "Québec" for n in PROVINCE_CODES]  # as GADM has it
+    pretend_gbif(monkeypatch, {f"CAN.{i + 1}_1": n for i, n in enumerate(names)})
+    areas = {a.region: a for a in canadian_provinces()}
+    assert len(areas) == 13
+    assert areas["ca-qc"].name == "Quebec" and areas["ca-qc"].languages == ("fr",)
+    assert areas["ca-on"].languages == () and areas["ca-on"].style.home == ("CA", "US")
+
+
+def test_an_area_gbif_has_but_thicket_doesnt_stops_the_build(monkeypatch):
+    import pytest
+    from build_species_packs import canadian_provinces
+
+    pretend_gbif(monkeypatch, {"CAN.1_1": "Alberta", "CAN.99_1": "Somewhere New"})
+    with pytest.raises(SystemExit, match="Somewhere New"):
+        canadian_provinces()
+
+
+def test_regions_are_chosen_by_code_or_group(monkeypatch):
+    import build_species_packs as b
+
+    def made_up(prefix, group, codes):
+        return lambda: [b.Area(f"{prefix}{c}", c, (), group) for c in codes]
+
+    monkeypatch.setattr(
+        b,
+        "SOURCES_OF_AREAS",
+        (
+            ("us", "us-", made_up("us-", "United States", ["oh", "ca"])),
+            ("canada", "ca-", made_up("ca-", "Canada", ["on", "qc"])),
+            ("australia", "au-", made_up("au-", "Australia", ["tas"])),
+            ("nz", "nz", made_up("", "New Zealand", ["nz"])),
+            ("europe", "", made_up("", "Europe", ["fr", "ie"])),
+        ),
+    )
+    regions = lambda asked: [a.region for a in b.chosen_areas(asked)]  # noqa: E731
+    assert regions("ca-on,nz,fr") == ["ca-on", "nz", "fr"]
+    assert regions("canada") == ["ca-on", "ca-qc"]
+    assert regions("australia,us-oh") == ["us-oh", "au-tas"]
+    assert len(regions(None)) == 8
+    import pytest
+
+    with pytest.raises(SystemExit, match="ca-zz"):
+        regions("ca-zz")
+
+
+def test_australian_birds_get_ioc_and_australian_names():
+    from build_species_packs import AUSTRALIA_NAMES, CANADA_NAMES
+
+    magpie = [
+        Candidate("Australian Magpie", "IOC World Bird List"),
+        Candidate("Magpie", "Some other list", "AU"),
+        Candidate("Australasian Magpie", "The Clements Checklist"),
+    ]
+    assert choose_names(magpie, True, AUSTRALIA_NAMES)[0] == "Magpie"  # Australians' own
+    jay = [
+        Candidate("Canada Jay", "The Clements Checklist"),
+        Candidate("Grey Jay", "IOC World Bird List"),
+    ]
+    assert choose_names(jay, True, CANADA_NAMES)[0] == "Canada Jay"  # as eBird has it
+
+
+def test_australia_and_new_zealand_spell_grey_the_british_way():
+    from build_species_packs import AUSTRALIA_NAMES, US_NAMES
+
+    fox = [Candidate("Gray-headed Flying Fox", "Catalogue of Life")]
+    assert choose_names(fox, False, AUSTRALIA_NAMES)[0] == "Grey-headed Flying Fox"
+    assert choose_names(fox, False, US_NAMES)[0] == "Gray-headed Flying Fox"
+    whale = [Candidate("Gray's Beaked Whale", "Catalogue of Life")]  # named after Mr Gray
+    assert choose_names(whale, False, AUSTRALIA_NAMES)[0] == "Gray's Beaked Whale"

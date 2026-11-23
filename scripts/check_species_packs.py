@@ -27,7 +27,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from build_species_packs import AFTER_1_6_0  # noqa: E402
+from build_species_packs import in_1_6_0  # noqa: E402
 from ci_report import note, report_failures  # noqa: E402
 
 from wildlife.data.migrate import migrate  # noqa: E402
@@ -53,7 +53,7 @@ def check(folder: Path, complete: bool = False) -> list[str]:
     us = [p for p in manifest["packs"] if p["region"].startswith("us-")]
     if older["packs"] != us:
         problems.append("manifest.json isn't manifest-3.json's US states")
-    known_to_1_6_0 = [p for p in manifest["packs"] if p["region"] not in AFTER_1_6_0]
+    known_to_1_6_0 = [p for p in manifest["packs"] if in_1_6_0(p["region"])]
     if v2["packs"] != known_to_1_6_0:
         problems.append("manifest-2.json isn't the packs Thicket 1.6.0 knows")
     if complete:

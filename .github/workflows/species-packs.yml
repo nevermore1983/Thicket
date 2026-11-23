@@ -1,11 +1,13 @@
-# Building Thicket's species packs (docs/16-regions-plan.md, docs/23-europe-packs-plan.md).
+# Building Thicket's species packs (docs/16-regions-plan.md, docs/23-europe-packs-plan.md,
+# docs/24-canada-australia-nz-plan.md).
 #
-# Pushing a tag such as packs-2026-11 builds a species pack for every European country
-# and every US state (and DC) from GBIF, checks each one installs properly with Thicket's
+# Pushing a tag such as packs-2026-11 builds a species pack for every European country,
+# US state (and DC), Canadian province and territory, Australian state and territory,
+# and New Zealand, from GBIF, checks each one installs properly with Thicket's
 # own code, and publishes them as a release (never marked "latest", so the app's download
 # page is unchanged). Only then is Thicket pointed at them: the lists in the
 # "species-packs" release are replaced: manifest-3.json lists every pack (Thicket 1.6.1+),
-# manifest-2.json those 1.6.0 knows, manifest.json only the US states (older versions).
+# manifest-2.json those 1.6.0 knows (Europe and the US), manifest.json only the US states (older versions).
 # If anything fails, nothing is published or changed.
 #
 # The GBIF Backbone file is pinned by its SHA-256: if GBIF replaces it, this stops
@@ -54,7 +56,7 @@ jobs:
           echo "$BACKBONE_SHA256  local_data/gbif/backbone.zip" | sha256sum --check \
             || { echo "::error title=GBIF Backbone checksum::The file isn't the expected version"; exit 1; }
 
-      - name: Build a pack for every European country and US state
+      - name: Build a pack for every region
         run: uv run python scripts/build_species_packs.py --backbone local_data/gbif/backbone.zip --release "$TAG"
 
       - name: Check every pack installs properly, and none is missing
@@ -66,7 +68,7 @@ jobs:
         run: |
           gh release create "$TAG" build/packs/*.jsonl.gz build/packs/manifest-3.json build/packs/manifest-2.json build/packs/manifest.json \
             --title "Species packs ($TAG)" --latest=false \
-            --notes "Species packs for Thicket: one per European country and US state, from GBIF. Thicket downloads them itself (Settings › Region); there's nothing to download here by hand. $(uv run python -c 'import json; print(json.load(open("build/packs/manifest.json"))["citation"])')"
+            --notes "Species packs for Thicket: one per European country, US state, Canadian province, Australian state, and New Zealand, from GBIF. Thicket downloads them itself (Settings › Region); there's nothing to download here by hand. $(uv run python -c 'import json; print(json.load(open("build/packs/manifest.json"))["citation"])')"
 
       - name: Point Thicket at the new packs
         env:

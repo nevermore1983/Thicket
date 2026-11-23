@@ -1,19 +1,22 @@
-"""Build species packs from GBIF: one per US state and one per European country
-(docs/16-regions-plan.md, docs/23-europe-packs-plan.md).
+"""Build species packs from GBIF: one per European country, US state, Canadian province or
+territory and Australian state or territory, and one for New Zealand
+(docs/16-regions-plan.md, docs/23-europe-packs-plan.md, docs/24-canada-australia-nz-plan.md).
 
     uv run python scripts/build_species_packs.py --backbone local_data/gbif/backbone.zip
     uv run python scripts/build_species_packs.py --backbone ... --regions fr,es,ie,us-oh
 
 For each region:
-1. GBIF's occurrence API lists every species recorded there (a US state by GADM's
-   boundaries, a country by GBIF's country code) with its number of records; species
+1. GBIF's occurrence API lists every species recorded there (a US state, Canadian
+   province or Australian state by GADM's boundaries, a country by GBIF's country code) with its number of records; species
    with fewer than --min-records (5) are left out (mostly misidentifications and garden
    escapes). Zoo animals, garden plants (living specimens) and fossils don't count.
 2. Names, authors and family tree come from the GBIF Backbone Taxonomy file (read once,
    only the species needed are kept). The English name is chosen by choose_names():
-   for the US as US birders and naturalists use them; for Europe the UK list's name
-   first (Thicket is in British English), then names used in Britain or Ireland.
-   European packs also carry names in the country's languages ("ln"), for search.
+   for the US and Canada as North American birders and naturalists use them; for
+   Europe the UK list's name first (Thicket is in British English), then names used in
+   Britain or Ireland; for Australia and New Zealand, IOC bird names and their own.
+   Packs also carry names in the region's other languages ("ln"), for search: French in
+   Europe, Québec and New Brunswick, Māori in New Zealand...
 Output (in --out, default build/packs): fr.jsonl.gz, us-ca.jsonl.gz ... in the same
 record format as the UK list (so Thicket installs them with the same code), and lists
 of them with each pack's species count, size and SHA-256, which Thicket checks before
@@ -32,6 +35,7 @@ import json
 import re
 import sys
 import time
+import unicodedata
 import urllib.parse
 import urllib.request
 import zipfile
@@ -45,8 +49,14 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from wildlife.data.repositories.taxa import binomial_of, same_species_word  # noqa: E402
 from wildlife.domain.regions import (  # noqa: E402  (one list of regions, shared with the app)
+    AU_STATE_CODES,
+    AUSTRALIA,
+    CANADA,
     EUROPE,
+    NEW_ZEALAND,
+    NZ,
     POSTAL_CODES,
+    PROVINCE_CODES,
     REGIONS,
     US,
 )
@@ -119,10 +129,46 @@ class NameStyle:
     bird_sources: tuple[str, ...]
     home: tuple[str, ...]  # countries whose names are preferred
     home_first: bool  # before the source order (Europe) or only to break ties (the US)
+    # The UK list's name for a species it has: shown first for "all" (Europe), for
+    # everything but birds (Australia and New Zealand: IOC names for birds, and British
+    # names for the weeds and pests that came from Britain), or "none" (North America)
+    uk_names: str = "none"
+    british: bool = False  # "Grey", not "Gray"
 
 
 US_NAMES = NameStyle(BIRD_SOURCES, ("US",), home_first=False)
-EUROPE_NAMES = NameStyle(EUROPE_BIRD_SOURCES, ("GB", "IE"), home_first=True)
+EUROPE_NAMES = NameStyle(
+    EUROPE_BIRD_SOURCES, ("GB", "IE"), home_first=True, uk_names="all", british=True
+)
+# Canadian birders use the same (eBird, AOS) names as the US
+CANADA_NAMES = NameStyle(BIRD_SOURCES, ("CA", "US"), home_first=False)
+# BirdLife Australia and Birds New Zealand follow the IOC list closely
+AUSTRALIA_NAMES = NameStyle(
+    EUROPE_BIRD_SOURCES, ("AU",), home_first=True, uk_names="not birds", british=True
+)
+NEW_ZEALAND_NAMES = NameStyle(
+    EUROPE_BIRD_SOURCES, ("NZ", "AU"), home_first=True, uk_names="not birds", british=True
+)
+# Where GBIF's Backbone joins two species the IOC list keeps apart, its name is the one
+# that isn't there: Australia's Rainbow Lorikeet came out as the Coconut Lorikeet of New
+# Guinea. Names that people in the region use, by scientific name.
+PREFERRED = {
+    AUSTRALIA: {
+        "Trichoglossus haematodus": "Rainbow Lorikeet",
+        "Chenonetta jubata": "Australian Wood Duck",
+    },
+    NEW_ZEALAND: {"Trichoglossus haematodus": "Rainbow Lorikeet"},
+}
+GRAY = re.compile(r"\b(G|g)ray\b(?!')")  # not "Gray's Beaked Whale", named after Mr Gray
+MACRON = re.compile("[āēīōūĀĒĪŌŪ]")  # Māori: GBIF often files "Tūī", "Kererū" as English
+
+STYLES = {
+    EUROPE: EUROPE_NAMES,
+    US: US_NAMES,
+    CANADA: CANADA_NAMES,
+    AUSTRALIA: AUSTRALIA_NAMES,
+    NEW_ZEALAND: NEW_ZEALAND_NAMES,
+}
 
 
 def tidy(name: str) -> str | None:
@@ -156,7 +202,10 @@ def choose_names(
     ranked = sorted(candidates, key=lambda c: _rank(c, is_bird, style))
     names: list[str] = [uk_name] if uk_name else []
     for c in ranked:
-        if (name := tidy(c.name)) and name.lower() not in {n.lower() for n in names}:
+        name = tidy(c.name)
+        if name and style.british:
+            name = GRAY.sub(lambda m: m[1] + "rey", name)
+        if name and name.lower() not in {n.lower() for n in names}:
             names.append(name)
     if not names:  # only bracketed ones: "Muscovy Duck (Domestic type)" -> "Muscovy Duck"
         for c in ranked:
@@ -261,17 +310,17 @@ def get_json(path: str, params: dict | list | None = None) -> dict:
 
 @dataclass(frozen=True)
 class Area:
-    """A region a pack is built for: a US state or a European country."""
+    """A region a pack is built for: a European country, a US state..."""
 
     region: str  # 'us-ca', 'fr'
     name: str  # 'California', 'France'
     filters: tuple[tuple[str, str], ...]  # GBIF's occurrence search, for this region
-    group: str  # US or EUROPE
+    group: str  # one of regions.GROUPS
     languages: tuple[str, ...] = ()
 
     @property
     def style(self) -> NameStyle:
-        return EUROPE_NAMES if self.group == EUROPE else US_NAMES
+        return STYLES[self.group]
 
 
 def us_states() -> list[Area]:
@@ -295,13 +344,80 @@ def us_states() -> list[Area]:
     return states
 
 
+def _plain(name: str) -> str:
+    """'Québec' -> 'quebec': GADM's names, compared with Thicket's."""
+    return unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode().lower()
+
+
+# GADM areas that go into a neighbour's pack: Jervis Bay Territory, surrounded by New
+# South Wales. Ashmore and Cartier and the Coral Sea Islands (remote reefs, nobody lives
+# there) are left out.
+JOINS = {"Jervis Bay Territory": "New South Wales"}
+LEFT_OUT = {"Ashmore and Cartier Islands", "Coral Sea Islands Territory"}
+
+
+def gadm_areas(
+    country: str, gadm: str, codes: dict[str, str], prefix: str, group: str
+) -> list[Area]:
+    """A country's first-level areas (Canada's provinces, Australia's states) as GBIF
+    knows them (GADM boundaries), each with Thicket's code."""
+    facets = get_json(
+        "occurrence/search",
+        {"country": country, "facet": "gadmLevel1Gid", "facetLimit": 100, "limit": 0},
+    )["facets"][0]["counts"]
+    gids: dict[str, list[str]] = defaultdict(list)  # Thicket's name -> GADM ids
+    by_plain = {_plain(name): name for name in codes}
+    for gid in sorted({f["name"] for f in facets if f["name"].startswith(f"{gadm}.")}):
+        name = get_json(f"geocode/gadm/{gid}")["name"]
+        if name in LEFT_OUT:
+            continue
+        name = JOINS.get(name, name)
+        if _plain(name) not in by_plain:
+            raise SystemExit(f"GBIF knows an area of {country} Thicket doesn't: {name} ({gid})")
+        gids[by_plain[_plain(name)]].append(gid)
+    if set(gids) != set(codes):
+        raise SystemExit(
+            f"Missing from GBIF's areas of {country}: {sorted(set(codes) - set(gids))}"
+        )
+    areas = []
+    for name, ids in sorted(gids.items()):
+        code = f"{prefix}-{codes[name].lower()}"
+        filters = (("country", country), *(("gadmLevel1Gid", g) for g in ids))
+        areas.append(Area(code, name, filters, group, REGIONS[code].languages))
+    return areas
+
+
+def canadian_provinces() -> list[Area]:
+    return gadm_areas("CA", "CAN", PROVINCE_CODES, "ca", CANADA)
+
+
+def australian_states() -> list[Area]:
+    return gadm_areas("AU", "AUS", AU_STATE_CODES, "au", AUSTRALIA)
+
+
+def new_zealand() -> list[Area]:
+    """One pack for the whole country, its outlying islands too."""
+    nz = REGIONS[NZ]
+    return [Area(NZ, nz.name, (("country", "NZ"),), NEW_ZEALAND, nz.languages)]
+
+
 # Regions that aren't a whole country: GBIF's search filters for them
 SPECIAL_FILTERS = {
     # Russia west of the Urals (about 60°E): Moscow, St Petersburg, the Volga, Kaliningrad
     "ru-eu": (("country", "RU"), ("decimalLongitude", "19,60")),
 }
-# Packs Thicket 1.6.0 doesn't know (it reads manifest-2.json, which leaves them out)
+# European packs Thicket 1.6.0 doesn't know (it reads manifest-2.json: see in_1_6_0)
 AFTER_1_6_0 = {"ru", "ru-eu", "tr", "ge", "am", "az"}
+
+
+def in_1_6_0(region: str) -> bool:
+    """Whether Thicket 1.6.0 knows this region: the US states and Europe as it was. It
+    would show another with the UK's map and grid squares, so manifest-2.json leaves it
+    out. (1.6.1 and later read manifest-3.json and skip what they don't know.)"""
+    if region.startswith("us-"):
+        return True
+    known = REGIONS.get(region)
+    return known is not None and known.group == EUROPE and region not in AFTER_1_6_0
 
 
 def european_countries() -> list[Area]:
@@ -317,6 +433,16 @@ def european_countries() -> list[Area]:
         for r in REGIONS.values()
         if r.group == EUROPE
     ]
+
+
+# Each group's areas, and how its region codes start ('' for Europe's country codes)
+SOURCES_OF_AREAS = (
+    ("us", "us-", us_states),
+    ("canada", "ca-", canadian_provinces),
+    ("australia", "au-", australian_states),
+    ("nz", NZ, new_zealand),
+    ("europe", "", european_countries),
+)
 
 
 def species_counts(area: Area, min_records: int) -> dict[int, int]:
@@ -441,24 +567,26 @@ def write_pack(path: Path, records: list[dict]) -> tuple[int, str]:
 
 
 def chosen_areas(wanted: str | None) -> list[Area]:
-    """Every region, or those asked for: region codes ('fr,es,us-oh'), 'europe' or 'us'."""
+    """Every region, or those asked for: region codes ('fr,ca-on,nz') or whole groups
+    ('europe', 'us', 'canada', 'australia', 'nz'). Only the groups needed are asked
+    GBIF for their areas."""
     if not wanted:
-        return european_countries() + us_states()
+        return [a for _, _, areas in SOURCES_OF_AREAS for a in areas()]
     asked = {w.strip().lower() for w in wanted.split(",") if w.strip()}
-    areas: list[Area] = []
-    if asked & {"europe"} or any(not a.startswith("us-") and a != "us" for a in asked):
-        areas += european_countries()
-    if asked & {"us"} or any(a.startswith("us-") for a in asked):
-        areas += us_states()
-    if asked - {"europe", "us"}:
-        areas = [
-            a
-            for a in areas
-            if a.region in asked
-            or ("europe" in asked and a.group == EUROPE)
-            or ("us" in asked and a.group == US)
-        ]
-    unknown = asked - {"europe", "us"} - {a.region for a in areas}
+
+    def group_of_code(code: str) -> str:
+        return next(g for g, start, _ in SOURCES_OF_AREAS if code.startswith(start))
+
+    groups = {a for a in asked if a in {g for g, _, _ in SOURCES_OF_AREAS}}
+    codes = asked - groups
+    areas = [
+        a
+        for g, _, make in SOURCES_OF_AREAS
+        if g in groups or any(group_of_code(c) == g for c in codes)
+        for a in make()
+        if g in groups or a.region in codes
+    ]
+    unknown = codes - {a.region for a in areas}
     if unknown:
         raise SystemExit(f"Not a region Thicket knows: {', '.join(sorted(unknown))}")
     return areas
@@ -469,7 +597,9 @@ def main() -> None:
     parser.add_argument("--backbone", type=Path, required=True, help="GBIF backbone.zip")
     parser.add_argument("--out", type=Path, default=ROOT / "build" / "packs")
     parser.add_argument(
-        "--regions", help="only these: region codes (fr,es,us-oh), europe or us (default: all)"
+        "--regions",
+        help="only these: region codes (fr,ca-on,nz) or europe, us, canada, australia, nz "
+        "(default: all)",
     )
     parser.add_argument("--min-records", type=int, default=5)
     parser.add_argument(
@@ -519,7 +649,7 @@ def main() -> None:
         f"  {len(unnamed):,} vertebrates and dragonflies without a name: asked GBIF's species pages",
         flush=True,
     )
-    uk = uk_names() if any(a.group == EUROPE for a in areas) else {}
+    uk = uk_names() if any(a.style.uk_names != "none" for a in areas) else {}
 
     today = datetime.now(UTC).date().isoformat()
     manifest = {
@@ -538,13 +668,22 @@ def main() -> None:
             canonical = taxon and (taxon.get("canonicalName") or taxon["scientificName"])
             if taxon is None or is_hybrid_cross(canonical):
                 continue
-            uk_name = None
-            if area.group == EUROPE:
+            # The name to show first: one the region's people use, else the UK list's
+            uk_name = PREFERRED.get(area.group, {}).get(canonical)
+            uk_rule = area.style.uk_names
+            if not uk_name and (
+                uk_rule == "all" or (uk_rule == "not birds" and taxon.get("class") != "Aves")
+            ):
                 uk_name = uk_name_for(
                     uk, canonical, taxon.get("kingdom") or "", synonyms.get(k, [])
                 )
             english = {c.name for c in names.get(k, [])} | ({uk_name} if uk_name else set())
-            ln = local_names(local.get(k, {}), area.languages, english) or None
+            by_language = local.get(k, {})
+            if "mi" in area.languages:  # Māori names GBIF has as English ones
+                maori = [c.name for c in names.get(k, []) if MACRON.search(c.name)]
+                by_language = {**by_language, "mi": [*by_language.get("mi", []), *maori]}
+                english -= set(maori)
+            ln = local_names(by_language, area.languages, english) or None
             records.append(
                 record(k, n, taxon, synonyms.get(k, []), names.get(k, []), area.style, uk_name, ln)
             )
@@ -576,7 +715,8 @@ def main() -> None:
 def write_manifests(out: Path, manifest: dict) -> None:
     """Three lists, each for the versions that know its regions:
     manifest-3.json every pack (Thicket 1.6.1+, which skips regions it doesn't know);
-    manifest-2.json those 1.6.0 knows (it would take an unknown region for the UK);
+    manifest-2.json those 1.6.0 knows (it would take an unknown region for the UK:
+    in_1_6_0);
     manifest.json the US states only (1.1 to 1.5)."""
     out.mkdir(parents=True, exist_ok=True)
 
@@ -587,7 +727,7 @@ def write_manifests(out: Path, manifest: dict) -> None:
         )
 
     write("manifest-3.json", lambda region: True)
-    write("manifest-2.json", lambda region: region not in AFTER_1_6_0)
+    write("manifest-2.json", in_1_6_0)
     write("manifest.json", lambda region: region.startswith("us-"))
 
 

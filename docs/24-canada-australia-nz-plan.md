@@ -79,3 +79,35 @@ The same way as the US states: GBIF's occurrence search, filtered by country and
 - **The welcome screen's** choices come from one table (`REGION_CHOICES`). Each list shows under its choice once chosen, so the page stays short with six choices.
 - **Settings › Region** describes the packs as covering Europe, North America, Australia and New Zealand.
 - 699 tests (4 new). Screenshots: `scripts/screenshot.py --pages welcome-region add-region` now shows Canada.
+
+## Step 2 results (23 Nov 2026)
+
+**Builder:**
+- `gadm_areas()` makes Canada's provinces and Australia's states from GBIF's GADM areas. It matches names without accents, so GADM's "Québec" is Thicket's "Quebec". Jervis Bay Territory joins New South Wales (`JOINS`), and the remote reef territories are left out (`LEFT_OUT`). An area GBIF has but Thicket doesn't stops the build.
+- New Zealand is cut by country code.
+- `--regions` takes region codes or whole groups (`europe`, `us`, `canada`, `australia`, `nz`).
+- `in_1_6_0()` decides what `manifest-2.json` lists, so the new regions are only in `manifest-3.json`.
+
+**Names** (`NameStyle`):
+- Canada uses the US rules, with Canadian names preferred.
+- Australia and New Zealand:
+  - IOC bird names, with their own names preferred.
+  - The UK list's name for everything but birds. That fits the weeds and pests that came from Britain: "Spear Thistle", "Cat's-ear", "Perforate St John's-wort" instead of "Klamath weed".
+  - British spelling ("Grey", not "Gray"; never in a name after someone, such as "Gray's Beaked Whale"). European packs now get the same spelling for species the UK list doesn't have.
+- `PREFERRED` fixes two Australian birds that GBIF's Backbone joins with a species from elsewhere: Rainbow Lorikeet (not "Coconut Lorikeet") and Australian Wood Duck (not "Maned Duck").
+
+**Trial** (Ontario, Quebec, New South Wales, Tasmania, New Zealand; all pass the checker):
+
+| Pack | Species | Size | English name | Local names | Installs in |
+|---|---|---|---|---|---|
+| Ontario | 22,767 | 1.5 MB | 47% | — | 5.9 s |
+| Quebec | 15,674 | 1.1 MB | 56% | 27% French | 4.9 s |
+| New South Wales | 32,865 | 1.9 MB | 24% | — | 6.8 s |
+| Tasmania | 13,411 | 0.8 MB | 23% | — | 3.3 s |
+| New Zealand | 31,521 | 1.8 MB | 22% | 0.4% Māori | 6.4 s |
+
+- **Birds and mammals are excellent.** New South Wales has English names for 684 of 686 birds and all 210 mammals (Australian Magpie, Superb Fairywren, Willie Wagtail, Koala, Common Wombat). New Zealand has 371 of 384 birds (Tui, New Zealand Fantail, Australasian Swamphen). Quebec has French names for 486 of 491 birds ("Mésange à tête noire").
+- **Gaps:**
+  - Fewer Australian and New Zealand insects and native plants have an English name in GBIF than in North America. Many of New Zealand's native plants are known by Māori names that GBIF's 2023 file doesn't have (its website has newer ones, such as "Kererū").
+  - Māori names are searchable only where GBIF has them (12 birds).
+  - Search by scientific name always works.
