@@ -16,7 +16,9 @@ from wildlife.domain.regions import COUNTRY_CODES, POSTAL_CODES, REGIONS, group_
 
 def test_the_regions_wildlife_knows():
     assert len(POSTAL_CODES) == 51 and len(COUNTRY_CODES) == 52
-    assert len(REGIONS) == 104  # 50 states, DC, 52 European regions and the UK
+    # 50 states, DC, 52 European regions, the UK, and (1.7.0) 13 Canadian provinces and
+    # territories, 8 Australian states and territories, and New Zealand
+    assert len(REGIONS) == 126
     # Russia twice (west of the Urals, and all of it), Turkey and the Caucasus (1.6.1)
     assert {region(c).name for c in ("ru-eu", "ru", "tr", "ge", "am", "az")} == {
         "European Russia",
@@ -85,3 +87,23 @@ def test_dates_that_only_make_sense_the_other_way_are_pointed_out():
     assert describe_date_columns(uk_dates, mapping, month_first=False) is None
     assert parse_date("12/25/2026", month_first=True) == (date(2026, 12, 25), None)
     assert parse_date("12/25/2026") == (None, None)  # no 25th month
+
+
+def test_canada_australia_and_new_zealand():
+    """docs/24-canada-australia-nz-plan.md: each under its own heading; Canada writes
+    dates month-first like the US, Australia and New Zealand day-first like the UK."""
+    ontario, quebec, nsw, nz = (region(c) for c in ("ca-on", "ca-qc", "au-nsw", "nz"))
+    assert (ontario.name, ontario.group, ontario.month_first) == ("Ontario", "Canada", True)
+    assert quebec.languages == ("fr",) and region("ca-nb").languages == ("fr",)
+    assert ontario.languages == ()  # French is searchable where it's official
+    assert (nsw.name, nsw.group, nsw.month_first) == ("New South Wales", "Australia", False)
+    assert (nz.name, nz.group, nz.month_first, nz.languages) == (
+        "New Zealand",
+        "New Zealand",
+        False,
+        ("mi",),
+    )
+    assert group_of("ca-on") == "Canada" and group_of("au-tas") == "Australia"
+    assert region("ca-on").lat > 41 and region("au-tas").lat < -39  # in the right hemisphere
+    assert sum(r.group == "Canada" for r in REGIONS.values()) == 13
+    assert sum(r.group == "Australia" for r in REGIONS.values()) == 8

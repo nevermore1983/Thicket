@@ -2,7 +2,9 @@
 docs/23-europe-packs-plan.md for Europe).
 
 'uk' (the built-in UK list), European countries by their international code ('fr',
-'de', ...), and the US states and DC ('us-oh', ...). Each has where the map opens when
+'de', ...), the US states and DC ('us-oh', ...), Canada's provinces and territories
+('ca-on', ...), Australia's states and territories ('au-nsw', ...) and New Zealand
+('nz'; docs/24-canada-australia-nz-plan.md). Each has where the map opens when
 there's nothing else to go on (an approximate centre and a zoom that shows most of it).
 The species pack builder uses the same lists (scripts/build_species_packs.py).
 """
@@ -13,6 +15,9 @@ from dataclasses import dataclass
 
 UK = "uk"
 UK_GROUP, EUROPE, US = "United Kingdom", "Europe", "United States"
+CANADA, AUSTRALIA, NEW_ZEALAND = "Canada", "Australia", "New Zealand"
+# How the region lists are arranged (a region this version doesn't know comes last)
+GROUPS = (EUROPE, US, CANADA, AUSTRALIA, NEW_ZEALAND)
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,7 +27,7 @@ class Region:
     lat: float
     lon: float
     zoom: float
-    group: str = UK_GROUP  # UK_GROUP, EUROPE or US: how the region lists are arranged
+    group: str = UK_GROUP  # UK_GROUP or one of GROUPS: how the region lists are arranged
     languages: tuple[str, ...] = ()  # its languages' codes, for local species names
 
     @property
@@ -31,9 +36,10 @@ class Region:
 
     @property
     def month_first(self) -> bool:
-        """Dates written with numbers put the month first (US: 3/5 is 5 March). The UK
-        and the rest of Europe put the day first."""
-        return self.group == US
+        """Dates written with numbers put the month first (US: 3/5 is 5 March; Canada
+        uses both, and month first is the more common). The UK, the rest of Europe,
+        Australia and New Zealand put the day first."""
+        return self.group in (US, CANADA)
 
     @property
     def start_view(self) -> dict[str, float]:
@@ -127,6 +133,36 @@ _COUNTRIES = (
     ("Vatican City", "VA", 41.903, 12.453, 14.5, ("it",)),
 )
 
+# Canada: name, Canada Post code, centre, zoom, languages (French is searchable where
+# it's an official language of the province)
+_PROVINCES = (
+    ("Alberta", "AB", 55.0, -115.0, 4.6, ()),
+    ("British Columbia", "BC", 54.0, -125.0, 4.2, ()),
+    ("Manitoba", "MB", 55.0, -97.5, 4.4, ()),
+    ("New Brunswick", "NB", 46.5, -66.2, 6.4, ("fr",)),
+    ("Newfoundland and Labrador", "NL", 52.5, -60.0, 4.4, ()),
+    ("Northwest Territories", "NT", 64.8, -119.0, 3.6, ()),
+    ("Nova Scotia", "NS", 45.0, -63.0, 6.2, ()),
+    ("Nunavut", "NU", 68.0, -90.0, 3.0, ()),
+    ("Ontario", "ON", 50.0, -85.0, 4.2, ()),
+    ("Prince Edward Island", "PE", 46.4, -63.2, 8.0, ()),
+    ("Quebec", "QC", 52.5, -71.5, 3.9, ("fr",)),
+    ("Saskatchewan", "SK", 54.5, -105.9, 4.4, ()),
+    ("Yukon", "YT", 64.0, -135.5, 4.4, ()),
+)
+# Australia: name, abbreviation, centre, zoom
+_AU_STATES = (
+    ("Australian Capital Territory", "ACT", -35.5, 149.0, 8.6),
+    ("New South Wales", "NSW", -32.5, 147.0, 5.2),  # with Jervis Bay Territory
+    ("Northern Territory", "NT", -19.5, 133.5, 4.6),
+    ("Queensland", "QLD", -21.5, 145.0, 4.4),
+    ("South Australia", "SA", -30.5, 135.5, 4.6),
+    ("Tasmania", "TAS", -42.0, 146.6, 6.4),
+    ("Victoria", "VIC", -36.9, 144.3, 6.0),
+    ("Western Australia", "WA", -25.5, 121.5, 4.2),
+)
+NZ = "nz"
+
 REGIONS: dict[str, Region] = {
     UK: Region(UK, "United Kingdom", 54.4, -3.2, 4.6),
     **{
@@ -137,9 +173,20 @@ REGIONS: dict[str, Region] = {
         f"us-{code.lower()}": Region(f"us-{code.lower()}", name, lat, lon, zoom, US)
         for name, code, lat, lon, zoom in _STATES
     },
+    **{
+        f"ca-{code.lower()}": Region(f"ca-{code.lower()}", name, lat, lon, zoom, CANADA, langs)
+        for name, code, lat, lon, zoom, langs in _PROVINCES
+    },
+    **{
+        f"au-{code.lower()}": Region(f"au-{code.lower()}", name, lat, lon, zoom, AUSTRALIA)
+        for name, code, lat, lon, zoom in _AU_STATES
+    },
+    NZ: Region(NZ, "New Zealand", -41.0, 172.5, 4.9, NEW_ZEALAND, ("mi",)),
 }
 POSTAL_CODES = {name: code for name, code, *_ in _STATES}  # 'Ohio' -> 'OH'
 COUNTRY_CODES = {name: code for name, code, *_ in _COUNTRIES}  # 'France' -> 'FR'
+PROVINCE_CODES = {name: code for name, code, *_ in _PROVINCES}  # 'Ontario' -> 'ON'
+AU_STATE_CODES = {name: code for name, code, *_ in _AU_STATES}  # 'Tasmania' -> 'TAS'
 
 
 def region(code: str) -> Region:
@@ -148,7 +195,7 @@ def region(code: str) -> Region:
 
 
 def group_of(code: str) -> str:
-    """Europe, United States or United Kingdom; 'Elsewhere' for a pack from a region this
-    version doesn't know yet."""
+    """United Kingdom or one of GROUPS (Europe, United States...); 'Elsewhere' for a pack
+    from a region this version doesn't know yet."""
     found = REGIONS.get(code)
     return found.group if found else "Elsewhere"

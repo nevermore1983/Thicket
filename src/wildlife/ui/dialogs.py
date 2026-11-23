@@ -23,12 +23,31 @@ from PySide6.QtWidgets import (
 from wildlife.context import AppContext
 from wildlife.domain.dates import DateQuery, parse_date_query
 from wildlife.domain.filters import SightingFilter
-from wildlife.domain.regions import EUROPE, US, group_of
+from wildlife.domain.regions import AUSTRALIA, CANADA, EUROPE, NEW_ZEALAND, US, group_of
 from wildlife.ui.components.visuals import fmt_date, plural, swatch
 from wildlife.ui.regions import describe, problem_text
 from wildlife.ui.theme.icons import pixmap
 from wildlife.ui.theme.manager import ThemeManager
 from wildlife.ui.workers import run_in_background
+
+# The welcome's choices outside the UK: group, its words, the list's name, what you choose
+REGION_CHOICES = (
+    (EUROPE, "Elsewhere in Europe: a country's", "European country", "country"),
+    (US, "United States: a state's", "US state", "state"),
+    (
+        CANADA,
+        "Canada: a province's or territory's",
+        "Canadian province or territory",
+        "province or territory",
+    ),
+    (
+        AUSTRALIA,
+        "Australia: a state's or territory's",
+        "Australian state or territory",
+        "state or territory",
+    ),
+    (NEW_ZEALAND, "New Zealand: its", "New Zealand", "region"),
+)
 
 
 class FirstRunDialog(QDialog):
@@ -131,7 +150,7 @@ class FirstRunDialog(QDialog):
             self.ctx.settings.update(recorder_name=self.name.text().strip())
         on_region_page = self.pages.currentIndex() == self.region_index
         if on_region_page and not self.in_uk.isChecked() and self.chosen_pack() is None:
-            what = "country" if self.in_europe.isChecked() else "state"
+            what = next(w for g, (choice, _, w) in self.choices.items() if choice.isChecked())
             self.state_note.setText(f"Choose your {what} first: the list is on its way.")
             return  # (the list hasn't come yet)
         if self.pages.currentIndex() == self.pages.count() - 1:
@@ -191,37 +210,39 @@ class FirstRunDialog(QDialog):
         layout.takeAt(layout.count() - 1)  # the stretch: the choices go above it
         self.in_uk = QRadioButton("United Kingdom")
         self.in_uk.setChecked(True)
-        self.in_europe = QRadioButton(
-            "Elsewhere in Europe: a country's species from GBIF (downloaded once)"
+        layout.addWidget(self.in_uk)
+        # group -> (its choice, the list of its packs, what you choose in it)
+        self.choices: dict[str, tuple[QRadioButton, QComboBox, str]] = {}
+        for group, words, box_name, what in REGION_CHOICES:
+            choice = QRadioButton(f"{words} species from GBIF (downloaded once)")
+            box = QComboBox()
+            box.setAccessibleName(box_name)
+            box.setEnabled(False)
+            box.hide()  # shown under its choice once chosen
+            choice.toggled.connect(lambda on, b=box: self._show_list(b, on))
+            # Only asked for if you choose one: choosing the UK never goes online
+            choice.toggled.connect(lambda on: on and self._ask_for_states())
+            self.choices[group] = (choice, box, what)
+            layout.addWidget(choice)
+            layout.addWidget(box)
+        (self.in_europe, self.country, _), (self.in_us, self.state, _) = (
+            self.choices[EUROPE],
+            self.choices[US],
         )
-        self.country = QComboBox()
-        self.country.setAccessibleName("European country")
-        self.in_us = QRadioButton("United States: a state's species from GBIF (downloaded once)")
-        self.state = QComboBox()
-        self.state.setAccessibleName("US state")
         self.state_note = QLabel()
         self.state_note.setWordWrap(True)
         self.state_note.setProperty("role", "muted")
-        for choice, box in ((self.in_europe, self.country), (self.in_us, self.state)):
-            box.setEnabled(False)
-            choice.toggled.connect(lambda on, b=box: b.setEnabled(on and b.count() > 0))
-            # Only asked for if you choose one: choosing the UK never goes online
-            choice.toggled.connect(lambda on: on and self._ask_for_states())
-        for w in (
-            self.in_uk,
-            self.in_europe,
-            self.country,
-            self.in_us,
-            self.state,
-            self.state_note,
-        ):
-            layout.addWidget(w)
+        layout.addWidget(self.state_note)
         layout.addStretch(1)
         return page
 
+    @staticmethod
+    def _show_list(box: QComboBox, chosen: bool) -> None:
+        box.setVisible(chosen)
+        box.setEnabled(chosen and box.count() > 0)
+
     def _ask_for_states(self) -> None:
-        """Fetch the countries and states offered, once, when you first choose Europe or
-        the United States."""
+        """Fetch the regions offered, once, when you first choose one outside the UK."""
         if self._states_asked:
             return
         self._states_asked = True
@@ -229,17 +250,16 @@ class FirstRunDialog(QDialog):
 
         def show(packs) -> None:
             for pack in packs:
-                box = {EUROPE: self.country, US: self.state}.get(group_of(pack.region))
-                if box is not None:
-                    box.addItem(describe(pack), pack)
+                if found := self.choices.get(group_of(pack.region)):
+                    found[1].addItem(describe(pack), pack)
             self.state_note.setText("")
-            self.country.setEnabled(self.in_europe.isChecked() and self.country.count() > 0)
-            self.state.setEnabled(self.in_us.isChecked() and self.state.count() > 0)
+            for choice, box, _ in self.choices.values():
+                box.setEnabled(choice.isChecked() and box.count() > 0)
 
         def failed(exc: BaseException) -> None:
             self.in_uk.setChecked(True)  # nothing to choose from: back to the UK list
-            self.in_europe.setEnabled(False)
-            self.in_us.setEnabled(False)
+            for choice, _, _ in self.choices.values():
+                choice.setEnabled(False)
             self.state_note.setText(
                 f"{problem_text(exc)} You can carry on with the UK list and add a region "
                 "later in Settings › Region."
@@ -248,10 +268,12 @@ class FirstRunDialog(QDialog):
         run_in_background(self.ctx.species_packs.offered, on_done=show, on_error=failed)
 
     def chosen_pack(self):
-        """The country or state chosen on the region page, or None (the UK)."""
+        """The region chosen on the region page, or None (the UK)."""
         if self.region_index < 0 or self.in_uk.isChecked():
             return None
-        return (self.country if self.in_europe.isChecked() else self.state).currentData()
+        return next(
+            box.currentData() for choice, box, _ in self.choices.values() if choice.isChecked()
+        )
 
     def _install_pack(self, pack, uk_count: int) -> None:
         def progress(step: str, fraction: float) -> None:

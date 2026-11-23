@@ -171,7 +171,16 @@ def main() -> int:
             sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tests"))
             from helpers import FRANCE_PACK, US_PACK, serve_packs
 
-            serve_packs(ctx, [("fr", "France", FRANCE_PACK), ("us-ca", "California", US_PACK)])
+            serve_packs(
+                ctx,
+                [
+                    ("fr", "France", FRANCE_PACK),
+                    ("us-ca", "California", US_PACK),
+                    ("ca-on", "Ontario", US_PACK),
+                    ("au-tas", "Tasmania", FRANCE_PACK),
+                    ("nz", "New Zealand", FRANCE_PACK),
+                ],
+            )
             ctx.species_packs._offered = None
             if target == "add-region":
                 from wildlife.ui.regions import AddPackDialog
@@ -185,7 +194,7 @@ def main() -> int:
                 dialog = FirstRunDialog(ctx, theme)
                 dialog.pages.setCurrentIndex(dialog.region_index)
                 dialog._update_step()
-                dialog.in_europe.setChecked(True)
+                dialog.choices["Canada"][0].setChecked(True)
             dialog.show()
             wait(lambda: False, 1.5)
             return dialog

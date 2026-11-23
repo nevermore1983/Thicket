@@ -227,3 +227,52 @@ def test_the_welcome_waits_for_a_country_too(ctx, monkeypatch, qtbot):
     dialog._next()
     assert dialog.pages.currentIndex() == dialog.region_index
     assert "Choose your country first" in dialog.state_note.text()
+
+
+# ---- Canada, Australia and New Zealand (docs/24-canada-australia-nz-plan.md) ---------
+def test_the_welcome_can_set_up_a_canadian_province(ctx, monkeypatch, qtbot):
+    serve_packs(
+        ctx,
+        [
+            ("ca-on", "Ontario", US_PACK),
+            ("au-tas", "Tasmania", FRANCE_PACK),
+            ("nz", "New Zealand", FRANCE_PACK),
+        ],
+    )
+    dialog = _welcome(ctx, monkeypatch, qtbot)
+    canada, ontario, _ = dialog.choices["Canada"]
+    assert ontario.isHidden()  # each list shows under its choice once chosen
+    canada.setChecked(True)
+    qtbot.waitUntil(lambda: ontario.count() == 1, timeout=10_000)
+    assert not ontario.isHidden()
+    assert dialog.choices["Australia"][1].count() == 1  # Tasmania, under Australia
+    assert dialog.choices["New Zealand"][1].count() == 1
+    assert dialog.chosen_pack().region == "ca-on"
+    dialog._next()
+    qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
+    assert "Ontario" in dialog.progress_text.text() and ctx.catalogue.region() == "ca-on"
+
+
+def test_the_welcome_waits_for_a_province_too(ctx, monkeypatch, qtbot):
+    dialog = _welcome(ctx, monkeypatch, qtbot)
+    monkeypatch.setattr(dialog, "_ask_for_states", lambda: None)  # the list hasn't come yet
+    dialog.choices["Canada"][0].setChecked(True)
+    dialog._next()
+    assert "Choose your province or territory first" in dialog.state_note.text()
+
+
+def test_the_list_has_canada_australia_and_new_zealand_under_headings(window, qtbot):
+    serve_packs(
+        window.ctx,
+        [
+            ("nz", "New Zealand", FRANCE_PACK),
+            ("au-tas", "Tasmania", FRANCE_PACK),
+            ("ca-on", "Ontario", US_PACK),
+            ("us-ca", "California", US_PACK),
+        ],
+    )
+    dialog = AddPackDialog(window.ctx, window)
+    qtbot.waitUntil(lambda: dialog.list.count() == 8, timeout=10_000)
+    headings = [dialog.list.item(i).text() for i in range(0, 8, 2)]
+    assert headings == ["United States", "Canada", "Australia", "New Zealand"]
+    dialog.reject()

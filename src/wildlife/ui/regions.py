@@ -1,5 +1,6 @@
-"""Choosing where you record, and adding a region's species pack: a European country or a
-US state (docs/16-regions-plan.md, docs/23-europe-packs-plan.md).
+"""Choosing where you record, and adding a region's species pack: a European country, a
+US state, a Canadian province, an Australian state or New Zealand (docs/16-regions-plan.md,
+docs/23-europe-packs-plan.md, docs/24-canada-australia-nz-plan.md).
 
 AddPackDialog lists the packs Thicket offers (from the internet, in the background),
 then downloads, checks and installs the one you choose, with progress. Nothing changes
@@ -24,7 +25,7 @@ from PySide6.QtWidgets import (
 
 from wildlife.context import AppContext
 from wildlife.domain.errors import WildlifeError
-from wildlife.domain.regions import EUROPE, US, group_of
+from wildlife.domain.regions import GROUPS, group_of
 from wildlife.services.species_packs import Pack
 from wildlife.ui.components.visuals import plural
 from wildlife.ui.workers import run_in_background
@@ -53,9 +54,6 @@ def problem_text(exc: BaseException) -> str:
     return "Something went wrong. Nothing was changed; details are in the log."
 
 
-GROUPS = (EUROPE, US)  # how the list is arranged; a region this version doesn't know is last
-
-
 class AddPackDialog(QDialog):
     """Add a region's species: choose it, then it's downloaded, checked and installed."""
 
@@ -70,14 +68,15 @@ class AddPackDialog(QDialog):
         v.setContentsMargins(20, 18, 20, 16)
         v.setSpacing(10)
         intro = QLabel(
-            "The species recorded in a European country or a US state, from GBIF (the Global "
+            "The species recorded in a European country, a US state, a Canadian province or "
+            "territory, an Australian state or territory, or New Zealand, from GBIF (the Global "
             "Biodiversity Information Facility). Downloaded once; the UK list stays as it is."
         )
         intro.setWordWrap(True)
         intro.setProperty("role", "muted")
         v.addWidget(intro)
         self.filter = QLineEdit()
-        self.filter.setPlaceholderText("Type to find a country or state")
+        self.filter.setPlaceholderText("Type to find a country, state or province")
         self.filter.setAccessibleName("Find a region")
         self.filter.textChanged.connect(self._filter)
         v.addWidget(self.filter)
