@@ -340,3 +340,32 @@ def test_australia_and_new_zealand_spell_grey_the_british_way():
     assert choose_names(fox, False, US_NAMES)[0] == "Gray-headed Flying Fox"
     whale = [Candidate("Gray's Beaked Whale", "Catalogue of Life")]  # named after Mr Gray
     assert choose_names(whale, False, AUSTRALIA_NAMES)[0] == "Gray's Beaked Whale"
+
+
+def test_australias_rainbow_lorikeet_is_the_iocs_species_not_gbifs():
+    """GBIF keeps the Rainbow and Coconut Lorikeets as one species; Australian (and the UK
+    list's) Rainbow Lorikeets are Trichoglossus moluccanus, with GBIF's key for that name,
+    so they never join the UK list's Coconut Lorikeet."""
+    from build_species_packs import AUSTRALIA, EUROPE, PREFERRED, as_known_there
+
+    lorikeet = {
+        "canonicalName": "Trichoglossus haematodus",
+        "scientificName": "Trichoglossus haematodus (Linnaeus, 1771)",
+        "scientificNameAuthorship": "(Linnaeus, 1771)",
+        "kingdom": "Animalia",
+        "class": "Aves",
+    }
+    key, taxon, synonyms = as_known_there(2479686, lorikeet, ["Psittacus haematodus"], AUSTRALIA)
+    assert (key, taxon["canonicalName"], synonyms) == (2479694, "Trichoglossus moluccanus", [])
+    assert taxon["scientificNameAuthorship"] == "(Gmelin, 1788)"
+    assert PREFERRED[AUSTRALIA][taxon["canonicalName"]] == "Rainbow Lorikeet"
+    assert as_known_there(2479686, lorikeet, [], EUROPE) == (2479686, lorikeet, [])
+
+
+def test_north_america_gets_the_aoss_newer_names():
+    from build_species_packs import CANADA, PREFERRED, US
+
+    for group in (US, CANADA):
+        assert PREFERRED[group]["Perisoreus canadensis"] == "Canada Jay"
+        assert PREFERRED[group]["Rhynchophanes mccownii"] == "Thick-billed Longspur"
+        assert PREFERRED[group]["Larus canus"] == "Common Gull"  # North America's: Short-billed

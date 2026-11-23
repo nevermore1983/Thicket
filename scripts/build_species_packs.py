@@ -149,16 +149,53 @@ AUSTRALIA_NAMES = NameStyle(
 NEW_ZEALAND_NAMES = NameStyle(
     EUROPE_BIRD_SOURCES, ("NZ", "AU"), home_first=True, uk_names="not birds", british=True
 )
-# Where GBIF's Backbone joins two species the IOC list keeps apart, its name is the one
-# that isn't there: Australia's Rainbow Lorikeet came out as the Coconut Lorikeet of New
-# Guinea. Names that people in the region use, by scientific name.
+# Where GBIF's Backbone keeps one species that the IOC list (and eBird, iNaturalist and the
+# UK list) splits, the region's birds go under the species they belong to: Australia's
+# Rainbow Lorikeet is Trichoglossus moluccanus, not GBIF's T. haematodus (the Coconut
+# Lorikeet of New Guinea, its own species in the UK list). GBIF's key for that name, so
+# the two never become one: {group: {GBIF's name: (key, the species' name, authority)}}
+SPLITS = {
+    group: {"Trichoglossus haematodus": (2479694, "Trichoglossus moluccanus", "(Gmelin, 1788)")}
+    for group in (AUSTRALIA, NEW_ZEALAND)
+}
+# Names that people in the region use, by scientific name: where GBIF's name is the one
+# for another bird, or older than the region's list (the AOS renamed the Gray Jay and
+# McCown's Longspur in 2018 and 2020, and split the Mew Gull in 2021; Larus canus is the
+# Common Gull of Europe and Asia).
+NORTH_AMERICA = {
+    "Perisoreus canadensis": "Canada Jay",
+    "Rhynchophanes mccownii": "Thick-billed Longspur",
+    "Larus canus": "Common Gull",
+}
 PREFERRED = {
+    US: NORTH_AMERICA,
+    CANADA: NORTH_AMERICA,
     AUSTRALIA: {
-        "Trichoglossus haematodus": "Rainbow Lorikeet",
+        "Trichoglossus moluccanus": "Rainbow Lorikeet",
         "Chenonetta jubata": "Australian Wood Duck",
     },
-    NEW_ZEALAND: {"Trichoglossus haematodus": "Rainbow Lorikeet"},
+    NEW_ZEALAND: {"Trichoglossus moluccanus": "Rainbow Lorikeet"},
 }
+
+
+def as_known_there(
+    key: int, taxon: dict, synonyms: list[str], group: str
+) -> tuple[int, dict, list[str]]:
+    """The species as the region's birders know it (SPLITS); else unchanged."""
+    canonical = taxon.get("canonicalName") or taxon["scientificName"]
+    split = SPLITS.get(group, {}).get(canonical)
+    if split is None:
+        return key, taxon, synonyms
+    new_key, name, authority = split
+    taxon = {
+        **taxon,
+        "canonicalName": name,
+        "scientificName": f"{name} {authority}",
+        "scientificNameAuthorship": authority,
+    }
+    return new_key, taxon, []  # GBIF's synonyms are the other species'
+
+
 GRAY = re.compile(r"\b(G|g)ray\b(?!')")  # not "Gray's Beaked Whale", named after Mr Gray
 MACRON = re.compile("[āēīōūĀĒĪŌŪ]")  # Māori: GBIF often files "Tūī", "Kererū" as English
 
@@ -668,15 +705,15 @@ def main() -> None:
             canonical = taxon and (taxon.get("canonicalName") or taxon["scientificName"])
             if taxon is None or is_hybrid_cross(canonical):
                 continue
+            key, taxon, syns = as_known_there(k, taxon, synonyms.get(k, []), area.group)
+            canonical = taxon.get("canonicalName") or taxon["scientificName"]
             # The name to show first: one the region's people use, else the UK list's
             uk_name = PREFERRED.get(area.group, {}).get(canonical)
             uk_rule = area.style.uk_names
             if not uk_name and (
                 uk_rule == "all" or (uk_rule == "not birds" and taxon.get("class") != "Aves")
             ):
-                uk_name = uk_name_for(
-                    uk, canonical, taxon.get("kingdom") or "", synonyms.get(k, [])
-                )
+                uk_name = uk_name_for(uk, canonical, taxon.get("kingdom") or "", syns)
             english = {c.name for c in names.get(k, [])} | ({uk_name} if uk_name else set())
             by_language = local.get(k, {})
             if "mi" in area.languages:  # Māori names GBIF has as English ones
@@ -684,9 +721,7 @@ def main() -> None:
                 by_language = {**by_language, "mi": [*by_language.get("mi", []), *maori]}
                 english -= set(maori)
             ln = local_names(by_language, area.languages, english) or None
-            records.append(
-                record(k, n, taxon, synonyms.get(k, []), names.get(k, []), area.style, uk_name, ln)
-            )
+            records.append(record(key, n, taxon, syns, names.get(k, []), area.style, uk_name, ln))
         file = f"{area.region}.jsonl.gz"
         size, sha = write_pack(args.out / file, records)
         manifest["packs"].append(

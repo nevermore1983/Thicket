@@ -111,3 +111,19 @@ The same way as the US states: GBIF's occurrence search, filtered by country and
   - Fewer Australian and New Zealand insects and native plants have an English name in GBIF than in North America. Many of New Zealand's native plants are known by Māori names that GBIF's 2023 file doesn't have (its website has newer ones, such as "Kererū").
   - Māori names are searchable only where GBIF has them (12 birds).
   - Search by scientific name always works.
+
+## Step 3 results (23 Nov 2026)
+
+**Published:** `packs-2026-11-3`.
+- `manifest-3.json` lists 125 packs (13 Canadian, 8 Australian, New Zealand). `manifest-2.json` (97) and `manifest.json` (51) are unchanged.
+- The app's own code lists all 125 and installs New South Wales (6.7 s), Quebec (5.2 s) and New Zealand (6.8 s) from the real release. Search finds "Laughing Kookaburra", "Spear Thistle", "Grey Butcherbird", "Tui", and Quebec's chickadee by "Mésange à tête noire".
+
+**Found, and fixed in the builder** (for the next pack release):
+- **Two Rainbow Lorikeets in Australia.** GBIF keeps the Rainbow and Coconut Lorikeets as one species (*Trichoglossus haematodus*). The UK list splits them, as the IOC, eBird and iNaturalist do. `SPLITS` now puts Australia's and New Zealand's birds under *T. moluccanus*, with GBIF's key for that name. They link to the UK list's Rainbow Lorikeet, and the Coconut Lorikeet stays a different bird.
+- **Out-of-date North American bird names** (in the US packs since they began). GBIF's Clements names predate three AOS changes, so `PREFERRED` now names them for the US and Canada:
+  - Gray Jay → **Canada Jay**
+  - McCown's Longspur → **Thick-billed Longspur**
+  - *Larus canus* → **Common Gull**: "Mew Gull" was split in 2021, and North America's bird is the Short-billed Gull, already right.
+
+  The old names stay searchable.
+- **Māori names:** as the trial found, "pūkeko" and "kererū" aren't searchable yet, because GBIF's file doesn't have them.
