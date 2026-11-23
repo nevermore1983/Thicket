@@ -2,6 +2,20 @@
 
 Each version's notes are used for its download page on GitHub (`scripts/release_notes.py`).
 
+## 1.7.0
+
+**Species packs for Canada, Australia and New Zealand.** 22 more regions in **Add a region…**: every Canadian province and territory, every Australian state and territory, and New Zealand.
+
+- **Where you record:** the welcome screen now offers Canada, Australia and New Zealand too. Each list appears once you choose it, so the page stays short.
+- **Names:**
+  - Canada has the names North American birders and naturalists use, as in the US packs. In Québec and New Brunswick you can also search in French: "mésange à tête noire" finds Black-capped Chickadee.
+  - Australia and New Zealand have the IOC bird names Australian and New Zealand birders use, and their own names for everything else, spelt the British way ("Grey Butcherbird"). Weeds and pests that came from Britain keep their UK names, such as Spear Thistle.
+  - New Zealand's Māori names are searchable where GBIF has them, which so far is only a few birds.
+- **Dates and the map:** spreadsheet dates are read month-first in Canada, as in the US, and day-first in Australia and New Zealand; the switch on the import page changes it for one file. The map opens on your province, state or country.
+- **Better names in other packs** (packs update from Settings › Region):
+  - US packs now use the American Ornithological Society's newer names: Canada Jay (not Gray Jay), Thick-billed Longspur, and Common Gull for *Larus canus* (North America's bird is the Short-billed Gull). The old names still find them.
+  - European packs spell "Grey" the British way for species the UK list doesn't have.
+
 ## 1.6.1
 
 **Species packs for Russia, Turkey and the Caucasus.** Six more regions in **Add a region…**: European Russia (west of the Urals), all of Russia, Turkey, Georgia, Armenia and Azerbaijan. Russian names are searchable in both Russia packs.
