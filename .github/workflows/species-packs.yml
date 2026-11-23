@@ -1,9 +1,10 @@
 # Building Thicket's species packs (docs/16-regions-plan.md, docs/23-europe-packs-plan.md,
-# docs/24-canada-australia-nz-plan.md).
+# docs/24-canada-australia-nz-plan.md, docs/25-latin-america-caribbean-plan.md).
 #
 # Pushing a tag such as packs-2026-11 builds a species pack for every European country,
 # US state (and DC), Canadian province and territory, Australian state and territory,
-# and New Zealand, from GBIF, checks each one installs properly with Thicket's
+# New Zealand, and every country and territory of Latin America and the Caribbean,
+# from GBIF, checks each one installs properly with Thicket's
 # own code, and publishes them as a release (never marked "latest", so the app's download
 # page is unchanged). Only then is Thicket pointed at them: the lists in the
 # "species-packs" release are replaced: manifest-3.json lists every pack (Thicket 1.6.1+),
@@ -25,7 +26,7 @@ permissions:
 jobs:
   packs:
     runs-on: ubuntu-24.04 # pinned: the 'latest' label moves to a new Ubuntu on 19 Oct 2026
-    timeout-minutes: 120
+    timeout-minutes: 240 # about 1 hour for 125 packs (Nov 2026); Brazil and Mexico add more
     env:
       TAG: ${{ github.ref_name }}
       BACKBONE_URL: https://hosted-datasets.gbif.org/datasets/backbone/current/backbone.zip
@@ -68,7 +69,7 @@ jobs:
         run: |
           gh release create "$TAG" build/packs/*.jsonl.gz build/packs/manifest-3.json build/packs/manifest-2.json build/packs/manifest.json \
             --title "Species packs ($TAG)" --latest=false \
-            --notes "Species packs for Thicket: one per European country, US state, Canadian province, Australian state, and New Zealand, from GBIF. Thicket downloads them itself (Settings › Region); there's nothing to download here by hand. $(uv run python -c 'import json; print(json.load(open("build/packs/manifest.json"))["citation"])')"
+            --notes "Species packs for Thicket: one per European country, US state, Canadian province, Australian state, New Zealand, and country of Latin America and the Caribbean, from GBIF. Thicket downloads them itself (Settings › Region); there's nothing to download here by hand. $(uv run python -c 'import json; print(json.load(open("build/packs/manifest.json"))["citation"])')"
 
       - name: Point Thicket at the new packs
         env:

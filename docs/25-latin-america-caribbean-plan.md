@@ -114,3 +114,9 @@ GBIF has Spanish and Portuguese names for most birds and many other animals and 
 - **Gaps:** as everywhere, most tropical insects and plants have no English name. Costa Rica names 1,221 of 17,007 insects. Search by scientific name always works.
 - **Search:** "bem-te-vi" finds Great Kiskadee; "beija-flor" and "colibrí" find hummingbirds.
 - **Brazil** is the biggest pack yet, and still installs in under 20 seconds with the progress bar.
+
+## Step 3 (23 Nov 2026)
+
+Before publishing:
+- **The packs workflow's time limit** goes from 2 to 4 hours. The last run took an hour for 125 packs, and the trial showed Latin America needs about 8,000 more name lookups from GBIF.
+- **Anguilla** has only 421 species with enough records, under the checker's 500 minimum for a sensible pack. Like Monaco and the Vatican, it gets a lower floor (`TINY`), with Sint Maarten's (711) given some headroom too. Every other territory has at least 800 (Montserrat).
