@@ -298,18 +298,25 @@ def test_regions_are_chosen_by_code_or_group(monkeypatch):
         b,
         "SOURCES_OF_AREAS",
         (
-            ("us", "us-", made_up("us-", "United States", ["oh", "ca"])),
-            ("canada", "ca-", made_up("ca-", "Canada", ["on", "qc"])),
-            ("australia", "au-", made_up("au-", "Australia", ["tas"])),
-            ("nz", "nz", made_up("", "New Zealand", ["nz"])),
-            ("europe", "", made_up("", "Europe", ["fr", "ie"])),
+            ("us", "United States", made_up("us-", "United States", ["oh", "ca"])),
+            ("canada", "Canada", made_up("ca-", "Canada", ["on", "qc"])),
+            ("australia", "Australia", made_up("au-", "Australia", ["tas"])),
+            ("nz", "New Zealand", made_up("", "New Zealand", ["nz"])),
+            ("europe", "Europe", made_up("", "Europe", ["fr", "ie"])),
+            (
+                "latin-america",
+                "Latin America and the Caribbean",
+                made_up("", "Latin America and the Caribbean", ["br", "cr"]),
+            ),
         ),
     )
     regions = lambda asked: [a.region for a in b.chosen_areas(asked)]  # noqa: E731
     assert regions("ca-on,nz,fr") == ["ca-on", "nz", "fr"]
     assert regions("canada") == ["ca-on", "ca-qc"]
     assert regions("australia,us-oh") == ["us-oh", "au-tas"]
-    assert len(regions(None)) == 8
+    assert regions("cr,ie") == ["ie", "cr"]  # bare codes: Europe's or Latin America's
+    assert regions("latin-america") == ["br", "cr"]
+    assert len(regions(None)) == 10
     import pytest
 
     with pytest.raises(SystemExit, match="ca-zz"):
@@ -369,3 +376,22 @@ def test_north_america_gets_the_aoss_newer_names():
         assert PREFERRED[group]["Perisoreus canadensis"] == "Canada Jay"
         assert PREFERRED[group]["Rhynchophanes mccownii"] == "Thick-billed Longspur"
         assert PREFERRED[group]["Larus canus"] == "Common Gull"  # North America's: Short-billed
+
+
+def test_latin_america_is_cut_by_country_and_named_the_ioc_way():
+    from build_species_packs import LATIN_AMERICA_NAMES, latin_american_countries
+
+    areas = {a.region: a for a in latin_american_countries()}
+    assert len(areas) == 52
+    assert areas["gf"].filters == (("country", "GF"),)  # French Guiana: not in France's pack
+    assert areas["br"].languages == ("pt",) and areas["br"].style is LATIN_AMERICA_NAMES
+    kite = [
+        Candidate("Gray-headed Kite", "The Clements Checklist"),
+        Candidate("Grey-headed Kite", "IOC World Bird List"),
+    ]
+    assert choose_names(kite, True, LATIN_AMERICA_NAMES)[0] == "Grey-headed Kite"
+    hummer = [
+        Candidate("Rufous-tailed Hummingbird", "IOC World Bird List"),
+        Candidate("Amazilia Hummingbird", "Some other list", "GB"),
+    ]
+    assert choose_names(hummer, True, LATIN_AMERICA_NAMES)[0] == "Rufous-tailed Hummingbird"

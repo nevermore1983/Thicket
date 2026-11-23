@@ -88,3 +88,29 @@ GBIF has Spanish and Portuguese names for most birds and many other animals and 
 - **The welcome screen** has a seventh choice, "Latin America and the Caribbean: a country's or territory's species from GBIF", whose list appears once chosen.
 - **"Add a region…"** shows the new heading last. Its intro and Settings › Region mention the region.
 - **Tests:** 710 (3 new). Screenshots: `scripts/screenshot.py --pages welcome-region add-region` now shows Costa Rica.
+
+## Step 2 results (23 Nov 2026)
+
+**Builder:**
+- `countries(group)` makes any group's country packs by GBIF's country code: Europe's as before, and Latin America's (`latin_american_countries()`).
+- `--regions` tells a bare code's group from the shared region list, not from how its code starts, so `cr` and `fr` both work. The group name is `latin-america`.
+- `LATIN_AMERICA_NAMES`: IOC bird names spelt the British way. British names only break ties, and the UK list's name is used for everything but birds, as in Australia.
+
+**Trial** (all pass the checker):
+
+| Pack | Species | Size | English name | Local names | Installs in |
+|---|---|---|---|---|---|
+| Brazil | 87,254 | 4.7 MB | 15% | 12% Portuguese | 16.8 s |
+| Mexico | 71,594 | 4.0 MB | 23% | 10% Spanish | 14.7 s |
+| Costa Rica | 37,915 | 2.0 MB | 18% | 9% Spanish | 7.7 s |
+| Puerto Rico | 10,021 | 0.7 MB | 39% | 16% Spanish | 3.5 s |
+| Martinique | 6,022 | 0.4 MB | 43% | 14% French | 2.4 s |
+
+- **Birds are excellent.**
+  - Brazil has English names for 1,863 of 1,875 birds and Portuguese names for 1,706 ("Bem-te-vi", "João-de-barro", "Sabiá-laranjeira").
+  - Costa Rica has 1,015 of 1,019, Puerto Rico 335 of 336, and Martinique all 177, with Spanish or French names for nearly all.
+  - British spelling: "Blue-grey Tanager", "Grey Kingbird".
+- **Mammals:** Mexico names 591 of 604 ("White-nosed Coati", also found as "pizote").
+- **Gaps:** as everywhere, most tropical insects and plants have no English name. Costa Rica names 1,221 of 17,007 insects. Search by scientific name always works.
+- **Search:** "bem-te-vi" finds Great Kiskadee; "beija-flor" and "colibrí" find hummingbirds.
+- **Brazil** is the biggest pack yet, and still installs in under 20 seconds with the progress bar.
