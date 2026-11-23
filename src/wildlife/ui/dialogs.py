@@ -23,7 +23,15 @@ from PySide6.QtWidgets import (
 from wildlife.context import AppContext
 from wildlife.domain.dates import DateQuery, parse_date_query
 from wildlife.domain.filters import SightingFilter
-from wildlife.domain.regions import AUSTRALIA, CANADA, EUROPE, NEW_ZEALAND, US, group_of
+from wildlife.domain.regions import (
+    AUSTRALIA,
+    CANADA,
+    EUROPE,
+    LATIN_AMERICA,
+    NEW_ZEALAND,
+    US,
+    group_of,
+)
 from wildlife.ui.components.visuals import fmt_date, plural, swatch
 from wildlife.ui.regions import describe, problem_text
 from wildlife.ui.theme.icons import pixmap
@@ -47,6 +55,12 @@ REGION_CHOICES = (
         "state or territory",
     ),
     (NEW_ZEALAND, "New Zealand: its", "New Zealand", "region"),
+    (
+        LATIN_AMERICA,
+        "Latin America and the Caribbean: a country's or territory's",
+        "Latin American or Caribbean country or territory",
+        "country or territory",
+    ),
 )
 
 

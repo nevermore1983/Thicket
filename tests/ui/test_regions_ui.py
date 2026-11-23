@@ -276,3 +276,31 @@ def test_the_list_has_canada_australia_and_new_zealand_under_headings(window, qt
     headings = [dialog.list.item(i).text() for i in range(0, 8, 2)]
     assert headings == ["United States", "Canada", "Australia", "New Zealand"]
     dialog.reject()
+
+
+# ---- Latin America and the Caribbean (docs/25-latin-america-caribbean-plan.md) -------
+def test_the_welcome_can_set_up_a_latin_american_country(ctx, monkeypatch, qtbot):
+    serve_packs(ctx, [("cr", "Costa Rica", FRANCE_PACK), ("fr", "France", FRANCE_PACK)])
+    dialog = _welcome(ctx, monkeypatch, qtbot)
+    choice, countries, _ = dialog.choices["Latin America and the Caribbean"]
+    assert countries.isHidden()
+    choice.setChecked(True)
+    qtbot.waitUntil(lambda: countries.count() == 1, timeout=10_000)  # not France
+    assert dialog.chosen_pack().region == "cr"
+    dialog._next()
+    qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
+    assert "Costa Rica" in dialog.progress_text.text() and ctx.catalogue.region() == "cr"
+
+
+def test_the_list_has_latin_america_last_under_its_heading(window, qtbot):
+    serve_packs(
+        window.ctx,
+        [("br", "Brazil", FRANCE_PACK), ("nz", "New Zealand", FRANCE_PACK)],
+    )
+    dialog = AddPackDialog(window.ctx, window)
+    qtbot.waitUntil(lambda: dialog.list.count() == 4, timeout=10_000)
+    headings = [dialog.list.item(i).text() for i in (0, 2)]
+    assert headings == ["New Zealand", "Latin America and the Caribbean"]
+    dialog.filter.setText("braz")
+    assert not dialog.list.item(2).isHidden() and dialog.list.item(0).isHidden()
+    dialog.reject()

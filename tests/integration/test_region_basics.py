@@ -17,8 +17,9 @@ from wildlife.domain.regions import COUNTRY_CODES, POSTAL_CODES, REGIONS, group_
 def test_the_regions_wildlife_knows():
     assert len(POSTAL_CODES) == 51 and len(COUNTRY_CODES) == 52
     # 50 states, DC, 52 European regions, the UK, and (1.7.0) 13 Canadian provinces and
-    # territories, 8 Australian states and territories, and New Zealand
-    assert len(REGIONS) == 126
+    # territories, 8 Australian states and territories, and New Zealand, and (1.8.0) 52
+    # countries and territories of Latin America and the Caribbean
+    assert len(REGIONS) == 178
     # Russia twice (west of the Urals, and all of it), Turkey and the Caucasus (1.6.1)
     assert {region(c).name for c in ("ru-eu", "ru", "tr", "ge", "am", "az")} == {
         "European Russia",
@@ -107,3 +108,24 @@ def test_canada_australia_and_new_zealand():
     assert region("ca-on").lat > 41 and region("au-tas").lat < -39  # in the right hemisphere
     assert sum(r.group == "Canada" for r in REGIONS.values()) == 13
     assert sum(r.group == "Australia" for r in REGIONS.values()) == 8
+
+
+def test_latin_america_and_the_caribbean():
+    """docs/25-latin-america-caribbean-plan.md: one heading; dates day-first, except in
+    Puerto Rico and the US Virgin Islands, which follow the US."""
+    from wildlife.domain.regions import LATIN_AMERICA_CODES
+
+    assert len(LATIN_AMERICA_CODES) == 52
+    brazil, costa_rica, puerto_rico = (region(c) for c in ("br", "cr", "pr"))
+    assert (brazil.name, brazil.group, brazil.languages) == (
+        "Brazil",
+        "Latin America and the Caribbean",
+        ("pt",),
+    )
+    assert costa_rica.languages == ("es",) and not costa_rica.month_first
+    assert puerto_rico.month_first and region("vi").month_first
+    assert region("mq").languages == ("fr",) and region("cw").languages == ("nl",)
+    assert region("jm").languages == ()  # English-speaking
+    assert brazil.lat < 0 < region("mx").lat and region("fk").lat < -50
+    assert group_of("gf") == "Latin America and the Caribbean"
+    assert region("fr").group == "Europe"  # France's pack leaves French Guiana out

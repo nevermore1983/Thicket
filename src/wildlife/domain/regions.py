@@ -3,8 +3,10 @@ docs/23-europe-packs-plan.md for Europe).
 
 'uk' (the built-in UK list), European countries by their international code ('fr',
 'de', ...), the US states and DC ('us-oh', ...), Canada's provinces and territories
-('ca-on', ...), Australia's states and territories ('au-nsw', ...) and New Zealand
-('nz'; docs/24-canada-australia-nz-plan.md). Each has where the map opens when
+('ca-on', ...), Australia's states and territories ('au-nsw', ...), New Zealand
+('nz'; docs/24-canada-australia-nz-plan.md), and the countries and territories of Latin
+America and the Caribbean, by their international code too ('br', 'cr', 'pr', ...;
+docs/25-latin-america-caribbean-plan.md). Each has where the map opens when
 there's nothing else to go on (an approximate centre and a zoom that shows most of it).
 The species pack builder uses the same lists (scripts/build_species_packs.py).
 """
@@ -16,8 +18,11 @@ from dataclasses import dataclass
 UK = "uk"
 UK_GROUP, EUROPE, US = "United Kingdom", "Europe", "United States"
 CANADA, AUSTRALIA, NEW_ZEALAND = "Canada", "Australia", "New Zealand"
+LATIN_AMERICA = "Latin America and the Caribbean"
 # How the region lists are arranged (a region this version doesn't know comes last)
-GROUPS = (EUROPE, US, CANADA, AUSTRALIA, NEW_ZEALAND)
+GROUPS = (EUROPE, US, CANADA, AUSTRALIA, NEW_ZEALAND, LATIN_AMERICA)
+# US territories outside the US group: they write dates the US way
+MONTH_FIRST_TOO = frozenset({"pr", "vi"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,9 +42,10 @@ class Region:
     @property
     def month_first(self) -> bool:
         """Dates written with numbers put the month first (US: 3/5 is 5 March; Canada
-        uses both, and month first is the more common). The UK, the rest of Europe,
-        Australia and New Zealand put the day first."""
-        return self.group in (US, CANADA)
+        uses both, and month first is the more common; Puerto Rico and the US Virgin
+        Islands follow the US). The UK, the rest of Europe, Australia, New Zealand and
+        Latin America put the day first."""
+        return self.group in (US, CANADA) or self.code in MONTH_FIRST_TOO
 
     @property
     def start_view(self) -> dict[str, float]:
@@ -163,6 +169,64 @@ _AU_STATES = (
 )
 NZ = "nz"
 
+# Latin America and the Caribbean: name, country code (as GBIF uses it), centre (lat,
+# lon), zoom, languages. The French, Dutch, British and US territories have their own
+# codes in GBIF, so their own packs. The Caribbean Netherlands' map opens on Bonaire.
+_LATIN_AMERICA = (
+    ("Anguilla", "AI", 18.22, -63.05, 11.0, ()),
+    ("Antigua and Barbuda", "AG", 17.35, -61.8, 9.6, ()),
+    ("Argentina", "AR", -38.4, -63.6, 3.8, ("es",)),
+    ("Aruba", "AW", 12.52, -69.97, 11.0, ("nl",)),
+    ("Bahamas", "BS", 24.3, -76.6, 6.0, ()),
+    ("Barbados", "BB", 13.19, -59.54, 11.0, ()),
+    ("Belize", "BZ", 17.2, -88.7, 7.6, ()),
+    ("Bermuda", "BM", 32.31, -64.77, 11.0, ()),
+    ("Bolivia", "BO", -16.3, -64.6, 5.4, ("es",)),
+    ("Brazil", "BR", -14.2, -51.9, 3.8, ("pt",)),
+    ("British Virgin Islands", "VG", 18.45, -64.55, 10.2, ()),
+    ("Caribbean Netherlands", "BQ", 12.18, -68.26, 9.4, ("nl",)),
+    ("Cayman Islands", "KY", 19.4, -80.9, 8.4, ()),
+    ("Chile", "CL", -35.7, -71.5, 3.8, ("es",)),
+    ("Colombia", "CO", 4.1, -73.1, 5.0, ("es",)),
+    ("Costa Rica", "CR", 9.8, -84.2, 7.2, ("es",)),
+    ("Cuba", "CU", 21.6, -79.5, 6.0, ("es",)),
+    ("Curaçao", "CW", 12.17, -68.99, 10.6, ("nl",)),
+    ("Dominica", "DM", 15.42, -61.36, 10.6, ()),
+    ("Dominican Republic", "DO", 18.8, -70.2, 7.6, ("es",)),
+    ("Ecuador", "EC", -1.6, -78.4, 6.4, ("es",)),
+    ("El Salvador", "SV", 13.7, -88.9, 7.8, ("es",)),
+    ("Falkland Islands", "FK", -51.8, -59.5, 7.0, ()),
+    ("French Guiana", "GF", 4.0, -53.1, 7.0, ("fr",)),
+    ("Grenada", "GD", 12.2, -61.65, 10.0, ()),
+    ("Guadeloupe", "GP", 16.2, -61.55, 9.2, ("fr",)),
+    ("Guatemala", "GT", 15.7, -90.3, 6.8, ("es",)),
+    ("Guyana", "GY", 4.9, -58.9, 6.2, ()),
+    ("Haiti", "HT", 19.0, -72.7, 7.8, ("fr",)),
+    ("Honduras", "HN", 14.8, -86.6, 6.8, ("es",)),
+    ("Jamaica", "JM", 18.1, -77.3, 8.2, ()),
+    ("Martinique", "MQ", 14.64, -61.02, 10.0, ("fr",)),
+    ("Mexico", "MX", 23.6, -102.5, 4.6, ("es",)),
+    ("Montserrat", "MS", 16.74, -62.19, 12.0, ()),
+    ("Nicaragua", "NI", 12.9, -85.0, 6.8, ("es",)),
+    ("Panama", "PA", 8.5, -80.1, 6.8, ("es",)),
+    ("Paraguay", "PY", -23.4, -58.4, 5.8, ("es",)),
+    ("Peru", "PE", -9.2, -75.0, 5.0, ("es",)),
+    ("Puerto Rico", "PR", 18.2, -66.5, 8.6, ("es",)),
+    ("Saint Barthélemy", "BL", 17.9, -62.83, 12.5, ("fr",)),
+    ("Saint Kitts and Nevis", "KN", 17.25, -62.7, 10.6, ()),
+    ("Saint Lucia", "LC", 13.91, -60.98, 10.8, ()),
+    ("Saint Martin", "MF", 18.08, -63.05, 12.0, ("fr",)),
+    ("Saint Vincent and the Grenadines", "VC", 13.0, -61.2, 9.4, ()),
+    ("Sint Maarten", "SX", 18.04, -63.06, 12.5, ("nl",)),
+    ("South Georgia and the South Sandwich Islands", "GS", -54.4, -36.6, 6.4, ()),
+    ("Suriname", "SR", 4.1, -55.9, 6.8, ("nl",)),
+    ("Trinidad and Tobago", "TT", 10.7, -61.2, 8.6, ()),
+    ("Turks and Caicos Islands", "TC", 21.7, -71.8, 8.6, ()),
+    ("United States Virgin Islands", "VI", 18.0, -64.8, 9.6, ()),
+    ("Uruguay", "UY", -32.8, -56.0, 6.4, ("es",)),
+    ("Venezuela", "VE", 7.1, -66.2, 5.4, ("es",)),
+)
+
 REGIONS: dict[str, Region] = {
     UK: Region(UK, "United Kingdom", 54.4, -3.2, 4.6),
     **{
@@ -182,9 +246,14 @@ REGIONS: dict[str, Region] = {
         for name, code, lat, lon, zoom in _AU_STATES
     },
     NZ: Region(NZ, "New Zealand", -41.0, 172.5, 4.9, NEW_ZEALAND, ("mi",)),
+    **{
+        code.lower(): Region(code.lower(), name, lat, lon, zoom, LATIN_AMERICA, langs)
+        for name, code, lat, lon, zoom, langs in _LATIN_AMERICA
+    },
 }
 POSTAL_CODES = {name: code for name, code, *_ in _STATES}  # 'Ohio' -> 'OH'
 COUNTRY_CODES = {name: code for name, code, *_ in _COUNTRIES}  # 'France' -> 'FR'
+LATIN_AMERICA_CODES = {name: code for name, code, *_ in _LATIN_AMERICA}  # 'Brazil' -> 'BR'
 PROVINCE_CODES = {name: code for name, code, *_ in _PROVINCES}  # 'Ontario' -> 'ON'
 AU_STATE_CODES = {name: code for name, code, *_ in _AU_STATES}  # 'Tasmania' -> 'TAS'
 
