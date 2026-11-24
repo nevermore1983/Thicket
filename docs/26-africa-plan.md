@@ -158,3 +158,26 @@ GBIF has too few names to be worth adding in Amharic, Zulu, Xhosa, Shona, Yoruba
 **Gaps:** as everywhere, most insects and plants have no English name. Search by scientific name always works.
 
 **For step 3:** the 1,880 lookups on GBIF's species pages took 6.5 minutes. About 6 of those minutes were 3 calls that stalled for about 2 minutes each before being retried. Every call waits up to 3 minutes (`timeout=180` in `get_json`). The big species-count searches need that, but a species page answers in well under a second.
+
+## Step 3 results (24 Nov 2026)
+
+**Where the time goes**, measured locally for a full run of all 237 regions:
+
+| Stage | Time |
+|---|---|
+| Counting the species in every region | 6 min |
+| Reading the Backbone (697,406 species) | ½ min |
+| **Single-species lookups:** 23,587 in all (10,904 species newer than the Backbone file, 12,683 vertebrates and dragonflies without an English name) | about 0.2 s each one after another, so about 1½ hours on a home connection and longer on GitHub's |
+
+**The changes** (`scripts/build_species_packs.py`):
+- **`species_pages()`** asks GBIF's species pages **4 at a time**. That's about twice as fast (0.11 s each), and still gentle on GBIF's public API: 8 at a time was faster again, but no need.
+- **Each page is asked once.** Before, a species newer than the Backbone file with no name was looked up twice.
+- **A stalled species page** is retried after 30 seconds (`SPECIES_PAGE_TIMEOUT`), not after the 3 minutes the big searches keep.
+- **The log** shows how far into the run each stage ends ("[42 min in]").
+
+**Trial** (the same five packs as step 2):
+- The build took **3.2 minutes instead of 8.4**, with the lookups taking 2 minutes instead of 7.
+- The packs are identical, species by species and name by name.
+- A network hiccup, where four lookups failed at once, was retried and recovered in 5 seconds.
+
+**Expected:** the full run should now take about 1¼ hours, not 3. The 4-hour limit stays as a safety net.

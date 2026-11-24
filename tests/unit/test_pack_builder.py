@@ -239,6 +239,25 @@ def pretend_gbif(monkeypatch, areas: dict[str, str]):
     monkeypatch.setattr(build_species_packs, "get_json", get_json)
 
 
+def test_species_pages_are_asked_a_few_at_a_time_with_a_short_wait(monkeypatch):
+    """docs/26 step 3: each page once, in order, and a stalled one isn't waited on for
+    the 3 minutes a big search may need."""
+    import build_species_packs as b
+
+    asked = []
+
+    def get_json(path, params=None, timeout=180):
+        asked.append((path, timeout))
+        return {"key": int(path.removeprefix("species/"))}
+
+    monkeypatch.setattr(b, "get_json", get_json)
+    pages = b.species_pages([5, 3, 9])
+    assert list(pages) == [5, 3, 9] and pages[3] == {"key": 3}
+    assert sorted(asked) == [(f"species/{k}", b.SPECIES_PAGE_TIMEOUT) for k in (3, 5, 9)]
+    assert b.SPECIES_PAGE_TIMEOUT < 180 and b.LOOKUPS_AT_ONCE > 1
+    assert b.species_pages([]) == {}
+
+
 def test_australias_states_with_jervis_bay_in_new_south_wales(monkeypatch):
     from build_species_packs import australian_states
 

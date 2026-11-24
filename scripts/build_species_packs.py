@@ -44,6 +44,7 @@ import urllib.parse
 import urllib.request
 import zipfile
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -79,6 +80,12 @@ COUNTED = (  # kinds of record that show a species lives there
     "OCCURRENCE",
 )
 PAGE = 20_000
+# Species pages (one species each) answer in well under a second: a stalled one is
+# retried after 30 s, not the 3 minutes a big search may need. They're asked 4 at a time,
+# which is gentle on GBIF's public API and makes the ~24,000 a full run needs take about
+# half as long (docs/26-africa-plan.md, step 3).
+SPECIES_PAGE_TIMEOUT = 30
+LOOKUPS_AT_ONCE = 4
 FORMAT = 1  # manifest format; Thicket refuses a newer one
 CITATION = (
     "Species and record counts: GBIF.org ({date}), GBIF Occurrence Search, "
@@ -347,13 +354,13 @@ def is_hybrid_cross(scientific_name: str) -> bool:
 
 
 # ---- GBIF's API -------------------------------------------------------------------------
-def get_json(path: str, params: dict | list | None = None) -> dict:
+def get_json(path: str, params: dict | list | None = None, timeout: float = 180) -> dict:
     query = urllib.parse.urlencode(params or {}, doseq=True)
     url = f"{API}/{path}" + (f"?{query}" if query else "")
     for attempt in range(5):
         try:
             request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-            with urllib.request.urlopen(request, timeout=180) as response:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
                 return json.load(response)
         except (OSError, ValueError) as exc:
             if attempt == 4:
@@ -362,6 +369,18 @@ def get_json(path: str, params: dict | list | None = None) -> dict:
             print(f"  GBIF didn't answer ({exc}); trying again in {wait} s", flush=True)
             time.sleep(wait)
     raise AssertionError("unreachable")
+
+
+def species_pages(keys) -> dict[int, dict]:
+    """GBIF's species page for each key, a few at a time (any that still fails after
+    get_json's retries stops the run, as before)."""
+    keys = list(keys)
+
+    def page(key: int) -> dict:
+        return get_json(f"species/{key}", timeout=SPECIES_PAGE_TIMEOUT)
+
+    with ThreadPoolExecutor(LOOKUPS_AT_ONCE) as pool:
+        return dict(zip(keys, pool.map(page, keys), strict=True))
 
 
 @dataclass(frozen=True)
@@ -682,6 +701,11 @@ def main() -> None:
     backbone_sha = hashlib.sha256(args.backbone.read_bytes()).hexdigest()
     areas = chosen_areas(args.regions)
     print(f"{len(areas)} regions", flush=True)
+    run_started = time.perf_counter()
+
+    def elapsed() -> str:
+        return f"[{(time.perf_counter() - run_started) / 60:.0f} min in]"
+
     counts: dict[Area, dict[int, int]] = {}
     for area in areas:
         started = time.perf_counter()
@@ -693,11 +717,11 @@ def main() -> None:
 
     wanted = set().union(*(c.keys() for c in counts.values())) if counts else set()
     languages = {lang for a in areas for lang in a.languages}
-    print(f"Reading the Backbone for {len(wanted):,} species…", flush=True)
+    print(f"{elapsed()} Reading the Backbone for {len(wanted):,} species…", flush=True)
     taxa, synonyms, names, local = read_backbone(args.backbone, wanted, languages)
     missing = wanted - taxa.keys()
-    for key in sorted(missing):  # newer than the Backbone file: ask GBIF
-        info = get_json(f"species/{key}")
+    pages = species_pages(sorted(missing))  # newer than the Backbone file: ask GBIF
+    for key, info in pages.items():
         if info.get("taxonomicStatus") == "ACCEPTED" and info.get("rank") == "SPECIES":
             taxa[key] = {
                 "canonicalName": info.get("canonicalName"),
@@ -707,17 +731,20 @@ def main() -> None:
             }
             if info.get("vernacularName"):
                 names[key].append(Candidate(info["vernacularName"], "GBIF species page"))
-    print(f"  {len(missing):,} looked up through the API", flush=True)
+    print(f"{elapsed()}   {len(missing):,} looked up through the API", flush=True)
     unnamed = [
         k
         for k, t in taxa.items()
         if wants_a_name(t) and not choose_names(names.get(k, []), False)[0]
     ]
-    for key in unnamed:  # the Backbone file has no English name: GBIF's live page may
-        if name := get_json(f"species/{key}").get("vernacularName"):
+    # The Backbone file has no English name: GBIF's live page may (each page asked once)
+    pages |= species_pages(k for k in unnamed if k not in pages)
+    for key in unnamed:
+        if name := pages[key].get("vernacularName"):
             names[key].append(Candidate(name, "GBIF species page"))
     print(
-        f"  {len(unnamed):,} vertebrates and dragonflies without a name: asked GBIF's species pages",
+        f"{elapsed()}   {len(unnamed):,} vertebrates and dragonflies without a name: "
+        "asked GBIF's species pages",
         flush=True,
     )
     uk = uk_names() if any(a.style.uk_names != "none" for a in areas) else {}

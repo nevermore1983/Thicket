@@ -26,7 +26,8 @@ permissions:
 jobs:
   packs:
     runs-on: ubuntu-24.04 # pinned: the 'latest' label moves to a new Ubuntu on 19 Oct 2026
-    timeout-minutes: 240 # about 1 hour for 125 packs (Nov 2026); Brazil and Mexico add more
+    timeout-minutes: 240 # 3 hours for 177 packs before species pages were asked 4 at a time
+    # (docs/26 step 3); about 1¼ hours expected for 237
     env:
       TAG: ${{ github.ref_name }}
       BACKBONE_URL: https://hosted-datasets.gbif.org/datasets/backbone/current/backbone.zip
