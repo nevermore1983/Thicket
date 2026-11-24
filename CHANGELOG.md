@@ -2,6 +2,16 @@
 
 Each version's notes are used for its download page on GitHub (`scripts/release_notes.py`).
 
+## 1.9.0
+
+**Species packs for Africa.** 60 more regions in **Add a region…**: every African country, plus Réunion, Mayotte, St Helena (with Ascension and Tristan da Cunha), Western Sahara, the British Indian Ocean Territory and the French Southern Territories.
+
+- **Where you record:** the welcome screen now offers Africa too. Its list appears once you choose it.
+- **Names:** birds have the IOC names, spelt the British way ("Grey Go-away-bird"), as in Latin America, Australia and New Zealand; eBird's names still find them. Everything else has GBIF's English names where there are any.
+- **Search in local languages:** Arabic, French, Swahili, Afrikaans and more, where GBIF has the names. "punda milia" finds both zebras in Kenya, "العوسق" finds Common Kestrel in Morocco, and "Hadeda" finds Hadada Ibis in South Africa.
+- **Sizes:** South Africa's pack has 51,139 species and Madagascar's 22,476. Each installs in about 10 seconds or less.
+- **Dates and the map:** spreadsheet dates are read day-first. The map opens on your country or island.
+
 ## 1.8.0
 
 **Species packs for Latin America and the Caribbean.** 52 more regions in **Add a region…**: every country and territory from Mexico to Tierra del Fuego, every Caribbean island, Bermuda, the Falklands and South Georgia.

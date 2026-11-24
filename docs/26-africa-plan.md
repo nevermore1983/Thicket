@@ -207,3 +207,7 @@ Before publishing:
   | Djibouti | 718 | 3.0 s | "Djibouti Francolin" → Djibouti Spurfowl |
 
   Searching English names with IOC spelling also works, for example "Grey Go-away-bird" and "Grey Crowned Crane".
+
+## Step 5 (24 Nov 2026)
+
+Thicket 1.9.0: the changelog, README, website (home, features, help, privacy) and version number now name Africa.
