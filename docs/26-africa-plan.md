@@ -187,3 +187,23 @@ GBIF has too few names to be worth adding in Amharic, Zulu, Xhosa, Shona, Yoruba
 Before publishing:
 - The workflow's release-page text and its opening comment now name Africa.
 - Djibouti (720 species) gets a lower floor in the checker (`TINY`), like Sint Maarten (711), so that one small dip in GBIF's records can't stop the whole publish.
+
+**Results** (run `packs-2026-11-6`):
+- **The run** took **1 hour 15 minutes**, against 3 hours last time with 60 fewer packs. Building took 62 minutes, checking 10, and publishing under 1. That's the expected 1¼ hours.
+- **The lists of packs:**
+  - `manifest-3.json` now lists **237 packs**, 60 of them African.
+  - `manifest-2.json` lists 97 packs, and `manifest.json` lists 51.
+  - All three point at `packs-2026-11-6`.
+- **Africa's 60 packs** hold 399,214 species between them (24.8 MB).
+  - Largest: South Africa 51,139, Madagascar 22,476, Tanzania 19,914, DR Congo 17,773, Kenya 15,944.
+  - Smallest: Djibouti 718, South Sudan 896, the British Indian Ocean Territory 1,049.
+- **Installed from the real release with the app's own code:**
+
+  | Pack | Species | Install time | Searches |
+  |---|---|---|---|
+  | South Africa | 51,139 | 9.9 s | "Hadeda" → Hadada Ibis |
+  | Morocco | 10,767 | 4.9 s | "العوسق" → Common Kestrel |
+  | Kenya | 15,944 | 5.3 s | "punda milia" → Plains and Grevy's Zebra |
+  | Djibouti | 718 | 3.0 s | "Djibouti Francolin" → Djibouti Spurfowl |
+
+  Searching English names with IOC spelling also works, for example "Grey Go-away-bird" and "Grey Crowned Crane".
