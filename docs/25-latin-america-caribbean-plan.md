@@ -120,3 +120,22 @@ GBIF has Spanish and Portuguese names for most birds and many other animals and 
 Before publishing:
 - **The packs workflow's time limit** goes from 2 to 4 hours. The last run took an hour for 125 packs, and the trial showed Latin America needs about 8,000 more name lookups from GBIF.
 - **Anguilla** has only 421 species with enough records, under the checker's 500 minimum for a sensible pack. Like Monaco and the Vatican, it gets a lower floor (`TINY`), with Sint Maarten's (711) given some headroom too. Every other territory has at least 800 (Montserrat).
+
+## Step 3 results (24 Nov 2026)
+
+- **The first run failed** after 2 h 19 min: GitHub's build machine lost contact ("the hosted runner lost communication with the server"), with no error from the builder. Memory wasn't the cause: reading 500,000 species and all 44 languages from the Backbone peaks at 1.2 GB of the runner's 16 GB. **Re-running the same job succeeded**, so nothing changed in the code.
+- **Published** (`packs-2026-11-5`):
+  - `manifest-3.json` has 177 packs, 52 of them Latin American and Caribbean.
+  - `manifest-2.json` (97) and `manifest.json` (51) are unchanged apart from the new release's links.
+  - The largest pack is Brazil (87,529 species, 4.7 MB), then Mexico (71,595) and Colombia (47,039). The smallest is Anguilla (421).
+- **Installed from the real release with the app's own code**, into a fresh library:
+
+| Pack | Species | Installs in |
+|---|---|---|
+| Brazil | 87,529 | 21 s |
+| Costa Rica | 37,915 | 12 s |
+| Puerto Rico | 10,021 | 7 s |
+| Anguilla | 421 | 4 s |
+
+- **Search works:** "bem-te-vi" finds Great Kiskadee, "beija-flor" and "colibrí" find hummingbirds, "pizote" finds White-nosed Coati, and "coquí" finds Common Coqui. Names use British spelling, e.g. Blue-grey Tanager and Grey Kingbird.
+- **Packs link up:** Great Kiskadee, in both Brazil's and Puerto Rico's packs, is still one species.
