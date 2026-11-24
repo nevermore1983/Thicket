@@ -3,8 +3,8 @@
 #
 # Pushing a tag such as packs-2026-11 builds a species pack for every European country,
 # US state (and DC), Canadian province and territory, Australian state and territory,
-# New Zealand, and every country and territory of Latin America and the Caribbean,
-# from GBIF, checks each one installs properly with Thicket's
+# New Zealand, and every country and territory of Latin America, the Caribbean and Africa
+# (docs/26-africa-plan.md), from GBIF, checks each one installs properly with Thicket's
 # own code, and publishes them as a release (never marked "latest", so the app's download
 # page is unchanged). Only then is Thicket pointed at them: the lists in the
 # "species-packs" release are replaced: manifest-3.json lists every pack (Thicket 1.6.1+),
@@ -70,7 +70,7 @@ jobs:
         run: |
           gh release create "$TAG" build/packs/*.jsonl.gz build/packs/manifest-3.json build/packs/manifest-2.json build/packs/manifest.json \
             --title "Species packs ($TAG)" --latest=false \
-            --notes "Species packs for Thicket: one per European country, US state, Canadian province, Australian state, New Zealand, and country of Latin America and the Caribbean, from GBIF. Thicket downloads them itself (Settings › Region); there's nothing to download here by hand. $(uv run python -c 'import json; print(json.load(open("build/packs/manifest.json"))["citation"])')"
+            --notes "Species packs for Thicket: one per European country, US state, Canadian province, Australian state, New Zealand, and country of Latin America, the Caribbean and Africa, from GBIF. Thicket downloads them itself (Settings › Region); there's nothing to download here by hand. $(uv run python -c 'import json; print(json.load(open("build/packs/manifest.json"))["citation"])')"
 
       - name: Point Thicket at the new packs
         env:

@@ -181,3 +181,9 @@ GBIF has too few names to be worth adding in Amharic, Zulu, Xhosa, Shona, Yoruba
 - A network hiccup, where four lookups failed at once, was retried and recovered in 5 seconds.
 
 **Expected:** the full run should now take about 1¼ hours, not 3. The 4-hour limit stays as a safety net.
+
+## Step 4 (24 Nov 2026)
+
+Before publishing:
+- The workflow's release-page text and its opening comment now name Africa.
+- Djibouti (720 species) gets a lower floor in the checker (`TINY`), like Sint Maarten (711), so that one small dip in GBIF's records can't stop the whole publish.

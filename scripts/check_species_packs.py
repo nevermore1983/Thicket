@@ -41,8 +41,18 @@ SORTABLE = ("Animalia", "Plantae", "Fungi")
 MAX_UNSORTED = 0.02  # at most 2% of a pack's species
 MIN_SPECIES = 500  # a region with fewer is suspicious (an API or boundary problem)
 # ...except the tiny countries, a town or a few square miles each, and the smallest islands
-# (Anguilla: 421 species in Nov 2026)
-TINY = {"va": 20, "mc": 50, "sm": 100, "gi": 100, "li": 300, "ad": 300, "ai": 250, "sx": 400}
+# (Anguilla: 421 species in Nov 2026; Sint Maarten 711 and Djibouti 720 get some headroom)
+TINY = {
+    "va": 20,
+    "mc": 50,
+    "sm": 100,
+    "gi": 100,
+    "li": 300,
+    "ad": 300,
+    "ai": 250,
+    "sx": 400,
+    "dj": 400,
+}
 
 
 def check(folder: Path, complete: bool = False) -> list[str]:
