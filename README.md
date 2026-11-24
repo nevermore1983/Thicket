@@ -14,7 +14,7 @@ Thicket was called **WildLife** up to version 1.1.0. Installing Thicket over Wil
 
 Run it. It installs for your Windows account only, with no administrator password, and adds Thicket to the Start menu. Running a newer installer upgrades your copy.
 
-When Thicket first starts, choose where you record: the UK (its species list is built in), a European country, a US state, a Canadian province or territory, an Australian state or territory, or New Zealand (its species pack downloads in a few seconds). You can change or add regions later in Settings › Region.
+When Thicket first starts, choose where you record: the UK (its species list is built in), a European country, a US state, a Canadian province or territory, an Australian state or territory, New Zealand, or a country or territory of Latin America and the Caribbean (its species pack downloads in a few seconds). You can change or add regions later in Settings › Region.
 - Windows may say "Windows protected your PC", because the installer isn't signed with a paid certificate. Click **More info**, then **Run anyway**.
 - Your data lives in `%LOCALAPPDATA%\WildLife` (the folder keeps the app's first name). Upgrading and uninstalling never touch it.
 
@@ -22,7 +22,7 @@ What changed in each version: [CHANGELOG.md](CHANGELOG.md). How the installer wo
 
 ## Status
 
-Version 1.7.0. See `docs/` for the research, specification, architecture, UI design and
+Version 1.8.0. See `docs/` for the research, specification, architecture, UI design and
 each phase's record, and `prototype/index.html` for the clickable design prototype.
 
 ## Developer setup

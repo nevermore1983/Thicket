@@ -139,3 +139,10 @@ Before publishing:
 
 - **Search works:** "bem-te-vi" finds Great Kiskadee, "beija-flor" and "colibrí" find hummingbirds, "pizote" finds White-nosed Coati, and "coquí" finds Common Coqui. Names use British spelling, e.g. Blue-grey Tanager and Grey Kingbird.
 - **Packs link up:** Great Kiskadee, in both Brazil's and Puerto Rico's packs, is still one species.
+
+## Step 4 (24 Nov 2026)
+
+Thicket 1.8.0:
+- **Changelog:** the new regions, names, local-language search, the biggest packs, and dates and the map.
+- **Website:** the home and Features pages are retitled "The UK, Europe, the Americas and Australasia". Help's "The first start" and "Changing region" and the privacy page name the new region.
+- **README** and the version number are updated.

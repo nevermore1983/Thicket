@@ -2,6 +2,16 @@
 
 Each version's notes are used for its download page on GitHub (`scripts/release_notes.py`).
 
+## 1.8.0
+
+**Species packs for Latin America and the Caribbean.** 52 more regions in **Add a region…**: every country and territory from Mexico to Tierra del Fuego, every Caribbean island, Bermuda, the Falklands and South Georgia.
+
+- **Where you record:** the welcome screen now offers Latin America and the Caribbean too. Its list appears once you choose it.
+- **Names:** birds have the IOC names, spelt the British way ("Blue-grey Tanager"), as in Australia and New Zealand; eBird's names still find them. Everything else has GBIF's English names where there are any.
+- **Search in the local language:** Spanish, Portuguese, French or Dutch, where GBIF has the names. "bem-te-vi" finds Great Kiskadee in Brazil, "colibrí" finds hummingbirds, and "pizote" finds White-nosed Coati.
+- **The biggest packs yet:** Brazil's has 87,529 species and Mexico's 71,595. They still download and install in under half a minute.
+- **Dates and the map:** spreadsheet dates are read day-first, except in Puerto Rico and the US Virgin Islands, which write them the US way; the switch on the import page changes it for one file. The map opens on your country or island.
+
 ## 1.7.0
 
 **Species packs for Canada, Australia and New Zealand.** 22 more regions in **Add a region…**: every Canadian province and territory, every Australian state and territory, and New Zealand.
