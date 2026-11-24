@@ -18,8 +18,8 @@ def test_the_regions_wildlife_knows():
     assert len(POSTAL_CODES) == 51 and len(COUNTRY_CODES) == 52
     # 50 states, DC, 52 European regions, the UK, and (1.7.0) 13 Canadian provinces and
     # territories, 8 Australian states and territories, and New Zealand, and (1.8.0) 52
-    # countries and territories of Latin America and the Caribbean
-    assert len(REGIONS) == 178
+    # countries and territories of Latin America and the Caribbean, and (1.9.0) 60 of Africa
+    assert len(REGIONS) == 238
     # Russia twice (west of the Urals, and all of it), Turkey and the Caucasus (1.6.1)
     assert {region(c).name for c in ("ru-eu", "ru", "tr", "ge", "am", "az")} == {
         "European Russia",
@@ -129,3 +129,23 @@ def test_latin_america_and_the_caribbean():
     assert brazil.lat < 0 < region("mx").lat and region("fk").lat < -50
     assert group_of("gf") == "Latin America and the Caribbean"
     assert region("fr").group == "Europe"  # France's pack leaves French Guiana out
+
+
+def test_africa():
+    """docs/26-africa-plan.md: 60 countries and territories under one heading, dates
+    day-first, and the languages GBIF has names in."""
+    from wildlife.domain.regions import AFRICA_CODES
+
+    assert len(AFRICA_CODES) == 60 and "BV" not in AFRICA_CODES.values()  # no Bouvet
+    south_africa, kenya, morocco, reunion = (region(c) for c in ("za", "ke", "ma", "re"))
+    assert (south_africa.name, south_africa.group, south_africa.languages) == (
+        "South Africa",
+        "Africa",
+        ("af",),
+    )
+    assert kenya.languages == ("sw",) and not kenya.month_first
+    assert morocco.languages == ("ar", "fr") and reunion.languages == ("fr",)
+    assert region("gh").languages == ()  # English-speaking
+    assert south_africa.lat < 0 < morocco.lat and region("tf").lat < -45
+    assert group_of("mg") == "Africa"
+    assert region("re").group == "Africa"  # France's pack leaves Réunion out, as GBIF does

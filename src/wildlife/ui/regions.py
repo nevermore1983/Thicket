@@ -1,7 +1,8 @@
 """Choosing where you record, and adding a region's species pack: a European country, a
 US state, a Canadian province, an Australian state, New Zealand, or a country of Latin
-America or the Caribbean (docs/16-regions-plan.md, docs/23-europe-packs-plan.md,
-docs/24-canada-australia-nz-plan.md, docs/25-latin-america-caribbean-plan.md).
+America, the Caribbean or Africa (docs/16-regions-plan.md, docs/23-europe-packs-plan.md,
+docs/24-canada-australia-nz-plan.md, docs/25-latin-america-caribbean-plan.md,
+docs/26-africa-plan.md).
 
 AddPackDialog lists the packs Thicket offers (from the internet, in the background),
 then downloads, checks and installs the one you choose, with progress. Nothing changes
@@ -71,8 +72,8 @@ class AddPackDialog(QDialog):
         intro = QLabel(
             "The species recorded in a European country, a US state, a Canadian province or "
             "territory, an Australian state or territory, New Zealand, or a country or "
-            "territory of Latin America and the Caribbean, from GBIF (the Global Biodiversity "
-            "Information Facility). Downloaded once; the UK list stays as it is."
+            "territory of Latin America, the Caribbean or Africa, from GBIF (the Global "
+            "Biodiversity Information Facility). Downloaded once; the UK list stays as it is."
         )
         intro.setWordWrap(True)
         intro.setProperty("role", "muted")

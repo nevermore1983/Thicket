@@ -180,6 +180,7 @@ def main() -> int:
                     ("au-tas", "Tasmania", FRANCE_PACK),
                     ("nz", "New Zealand", FRANCE_PACK),
                     ("cr", "Costa Rica", FRANCE_PACK),
+                    ("ke", "Kenya", FRANCE_PACK),
                 ],
             )
             ctx.species_packs._offered = None
@@ -195,7 +196,7 @@ def main() -> int:
                 dialog = FirstRunDialog(ctx, theme)
                 dialog.pages.setCurrentIndex(dialog.region_index)
                 dialog._update_step()
-                dialog.choices["Latin America and the Caribbean"][0].setChecked(True)
+                dialog.choices["Africa"][0].setChecked(True)
             dialog.show()
             wait(lambda: False, 1.5)
             return dialog

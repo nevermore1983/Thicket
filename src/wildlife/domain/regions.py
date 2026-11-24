@@ -6,7 +6,8 @@ docs/23-europe-packs-plan.md for Europe).
 ('ca-on', ...), Australia's states and territories ('au-nsw', ...), New Zealand
 ('nz'; docs/24-canada-australia-nz-plan.md), and the countries and territories of Latin
 America and the Caribbean, by their international code too ('br', 'cr', 'pr', ...;
-docs/25-latin-america-caribbean-plan.md). Each has where the map opens when
+docs/25-latin-america-caribbean-plan.md), and Africa's, the same way ('za', 'ke', 're',
+...; docs/26-africa-plan.md). Each has where the map opens when
 there's nothing else to go on (an approximate centre and a zoom that shows most of it).
 The species pack builder uses the same lists (scripts/build_species_packs.py).
 """
@@ -19,8 +20,9 @@ UK = "uk"
 UK_GROUP, EUROPE, US = "United Kingdom", "Europe", "United States"
 CANADA, AUSTRALIA, NEW_ZEALAND = "Canada", "Australia", "New Zealand"
 LATIN_AMERICA = "Latin America and the Caribbean"
+AFRICA = "Africa"
 # How the region lists are arranged (a region this version doesn't know comes last)
-GROUPS = (EUROPE, US, CANADA, AUSTRALIA, NEW_ZEALAND, LATIN_AMERICA)
+GROUPS = (EUROPE, US, CANADA, AUSTRALIA, NEW_ZEALAND, LATIN_AMERICA, AFRICA)
 # US territories outside the US group: they write dates the US way
 MONTH_FIRST_TOO = frozenset({"pr", "vi"})
 
@@ -43,8 +45,8 @@ class Region:
     def month_first(self) -> bool:
         """Dates written with numbers put the month first (US: 3/5 is 5 March; Canada
         uses both, and month first is the more common; Puerto Rico and the US Virgin
-        Islands follow the US). The UK, the rest of Europe, Australia, New Zealand and
-        Latin America put the day first."""
+        Islands follow the US). The UK, the rest of Europe, Australia, New Zealand,
+        Latin America and Africa put the day first."""
         return self.group in (US, CANADA) or self.code in MONTH_FIRST_TOO
 
     @property
@@ -227,6 +229,74 @@ _LATIN_AMERICA = (
     ("Venezuela", "VE", 7.1, -66.2, 5.4, ("es",)),
 )
 
+# Africa: the same, with the languages GBIF has enough names in (docs/26): Arabic,
+# French, Portuguese, Spanish, Afrikaans, Malagasy, Swahili, Kinyarwanda, Wolof, Somali,
+# Chichewa, Lingala, Hausa. Maps of scattered islands open on the main one: Saint
+# Helena, Mauritius, the Seychelles (Mahé), Chagos (Diego Garcia's atolls) and the French
+# Southern Territories (Kerguelen).
+_AFRICA = (
+    ("Algeria", "DZ", 28.0, 2.6, 4.8, ("ar", "fr")),
+    ("Angola", "AO", -12.3, 17.5, 5.3, ("pt",)),
+    ("Benin", "BJ", 9.3, 2.3, 6.6, ("fr",)),
+    ("Botswana", "BW", -22.3, 24.7, 5.8, ()),
+    ("British Indian Ocean Territory", "IO", -6.3, 71.9, 7.2, ()),
+    ("Burkina Faso", "BF", 12.3, -1.6, 6.2, ("fr",)),
+    ("Burundi", "BI", -3.4, 29.9, 8.0, ("fr",)),
+    ("Cabo Verde", "CV", 16.0, -24.0, 8.0, ("pt",)),
+    ("Cameroon", "CM", 5.7, 12.4, 5.6, ("fr",)),
+    ("Central African Republic", "CF", 6.6, 20.9, 5.6, ("fr",)),
+    ("Chad", "TD", 15.4, 18.7, 5.0, ("fr", "ar")),
+    ("Comoros", "KM", -11.9, 43.9, 8.6, ("fr", "ar")),
+    ("Côte d'Ivoire", "CI", 7.6, -5.5, 6.4, ("fr",)),
+    ("Democratic Republic of the Congo", "CD", -2.9, 23.6, 4.8, ("fr", "sw", "ln")),
+    ("Djibouti", "DJ", 11.8, 42.6, 8.0, ("fr", "ar")),
+    ("Egypt", "EG", 26.8, 30.8, 5.4, ("ar",)),
+    ("Equatorial Guinea", "GQ", 2.6, 9.5, 7.0, ("es", "fr")),
+    ("Eritrea", "ER", 15.2, 39.4, 6.6, ()),
+    ("Eswatini", "SZ", -26.5, 31.5, 8.4, ()),
+    ("Ethiopia", "ET", 9.1, 40.0, 5.4, ()),
+    ("French Southern Territories", "TF", -49.3, 69.4, 7.6, ("fr",)),
+    ("Gabon", "GA", -0.8, 11.6, 6.4, ("fr",)),
+    ("Gambia", "GM", 13.45, -15.4, 7.8, ("wo",)),
+    ("Ghana", "GH", 7.9, -1.0, 6.4, ()),
+    ("Guinea", "GN", 10.4, -10.9, 6.4, ("fr",)),
+    ("Guinea-Bissau", "GW", 11.8, -15.2, 7.6, ("pt",)),
+    ("Kenya", "KE", 0.2, 37.9, 5.8, ("sw",)),
+    ("Lesotho", "LS", -29.6, 28.2, 8.0, ()),
+    ("Liberia", "LR", 6.4, -9.4, 7.0, ()),
+    ("Libya", "LY", 26.9, 17.3, 4.8, ("ar",)),
+    ("Madagascar", "MG", -19.4, 46.7, 5.4, ("mg", "fr")),
+    ("Malawi", "MW", -13.3, 34.0, 6.2, ("ny",)),
+    ("Mali", "ML", 17.6, -3.5, 5.0, ("fr",)),
+    ("Mauritania", "MR", 20.3, -10.4, 5.2, ("ar", "fr")),
+    ("Mauritius", "MU", -20.25, 57.55, 9.6, ("fr",)),
+    ("Mayotte", "YT", -12.83, 45.15, 10.4, ("fr",)),
+    ("Morocco", "MA", 31.8, -7.1, 5.6, ("ar", "fr")),
+    ("Mozambique", "MZ", -18.7, 35.5, 5.0, ("pt",)),
+    ("Namibia", "NA", -22.6, 17.1, 5.4, ("af",)),
+    ("Niger", "NE", 17.6, 8.1, 5.2, ("fr", "ha")),
+    ("Nigeria", "NG", 9.1, 8.7, 5.6, ("ha",)),
+    ("Republic of the Congo", "CG", -0.7, 15.0, 6.0, ("fr", "ln")),
+    ("Réunion", "RE", -21.12, 55.53, 9.6, ("fr",)),
+    ("Rwanda", "RW", -1.95, 29.9, 8.2, ("rw", "fr")),
+    ("Saint Helena, Ascension and Tristan da Cunha", "SH", -15.96, -5.71, 11.0, ()),
+    ("São Tomé and Príncipe", "ST", 0.95, 7.05, 8.4, ("pt",)),
+    ("Senegal", "SN", 14.5, -14.5, 6.6, ("fr", "wo")),
+    ("Seychelles", "SC", -4.68, 55.49, 9.8, ("fr",)),
+    ("Sierra Leone", "SL", 8.5, -11.8, 7.4, ()),
+    ("Somalia", "SO", 5.2, 46.2, 5.2, ("so", "ar")),
+    ("South Africa", "ZA", -29.0, 25.1, 5.0, ("af",)),
+    ("South Sudan", "SS", 7.3, 30.2, 5.8, ()),
+    ("Sudan", "SD", 15.6, 30.2, 5.0, ("ar",)),
+    ("Tanzania", "TZ", -6.4, 34.9, 5.4, ("sw",)),
+    ("Togo", "TG", 8.6, 0.9, 6.8, ("fr",)),
+    ("Tunisia", "TN", 34.0, 9.5, 6.2, ("ar", "fr")),
+    ("Uganda", "UG", 1.4, 32.3, 6.6, ("sw",)),
+    ("Western Sahara", "EH", 24.2, -12.9, 5.8, ("ar", "es")),
+    ("Zambia", "ZM", -13.1, 27.8, 5.6, ("ny",)),
+    ("Zimbabwe", "ZW", -19.0, 29.2, 6.0, ()),
+)
+
 REGIONS: dict[str, Region] = {
     UK: Region(UK, "United Kingdom", 54.4, -3.2, 4.6),
     **{
@@ -250,10 +320,15 @@ REGIONS: dict[str, Region] = {
         code.lower(): Region(code.lower(), name, lat, lon, zoom, LATIN_AMERICA, langs)
         for name, code, lat, lon, zoom, langs in _LATIN_AMERICA
     },
+    **{
+        code.lower(): Region(code.lower(), name, lat, lon, zoom, AFRICA, langs)
+        for name, code, lat, lon, zoom, langs in _AFRICA
+    },
 }
 POSTAL_CODES = {name: code for name, code, *_ in _STATES}  # 'Ohio' -> 'OH'
 COUNTRY_CODES = {name: code for name, code, *_ in _COUNTRIES}  # 'France' -> 'FR'
 LATIN_AMERICA_CODES = {name: code for name, code, *_ in _LATIN_AMERICA}  # 'Brazil' -> 'BR'
+AFRICA_CODES = {name: code for name, code, *_ in _AFRICA}  # 'Kenya' -> 'KE'
 PROVINCE_CODES = {name: code for name, code, *_ in _PROVINCES}  # 'Ontario' -> 'ON'
 AU_STATE_CODES = {name: code for name, code, *_ in _AU_STATES}  # 'Tasmania' -> 'TAS'
 

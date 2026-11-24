@@ -304,3 +304,31 @@ def test_the_list_has_latin_america_last_under_its_heading(window, qtbot):
     dialog.filter.setText("braz")
     assert not dialog.list.item(2).isHidden() and dialog.list.item(0).isHidden()
     dialog.reject()
+
+
+# ---- Africa (docs/26-africa-plan.md) ---------------------------------------------------
+def test_the_welcome_can_set_up_an_african_country(ctx, monkeypatch, qtbot):
+    serve_packs(ctx, [("ke", "Kenya", FRANCE_PACK), ("cr", "Costa Rica", FRANCE_PACK)])
+    dialog = _welcome(ctx, monkeypatch, qtbot)
+    choice, countries, _ = dialog.choices["Africa"]
+    assert countries.isHidden()
+    choice.setChecked(True)
+    qtbot.waitUntil(lambda: countries.count() == 1, timeout=10_000)  # not Costa Rica
+    assert dialog.chosen_pack().region == "ke"
+    dialog._next()
+    qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
+    assert "Kenya" in dialog.progress_text.text() and ctx.catalogue.region() == "ke"
+
+
+def test_the_list_has_africa_last_under_its_heading(window, qtbot):
+    serve_packs(
+        window.ctx,
+        [("za", "South Africa", FRANCE_PACK), ("br", "Brazil", FRANCE_PACK)],
+    )
+    dialog = AddPackDialog(window.ctx, window)
+    qtbot.waitUntil(lambda: dialog.list.count() == 4, timeout=10_000)
+    headings = [dialog.list.item(i).text() for i in (0, 2)]
+    assert headings == ["Latin America and the Caribbean", "Africa"]
+    dialog.filter.setText("south af")
+    assert not dialog.list.item(3).isHidden() and dialog.list.item(1).isHidden()
+    dialog.reject()

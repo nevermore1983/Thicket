@@ -24,6 +24,7 @@ from wildlife.context import AppContext
 from wildlife.domain.dates import DateQuery, parse_date_query
 from wildlife.domain.filters import SightingFilter
 from wildlife.domain.regions import (
+    AFRICA,
     AUSTRALIA,
     CANADA,
     EUROPE,
@@ -59,6 +60,12 @@ REGION_CHOICES = (
         LATIN_AMERICA,
         "Latin America and the Caribbean: a country's or territory's",
         "Latin American or Caribbean country or territory",
+        "country or territory",
+    ),
+    (
+        AFRICA,
+        "Africa: a country's or territory's",
+        "African country or territory",
         "country or territory",
     ),
 )

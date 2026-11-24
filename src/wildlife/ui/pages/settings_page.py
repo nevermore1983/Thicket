@@ -529,7 +529,7 @@ class SettingsPage(QWidget):
             _row(
                 "Species packs",
                 f"{plural(packs, 'region')} added. Species for regions in Europe, the "
-                "Americas, the Caribbean, Australia and New Zealand come from GBIF; adding one needs the "
+                "Americas, the Caribbean, Africa, Australia and New Zealand come from GBIF; adding one needs the "
                 "internet once.",
                 add,
             ),
