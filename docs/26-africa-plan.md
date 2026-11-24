@@ -124,3 +124,37 @@ GBIF has too few names to be worth adding in Amharic, Zulu, Xhosa, Shona, Yoruba
 - **The welcome screen** has an eighth choice, "Africa: a country's or territory's species from GBIF". Its list appears once it's chosen, and the page still fits.
 - **"Add a region…"** shows the Africa heading last. Its intro, and Settings › Region, mention Africa.
 - **Tests:** 714, of which 3 are new. The screenshots (`scripts/screenshot.py --pages welcome-region add-region`) now show Kenya.
+
+## Step 2 results (24 Nov 2026)
+
+**Builder:**
+- `african_countries()` makes Africa's packs by GBIF's country code, like Latin America's. The `--regions` group name is `africa`.
+- `AFRICA_NAMES`: IOC bird names spelt the British way, as for Latin America.
+
+**Trial** (all pass the checker):
+
+| Pack | Species | Size | Birds with an English name | Local names | Installs in |
+|---|---|---|---|---|---|
+| South Africa | 51,139 | 2.7 MB | 971 of 974 | 5% (Afrikaans for 722 birds) | 9.8 s |
+| Madagascar | 22,476 | 1.2 MB | 334 of 335 | 13% (Malagasy and French) | 4.7 s |
+| Kenya | 15,944 | 1.0 MB | 1,238 of 1,243 | 2% (Swahili) | 4.1 s |
+| Morocco | 10,767 | 0.8 MB | all 432 | 23% (Arabic and French) | 3.4 s |
+| Réunion | 7,530 | 0.5 MB | all 117 | 18% (French) | 2.7 s |
+
+**Birds:** all but a handful have English names, spelt the British way. None is left as "Gray".
+
+**Mammals:** nearly all have English names too: 331 of 333 in South Africa and 447 of 455 in Kenya.
+
+**Local names:**
+- Afrikaans in South Africa: "Tortelduif" finds Ring-necked Dove, and "Hadeda" finds Hadada Ibis.
+- Malagasy in Madagascar: "Varika" finds Brown Lemur.
+- French in Madagascar and Réunion: "Foudi rouge" finds Red Fody.
+- Swahili in Kenya: GBIF has it mostly for big mammals ("Punda Milia" finds Plains Zebra, "twiga" finds Giraffe), not birds.
+
+**Arabic:**
+- 168 Moroccan species have Arabic names. "العوسق" finds Kestrel, "حمام" finds Rock Dove, and "القبرة" finds the larks.
+- In the species picker, "also “…”" shows an Arabic name right to left, with the quotation marks in the right places. No change was needed.
+
+**Gaps:** as everywhere, most insects and plants have no English name. Search by scientific name always works.
+
+**For step 3:** the 1,880 lookups on GBIF's species pages took 6.5 minutes. About 6 of those minutes were 3 calls that stalled for about 2 minutes each before being retried. Every call waits up to 3 minutes (`timeout=180` in `get_json`). The big species-count searches need that, but a species page answers in well under a second.

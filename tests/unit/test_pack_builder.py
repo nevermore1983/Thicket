@@ -308,6 +308,7 @@ def test_regions_are_chosen_by_code_or_group(monkeypatch):
                 "Latin America and the Caribbean",
                 made_up("", "Latin America and the Caribbean", ["br", "cr"]),
             ),
+            ("africa", "Africa", made_up("", "Africa", ["za", "ke"])),
         ),
     )
     regions = lambda asked: [a.region for a in b.chosen_areas(asked)]  # noqa: E731
@@ -316,7 +317,9 @@ def test_regions_are_chosen_by_code_or_group(monkeypatch):
     assert regions("australia,us-oh") == ["us-oh", "au-tas"]
     assert regions("cr,ie") == ["ie", "cr"]  # bare codes: Europe's or Latin America's
     assert regions("latin-america") == ["br", "cr"]
-    assert len(regions(None)) == 10
+    assert regions("ke,cr,fr") == ["fr", "cr", "ke"]  # Africa's bare codes too
+    assert regions("africa") == ["za", "ke"]
+    assert len(regions(None)) == 12
     import pytest
 
     with pytest.raises(SystemExit, match="ca-zz"):
@@ -395,3 +398,17 @@ def test_latin_america_is_cut_by_country_and_named_the_ioc_way():
         Candidate("Amazilia Hummingbird", "Some other list", "GB"),
     ]
     assert choose_names(hummer, True, LATIN_AMERICA_NAMES)[0] == "Rufous-tailed Hummingbird"
+
+
+def test_africa_is_cut_by_country_and_named_the_ioc_way():
+    from build_species_packs import AFRICA_NAMES, african_countries
+
+    areas = {a.region: a for a in african_countries()}
+    assert len(areas) == 60
+    assert areas["re"].filters == (("country", "RE"),)  # Réunion: not in France's pack
+    assert areas["ma"].languages == ("ar", "fr") and areas["ma"].style is AFRICA_NAMES
+    go_away = [
+        Candidate("Gray Go-away-bird", "The Clements Checklist"),
+        Candidate("Grey Go-away-bird", "IOC World Bird List"),
+    ]
+    assert choose_names(go_away, True, AFRICA_NAMES)[0] == "Grey Go-away-bird"
