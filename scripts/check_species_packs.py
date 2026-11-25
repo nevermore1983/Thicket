@@ -41,7 +41,8 @@ SORTABLE = ("Animalia", "Plantae", "Fungi")
 MAX_UNSORTED = 0.02  # at most 2% of a pack's species
 MIN_SPECIES = 500  # a region with fewer is suspicious (an API or boundary problem)
 # ...except the tiny countries, a town or a few square miles each, and the smallest islands
-# (Anguilla: 421 species in Nov 2026; Sint Maarten 711 and Djibouti 720 get some headroom)
+# (Anguilla: 421 species in Nov 2026, Bahrain 490; Sint Maarten 711, Djibouti 720 and Qatar
+# 682 get some headroom)
 TINY = {
     "va": 20,
     "mc": 50,
@@ -52,6 +53,8 @@ TINY = {
     "ai": 250,
     "sx": 400,
     "dj": 400,
+    "bh": 300,
+    "qa": 400,
 }
 
 

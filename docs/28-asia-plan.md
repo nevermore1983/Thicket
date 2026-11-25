@@ -216,3 +216,10 @@ As before, you approve the end of each step.
 
   All are well inside the search box's pause before it searches.
 - **Tests:** three new ones in `tests/integration/test_catalogue.py`, for Chinese, Japanese, and Latin-alphabet searches staying as they were. 801 pass.
+
+## Step 4 (25 Nov 2026)
+
+Before publishing:
+- **Lower floors** in the checker (`TINY`): Bahrain (490 species) gets 300, and Qatar (682) gets 400, as Djibouti has.
+- **The workflow's** release-page text and opening comment name the Middle East and Asia. The time comment expects about 1¾ hours for 285 packs.
+- **Names change in every pack** with this run: step 2's agreement rule (Giant Panda, Hemp, Milkfish…), with the old names kept searchable.
