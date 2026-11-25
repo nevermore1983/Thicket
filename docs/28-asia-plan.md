@@ -223,3 +223,33 @@ Before publishing:
 - **Lower floors** in the checker (`TINY`): Bahrain (490 species) gets 300, and Qatar (682) gets 400, as Djibouti has.
 - **The workflow's** release-page text and opening comment name the Middle East and Asia. The time comment expects about 1¾ hours for 285 packs.
 - **Names change in every pack** with this run: step 2's agreement rule (Giant Panda, Hemp, Milkfish…), with the old names kept searchable.
+
+**Step 4 results (25 Nov 2026)**
+
+- **A GitHub outage:** the first tag, `packs-2026-11-7`, was pushed during a GitHub Actions outage and its run never started. With your OK the same commit was tagged `packs-2026-11-8`, which ran. The unused tag stays; nothing was published from it.
+- **The run** (`packs-2026-11-8`) succeeded in 1 h 05 min, quicker than the 1¾ hours expected:
+  - getting the Backbone took 32 s (from the cache);
+  - building the 285 packs took 52 min;
+  - checking them took 12 min;
+  - publishing took 36 s.
+- **The lists:**
+  - `manifest-3.json` has 285 packs, all from `packs-2026-11-8`: 14 for the Middle East and 34 for Asia, which together hold 497,006 species in 31 MB. No region is missing.
+  - `manifest-2.json` (for 1.6.0) has 97 packs and `manifest.json` (US only) has 51, both from the same release.
+- **Real installs** with the app's own code, from the published release:
+
+  | Pack | Species | Install |
+  |---|---|---|
+  | China | 59,592 | 11.5 s |
+  | Japan | 52,197 | 11.1 s |
+  | the Philippines | 27,978 | 8.4 s |
+  | Israel | 9,733 | 5.2 s |
+
+  - Found: Giant Panda, 大嘴乌鸦 and 乌鸦 (crows), 珠颈斑鸠 (Spotted Dove), シジュウカラ (Japanese Tit), スズメ (Tree Sparrow), Palestine Sunbird, Hoopoe, Philippine Eagle. Every search took 25 ms or less.
+  - Not found: ニホンザル (Japanese Macaque), דוכיפת (Hoopoe in Hebrew), and Haribon and Maya (the Philippine Eagle and Tree Sparrow in Filipino). GBIF has no such names for them, so this isn't a fault in the search.
+- **How many birds have a local name**, from GBIF:
+  - China: 1,335 of 1,454
+  - Japan: 603 of 661
+  - Israel: 2 of 536 in Hebrew
+  - the Philippines: none of 773
+
+  Filling these gaps would need another source of names. That's a possible later stage, not part of this plan.
