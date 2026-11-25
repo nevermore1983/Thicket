@@ -91,6 +91,21 @@ QPushButton[variant="primary"] {{ background: {t.accent}; border-color: {t.accen
 QPushButton[variant="primary"]:hover {{ background: {t.accent_hover}; border-color: {t.accent_hover}; }}
 /* after the primary rules, which would otherwise make a turned-off button look ready */
 QPushButton[variant="primary"]:disabled {{ background: {t.surface_2}; border-color: {t.border}; color: {t.text_3}; }}
+
+/* radio buttons: Qt's own circle barely shows on the dark theme. 16 px + its border = 18,
+   so a radius of 9 makes a circle; chosen = the accent with a dot in the middle */
+QRadioButton {{ spacing: 8px; }}
+QRadioButton::indicator {{
+    width: 16px; height: 16px; border-radius: 9px;
+    border: 1px solid {t.text_3}; background: {t.surface};
+}}
+QRadioButton::indicator:hover {{ border-color: {t.accent}; }}
+QRadioButton::indicator:checked {{
+    border-color: {t.accent};
+    background: qradialgradient(cx: 0.5, cy: 0.5, radius: 0.5, fx: 0.5, fy: 0.5,
+        stop: 0 {t.accent_fg}, stop: 0.3 {t.accent_fg}, stop: 0.38 {t.accent}, stop: 1 {t.accent});
+}}
+QRadioButton::indicator:disabled {{ border-color: {t.border}; background: {t.surface_2}; }}
 QPushButton[variant="ghost"] {{ background: transparent; border-color: transparent; color: {t.text_2}; }}
 QPushButton[variant="ghost"]:hover {{ background: {t.surface_2}; color: {t.text}; }}
 QPushButton[variant="link"] {{ background: transparent; border: none; color: {t.accent}; padding: 0 6px; min-height: 26px; }}

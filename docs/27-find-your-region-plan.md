@@ -138,3 +138,12 @@ As before, you approve the end of each step.
 - **Screenshots** (`scripts/screenshot.py --pages welcome-region`, as if Windows said Kenya) are checked in light and dark.
 - **Noticed:** radio buttons aren't styled, so their circles barely show in the dark theme. That's older than this plan, and left for now.
 - **Tests:** the nine old welcome tests (one per group) are replaced by ten for the new page, plus two in `test_region_search.py`. 776 pass.
+
+## Step 4 (25 Nov 2026)
+
+- **Radio buttons** now have their own style (`ui/theme/stylesheet.py`). The empty circle is drawn in the muted text colour, so it shows on both themes; the chosen one is the accent with a dot. Checked in enlarged screenshots of light and dark.
+- **Words:**
+  - The help page's "The first start" describes the two choices and the search, then what each part of the world's packs give you.
+  - The privacy page says the Windows country setting is read only to suggest, and never stored or sent. Its online table now says "Species packs", not "US species packs", which had been out of date since Europe was added.
+  - The README, `docs/13-manual-tests.md` (new M11b) and the changelog are updated.
+- **Version 1.10.0** is the first with a two-digit middle number. Nothing compares versions as text (the release tooling matches the exact text, and GitHub's "latest" goes by date), so it's safe.

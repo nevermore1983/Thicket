@@ -145,6 +145,21 @@ Expected:
 
 When you're done, delete the test account (Settings › Accounts › Other users).
 
+**☐ M11b: Finding your region on the welcome screen** (docs/27)
+
+On the test account from M11, before its first start, set Windows to Kenya: Settings › Time & language › Language & region › Country or region.
+1. Start Thicket and go on to **Where do you record?**
+2. Choose **Somewhere else**.
+3. Type "Ivory Coast", then "reunion", then "England", clearing the box between them.
+
+Expected:
+- **United Kingdom** is chosen until you choose Somewhere else, and both round buttons are easy to see in the dark theme too.
+- Kenya is chosen and in view, with "Kenya is chosen, as Windows is set to it."
+- "Ivory Coast" finds Côte d'Ivoire, "reunion" finds Réunion, and "England" says the UK's list is built in.
+- **Continue** with nothing chosen asks you to choose first.
+
+Set Windows back to your own country afterwards.
+
 **☐ M12: Upgrade while WildLife is open**
 
 On your own account, after installing once:

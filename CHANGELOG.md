@@ -2,6 +2,15 @@
 
 Each version's notes are used for its download page on GitHub (`scripts/release_notes.py`).
 
+## 1.10.0
+
+**Find your region by typing.** The welcome screen asks where you record with just two choices: **United Kingdom**, or **Somewhere else**, which shows one search over every region Thicket has packs for, under its heading.
+
+- **Suggested from Windows:** if Windows is set to a country with a pack (Kenya, France, Brazil…), choosing Somewhere else has it ready. The UK stays chosen until you change it. For the US, Canada, Australia or Russia, the list opens at its heading so you can pick your state or province. The setting is read on your PC and never sent anywhere.
+- **A kinder search**, on the welcome screen and in **Settings › Region › Add a region…**: accents and apostrophes don't matter ("Reunion", "Cote dIvoire"), "St" finds "Saint", and names people also use work too ("Ivory Coast", "Swaziland", "Holland", "Czech Republic", "NSW"). Only the names are searched, not the sizes.
+- **It says when it can't help:** typing "England" or "Scotland" explains that the UK's list is built in, and a name Thicket has no pack for says which parts of the world it covers.
+- **Easier to see:** a button you can't press yet now looks greyed out (it used to look ready), and the round choice buttons are clear in the dark theme.
+
 ## 1.9.0
 
 **Species packs for Africa.** 60 more regions in **Add a region…**: every African country, plus Réunion, Mayotte, St Helena (with Ascension and Tristan da Cunha), Western Sahara, the British Indian Ocean Territory and the French Southern Territories.
