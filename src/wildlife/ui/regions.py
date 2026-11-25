@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
 
 from wildlife.context import AppContext
 from wildlife.domain.errors import WildlifeError
-from wildlife.domain.regions import GROUPS, group_of
+from wildlife.domain.regions import GROUPS, group_of, means_the_uk, region_matches
 from wildlife.services.species_packs import Pack
 from wildlife.ui.components.visuals import plural
 from wildlife.ui.workers import run_in_background
@@ -56,6 +56,18 @@ def problem_text(exc: BaseException) -> str:
     return "Something went wrong. Nothing was changed; details are in the log."
 
 
+def _note(typed: str, found: int, where_uk_is: str) -> str:
+    """What to say under a search: about the UK, or that nothing was found ('' if neither)."""
+    if means_the_uk(typed):
+        return f"The UK's species list is built in: {where_uk_is}."
+    if found == 0 and typed.strip():
+        return (
+            f"No region called “{typed.strip()}”. Thicket has packs for Europe, North "
+            "America, Latin America and the Caribbean, Africa, Australia and New Zealand."
+        )
+    return ""
+
+
 class AddPackDialog(QDialog):
     """Add a region's species: choose it, then it's downloaded, checked and installed."""
 
@@ -64,6 +76,7 @@ class AddPackDialog(QDialog):
         self.ctx = ctx
         self.installed_region: str | None = None
         self._busy = False
+        self._ready = ""  # the status line once the list is in
         self.setWindowTitle("Add a region")
         self.setMinimumSize(480, 480)
         v = QVBoxLayout(self)
@@ -134,8 +147,9 @@ class AddPackDialog(QDialog):
                 item = QListWidgetItem(text)
                 item.setData(Qt.ItemDataRole.UserRole, pack)
                 self.list.addItem(item)
-        self.status.setText(f"{plural(len(packs), 'region')}. Choose one, then Download and add.")
-        self._update_buttons()
+        self._ready = f"{plural(len(packs), 'region')}. Choose one, then Download and add."
+        self.status.setText(self._ready)
+        self._filter(self.filter.text())
 
     def _failed(self, exc: BaseException) -> None:
         self.status.setText(problem_text(exc))
@@ -143,21 +157,27 @@ class AddPackDialog(QDialog):
         self.status.style().polish(self.status)
 
     def _filter(self, text: str) -> None:
-        """Show the regions whose name has the text, under their headings."""
-        wanted = text.strip().lower()
-        heading, shown = None, False
+        """Show the regions the text finds, under their headings (docs/27: accents and
+        "St" don't matter, and other names like "Ivory Coast" work too)."""
+        heading, shown, found = None, False, 0
         for i in range(self.list.count()):
             item = self.list.item(i)
-            if item.data(Qt.ItemDataRole.UserRole) is None:  # a heading
+            pack = item.data(Qt.ItemDataRole.UserRole)
+            if pack is None:  # a heading
                 if heading is not None:
                     heading.setHidden(not shown)
                 heading, shown = item, False
                 continue
-            hide = bool(wanted) and wanted not in item.text().lower()
+            hide = not region_matches(text, pack.region, pack.name)
             item.setHidden(hide)
             shown = shown or not hide
+            found += not hide
         if heading is not None:
             heading.setHidden(not shown)
+        if self._busy or not self._ready:  # installing, or the list isn't in yet
+            return
+        self.status.setText(_note(text, found, "choose it in Settings › Region") or self._ready)
+        self._update_buttons()
 
     def _chosen(self) -> Pack | None:
         item = self.list.currentItem()

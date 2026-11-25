@@ -332,3 +332,30 @@ def test_the_list_has_africa_last_under_its_heading(window, qtbot):
     dialog.filter.setText("south af")
     assert not dialog.list.item(3).isHidden() and dialog.list.item(1).isHidden()
     dialog.reject()
+
+
+def test_the_search_ignores_accents_knows_other_names_and_says_when_nothing_is_found(window, qtbot):
+    serve_packs(window.ctx, [("re", "Réunion", FRANCE_PACK), ("ci", "Côte d'Ivoire", FRANCE_PACK)])
+    dialog = AddPackDialog(window.ctx, window)
+    qtbot.waitUntil(lambda: dialog.list.count() == 3, timeout=10_000)
+    ready = dialog.status.text()
+
+    def shown() -> list[str]:  # the names showing, without the species and size
+        return [
+            dialog.list.item(i).text().strip().split("  ")[0]
+            for i in range(3)
+            if not dialog.list.item(i).isHidden()
+        ]
+
+    dialog.filter.setText("reunion")
+    assert shown() == ["Africa", "Réunion"]
+    dialog.filter.setText("Ivory Coast")
+    assert shown() == ["Africa", "Côte d'Ivoire"]
+    dialog.filter.setText("mb")  # the size on each line ("0.1 MB") isn't searched
+    assert shown() == [] and "No region called “mb”" in dialog.status.text()
+    assert not dialog.add_btn.isEnabled()
+    dialog.filter.setText("Scotland")
+    assert "built in: choose it in Settings › Region" in dialog.status.text()
+    dialog.filter.setText("")
+    assert len(shown()) == 3 and dialog.status.text() == ready
+    dialog.reject()

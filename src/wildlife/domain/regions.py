@@ -10,10 +10,15 @@ docs/25-latin-america-caribbean-plan.md), and Africa's, the same way ('za', 'ke'
 ...; docs/26-africa-plan.md). Each has where the map opens when
 there's nothing else to go on (an approximate centre and a zoom that shows most of it).
 The species pack builder uses the same lists (scripts/build_species_packs.py).
+
+Finding a region by typing (docs/27-find-your-region-plan.md): accents, apostrophes and
+"St" don't matter, and a few other names people use ("Ivory Coast") find it too.
 """
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from dataclasses import dataclass
 
 UK = "uk"
@@ -331,6 +336,70 @@ LATIN_AMERICA_CODES = {name: code for name, code, *_ in _LATIN_AMERICA}  # 'Braz
 AFRICA_CODES = {name: code for name, code, *_ in _AFRICA}  # 'Kenya' -> 'KE'
 PROVINCE_CODES = {name: code for name, code, *_ in _PROVINCES}  # 'Ontario' -> 'ON'
 AU_STATE_CODES = {name: code for name, code, *_ in _AU_STATES}  # 'Tasmania' -> 'TAS'
+
+
+# Other names people use for a region, found by the search too (docs/27, section 3).
+# Everyday names and abbreviations only: plain codes ("ZA", "TX") are not matched.
+OTHER_NAMES: dict[str, tuple[str, ...]] = {
+    "ci": ("Ivory Coast",),
+    "sz": ("Swaziland",),
+    "cv": ("Cape Verde",),
+    "cd": ("DR Congo", "DRC", "Congo-Kinshasa", "Zaire"),
+    "cg": ("Congo-Brazzaville",),
+    "cz": ("Czech Republic",),
+    "nl": ("Holland",),
+    "tr": ("Türkiye",),
+    "va": ("Holy See",),
+    "bq": ("Bonaire", "Sint Eustatius", "Saba"),
+    "vi": ("US Virgin Islands", "USVI"),
+    "vg": ("BVI",),
+    "bl": ("St Barts", "St Barths"),
+    "us-dc": ("Washington DC",),
+    "au-act": ("ACT",),
+    "au-nsw": ("NSW",),
+    "ca-pe": ("PEI",),
+}
+# Typing one of these finds no pack: the UK's list is built in, and a note says so
+UK_NAMES = (
+    "United Kingdom",
+    "UK",
+    "Great Britain",
+    "Britain",
+    "England",
+    "Scotland",
+    "Wales",
+    "Northern Ireland",
+)
+
+
+def fold(text: str) -> str:
+    """Text as the region search compares it: no capitals or accents, no apostrophes or
+    full stops, hyphens as spaces, '&' as 'and', and 'St' as 'Saint'.
+    'St. Barthélemy' -> 'saint barthelemy', "Côte d'Ivoire" -> 'cote divoire'."""
+    text = unicodedata.normalize("NFKD", text.casefold())
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    text = re.sub(r"['’`.]", "", text.replace("&", " and "))
+    text = re.sub(r"[-‐–—,()/]", " ", text)
+    # "St" only once a space follows it, so typing "st" on the way to "Sta..." still
+    # finds Estonia and Australia
+    text = re.sub(r"\bst\s", "saint ", text)
+    return " ".join(text.split())
+
+
+def region_matches(typed: str, code: str, name: str) -> bool:
+    """Is the region (its code and its name in the list of packs) one that `typed` finds?
+    Empty text finds them all."""
+    wanted = fold(typed)
+    return not wanted or any(wanted in fold(n) for n in (name, *OTHER_NAMES.get(code, ())))
+
+
+def means_the_uk(typed: str) -> bool:
+    """Is the typed text (3 letters at least, or "UK") the start of one of the UK's names?
+    ("Wales" is, though it's in New South Wales too; "Ireland" isn't.)"""
+    wanted = fold(typed)
+    return (len(wanted) >= 3 or wanted == "uk") and any(
+        fold(n).startswith(wanted) for n in UK_NAMES
+    )
 
 
 def region(code: str) -> Region:
