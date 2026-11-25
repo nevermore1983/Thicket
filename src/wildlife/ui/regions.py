@@ -1,8 +1,9 @@
 """Choosing where you record, and adding a region's species pack: a European country, a
 US state, a Canadian province, an Australian state, New Zealand, or a country of Latin
-America, the Caribbean or Africa (docs/16-regions-plan.md, docs/23-europe-packs-plan.md,
+America, the Caribbean, Africa, the Middle East or Asia (docs/16-regions-plan.md,
+docs/23-europe-packs-plan.md,
 docs/24-canada-australia-nz-plan.md, docs/25-latin-america-caribbean-plan.md,
-docs/26-africa-plan.md).
+docs/26-africa-plan.md, docs/28-asia-plan.md).
 
 RegionPicker is the search box and the list of regions under their headings, shared
 with the welcome. AddPackDialog lists the packs Thicket offers (from the internet, in the background),
@@ -65,7 +66,8 @@ def _note(typed: str, found: int, where_uk_is: str) -> str:
     if found == 0 and typed.strip():
         return (
             f"No region called “{typed.strip()}”. Thicket has packs for Europe, North "
-            "America, Latin America and the Caribbean, Africa, Australia and New Zealand."
+            "America, Latin America and the Caribbean, Africa, the Middle East, Asia, "
+            "Australia and New Zealand."
         )
     return ""
 
@@ -195,8 +197,9 @@ class AddPackDialog(QDialog):
         intro = QLabel(
             "The species recorded in a European country, a US state, a Canadian province or "
             "territory, an Australian state or territory, New Zealand, or a country or "
-            "territory of Latin America, the Caribbean or Africa, from GBIF (the Global "
-            "Biodiversity Information Facility). Downloaded once; the UK list stays as it is."
+            "territory of Latin America, the Caribbean, Africa, the Middle East or Asia, from "
+            "GBIF (the Global Biodiversity Information Facility). Downloaded once; the UK list "
+            "stays as it is."
         )
         intro.setWordWrap(True)
         intro.setProperty("role", "muted")

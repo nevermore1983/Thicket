@@ -30,6 +30,12 @@ def records(text):
         ("3.5.26 7:05 pm", (date(2026, 5, 3), "19:05")),
         ("3rd May 2026", (date(2026, 5, 3), None)),
         ("12 Sept 2025 14:30", (date(2025, 9, 12), "14:30")),
+        ("2026/05/03", (date(2026, 5, 3), None)),  # year first, as East Asia writes it
+        ("2026.5.3 07:40", (date(2026, 5, 3), "07:40")),
+        ("2026年5月3日", (date(2026, 5, 3), None)),
+        ("2026年5月3日 7:40", (date(2026, 5, 3), "07:40")),
+        ("2026년 5월 3일", (date(2026, 5, 3), None)),
+        ("2026/05-03", (None, None)),  # mixed separators: not a date
         ("31/02/2026", (None, None)),
         ("yesterday", (None, None)),
     ],
@@ -100,3 +106,9 @@ def test_excel_workbooks_are_explained(tmp_path):
     book.write_bytes(b"PK\x03\x04 not really a workbook")
     with pytest.raises(ImportFileError, match="CSV UTF-8"):
         read_table(book)
+
+
+def test_year_first_dates_are_the_same_whichever_way_the_region_writes_them():
+    """docs/28: a four-digit year first can't be a day or a month."""
+    for text in ("2026/05/03", "2026.05.03", "2026-05-03", "2026年5月3日"):
+        assert parse_date(text, month_first=True) == parse_date(text) == (date(2026, 5, 3), None)

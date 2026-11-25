@@ -230,7 +230,13 @@ _MONTHS = {
         ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"), 1
     )
 }
-_ISO = re.compile(r"^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](.*))?$")
+# Year first: 2026-05-03, and as East Asia writes it, 2026/05/03, 2026.05.03 and
+# 2026年5月3日 (Korean 2026년 5월 3일). A four-digit year first can't be mistaken for a day
+# or a month, so these are read the same whichever way the region writes dates (docs/28).
+_ISO = re.compile(r"^(\d{4})([-/.])(\d{1,2})\2(\d{1,2})\.?(?:[T ](.*))?$")
+_YEAR_MONTH_DAY = re.compile(
+    r"^(\d{4})\s*[年년]\s*(\d{1,2})\s*[月월]\s*(\d{1,2})\s*[日일]?(?:\s*(.*))?$"
+)
 _NUMERIC = re.compile(r"^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})(?:\s+(.*))?$")
 _WORDS = re.compile(r"^(\d{1,2})(?:st|nd|rd|th)?\s+([A-Za-z]{3,9})\.?,?\s+(\d{4})(?:\s+(.*))?$")
 _TIME = re.compile(r"^(\d{1,2})[:.](\d{2})(?::\d{2}(?:\.\d+)?)?\s*([AaPp][Mm])?")
@@ -238,11 +244,14 @@ _TIME = re.compile(r"^(\d{1,2})[:.](\d{2})(?::\d{2}(?:\.\d+)?)?\s*([AaPp][Mm])?"
 
 def parse_date(text: str, month_first: bool = False) -> tuple[date | None, str | None]:
     """A date (and a time, if one is written with it). Numbers are read day first
-    (UK: 3/5/2026 is 3 May), or month first (US: 5 March) if month_first."""
+    (UK: 3/5/2026 is 3 May), or month first (US: 5 March) if month_first; a four-digit
+    year first (2026/5/3, 2026年5月3日) is read the same either way."""
     text = text.strip()
     rest = None
     try:
         if m := _ISO.match(text):
+            day, rest = date(int(m[1]), int(m[3]), int(m[4])), m[5]
+        elif m := _YEAR_MONTH_DAY.match(text):
             day, rest = date(int(m[1]), int(m[2]), int(m[3])), m[4]
         elif m := _NUMERIC.match(text):
             year = int(m[3]) + (2000 if len(m[3]) == 2 else 0)

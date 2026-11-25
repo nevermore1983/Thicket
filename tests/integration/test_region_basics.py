@@ -19,7 +19,7 @@ def test_the_regions_wildlife_knows():
     # 50 states, DC, 52 European regions, the UK, and (1.7.0) 13 Canadian provinces and
     # territories, 8 Australian states and territories, and New Zealand, and (1.8.0) 52
     # countries and territories of Latin America and the Caribbean, and (1.9.0) 60 of Africa
-    assert len(REGIONS) == 238
+    assert len(REGIONS) == 286
     # Russia twice (west of the Urals, and all of it), Turkey and the Caucasus (1.6.1)
     assert {region(c).name for c in ("ru-eu", "ru", "tr", "ge", "am", "az")} == {
         "European Russia",
@@ -149,3 +149,23 @@ def test_africa():
     assert south_africa.lat < 0 < morocco.lat and region("tf").lat < -45
     assert group_of("mg") == "Africa"
     assert region("re").group == "Africa"  # France's pack leaves Réunion out, as GBIF does
+
+
+def test_the_middle_east_and_asia():
+    """docs/28-asia-plan.md: 48 places under two headings, after Africa; the Philippines
+    writes dates month first; the languages GBIF has names in."""
+    from wildlife.domain.regions import ASIA_CODES, GROUPS, MIDDLE_EAST_CODES
+
+    assert (len(MIDDLE_EAST_CODES), len(ASIA_CODES)) == (14, 34)
+    assert GROUPS[-3:] == ("Africa", "Middle East", "Asia")
+    china, japan, israel, philippines = (region(c) for c in ("cn", "jp", "il", "ph"))
+    assert (china.name, china.group, china.languages) == ("China", "Asia", ("zh",))
+    assert japan.languages == ("ja",) and not japan.month_first
+    assert (israel.group, israel.languages) == ("Middle East", ("he", "ar"))
+    assert philippines.month_first and not region("id").month_first
+    assert group_of("kz") == "Asia" and group_of("tr") == "Europe"  # Turkey stays in Europe
+    assert region("ae").name == "United Arab Emirates" and region("ps").name == "Palestine"
+    assert region("cc").lat < 0 < region("cn").lat
+    for code in list(MIDDLE_EAST_CODES.values()) + list(ASIA_CODES.values()):
+        r = region(code.lower())
+        assert r.code == code.lower() and -15 < r.lat < 56 and 34 < r.lon < 146, code

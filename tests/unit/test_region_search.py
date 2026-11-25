@@ -67,6 +67,18 @@ def test_folding():
         ("ACT", "au-act"),
         ("NSW", "au-nsw"),
         ("PEI", "ca-pe"),
+        ("Burma", "mm"),
+        ("East Timor", "tl"),
+        ("UAE", "ae"),
+        ("Emirates", "ae"),
+        ("Macau", "mo"),
+        ("Viet Nam", "vn"),
+        ("Republic of Korea", "kr"),
+        ("DPRK", "kp"),
+        ("West Bank", "ps"),
+        ("Gaza", "ps"),
+        ("Keeling", "cc"),
+        ("Laos", "la"),
     ],
 )
 def test_finds(typed, code):
@@ -82,7 +94,7 @@ def test_finds_little_else():
 
 
 def test_only_names_not_codes_or_the_rest_of_the_line():
-    assert finds("za") == {"mz", "tz", "zm", "cd", "cg"}  # Zaire, Brazzaville
+    assert finds("za") == {"mz", "tz", "zm", "kz", "cd", "cg", "ps"}  # Zaire, Brazzaville, Gaza
     assert "za" not in finds("za")  # South Africa's code
     assert not finds("mb ") - {c for c, r in REGIONS.items() if "mb" in fold(r.name)}
     assert finds("species") == set()
@@ -114,7 +126,8 @@ def test_the_packs_of_a_country():
     assert len(regions_of_country("AU")) == 8
     assert regions_of_country("RU") == ["ru-eu", "ru"]
     assert regions_of_country("NZ") == ["nz"]
-    for nothing in ("GB", "UK", "IN", "", None):
+    assert regions_of_country("JP") == ["jp"] and regions_of_country("TW") == ["tw"]
+    for nothing in ("GB", "UK", "FJ", "AQ", "", None):  # Fiji, Antarctica: no pack
         assert regions_of_country(nothing) == []
 
 

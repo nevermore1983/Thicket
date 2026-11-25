@@ -7,7 +7,8 @@ docs/23-europe-packs-plan.md for Europe).
 ('nz'; docs/24-canada-australia-nz-plan.md), and the countries and territories of Latin
 America and the Caribbean, by their international code too ('br', 'cr', 'pr', ...;
 docs/25-latin-america-caribbean-plan.md), and Africa's, the same way ('za', 'ke', 're',
-...; docs/26-africa-plan.md). Each has where the map opens when
+...; docs/26-africa-plan.md), and the Middle East's and Asia's ('il', 'cn', 'jp', ...;
+docs/28-asia-plan.md). Each has where the map opens when
 there's nothing else to go on (an approximate centre and a zoom that shows most of it).
 The species pack builder uses the same lists (scripts/build_species_packs.py).
 
@@ -26,10 +27,12 @@ UK_GROUP, EUROPE, US = "United Kingdom", "Europe", "United States"
 CANADA, AUSTRALIA, NEW_ZEALAND = "Canada", "Australia", "New Zealand"
 LATIN_AMERICA = "Latin America and the Caribbean"
 AFRICA = "Africa"
+MIDDLE_EAST, ASIA = "Middle East", "Asia"
 # How the region lists are arranged (a region this version doesn't know comes last)
-GROUPS = (EUROPE, US, CANADA, AUSTRALIA, NEW_ZEALAND, LATIN_AMERICA, AFRICA)
-# US territories outside the US group: they write dates the US way
-MONTH_FIRST_TOO = frozenset({"pr", "vi"})
+GROUPS = (EUROPE, US, CANADA, AUSTRALIA, NEW_ZEALAND, LATIN_AMERICA, AFRICA, MIDDLE_EAST, ASIA)
+# Outside the US group but writing dates the US way: Puerto Rico, the US Virgin Islands,
+# and the Philippines (docs/28)
+MONTH_FIRST_TOO = frozenset({"pr", "vi", "ph"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,9 +52,10 @@ class Region:
     @property
     def month_first(self) -> bool:
         """Dates written with numbers put the month first (US: 3/5 is 5 March; Canada
-        uses both, and month first is the more common; Puerto Rico and the US Virgin
-        Islands follow the US). The UK, the rest of Europe, Australia, New Zealand,
-        Latin America and Africa put the day first."""
+        uses both, and month first is the more common; Puerto Rico, the US Virgin
+        Islands and the Philippines do too). The UK, the rest of Europe, Australia, New
+        Zealand, Latin America, Africa and the Middle East put the day first; East Asia
+        writes the year first, which is read the same either way."""
         return self.group in (US, CANADA) or self.code in MONTH_FIRST_TOO
 
     @property
@@ -301,6 +305,60 @@ _AFRICA = (
     ("Zambia", "ZM", -13.1, 27.8, 5.6, ("ny",)),
     ("Zimbabwe", "ZW", -19.0, 29.2, 6.0, ()),
 )
+# The Middle East and Asia (docs/28): the same, with the languages GBIF has names in.
+# Turkey, Cyprus, the Caucasus and Russia stay under Europe.
+_MIDDLE_EAST = (
+    ("Bahrain", "BH", 26.03, 50.55, 9.4, ("ar",)),
+    ("Iran", "IR", 32.4, 53.7, 4.6, ("fa",)),
+    ("Iraq", "IQ", 33.2, 43.7, 5.4, ("ar",)),
+    ("Israel", "IL", 31.4, 35.0, 6.8, ("he", "ar")),
+    ("Jordan", "JO", 31.2, 36.5, 6.6, ("ar",)),
+    ("Kuwait", "KW", 29.3, 47.6, 7.6, ("ar",)),
+    ("Lebanon", "LB", 33.9, 35.9, 7.8, ("ar",)),
+    ("Oman", "OM", 20.6, 56.1, 5.4, ("ar",)),
+    ("Palestine", "PS", 31.9, 35.2, 8.0, ("ar",)),
+    ("Qatar", "QA", 25.3, 51.2, 7.8, ("ar",)),
+    ("Saudi Arabia", "SA", 23.9, 45.1, 4.6, ("ar",)),
+    ("Syria", "SY", 34.8, 38.9, 6.0, ("ar",)),
+    ("United Arab Emirates", "AE", 24.0, 54.0, 6.6, ("ar",)),
+    ("Yemen", "YE", 15.6, 48.0, 5.4, ("ar",)),
+)
+_ASIA = (
+    ("Afghanistan", "AF", 33.9, 67.7, 5.2, ("fa",)),
+    ("Bangladesh", "BD", 23.7, 90.4, 6.2, ("bn",)),
+    ("Bhutan", "BT", 27.5, 90.4, 7.6, ("dz",)),
+    ("Brunei", "BN", 4.5, 114.7, 8.6, ("ms",)),
+    ("Cambodia", "KH", 12.6, 105.0, 6.4, ("km",)),
+    ("China", "CN", 35.9, 104.2, 3.4, ("zh",)),
+    ("Christmas Island", "CX", -10.49, 105.63, 11.0, ()),
+    ("Cocos (Keeling) Islands", "CC", -12.16, 96.87, 11.0, ()),
+    ("Hong Kong", "HK", 22.35, 114.15, 9.6, ("zh",)),
+    ("India", "IN", 22.0, 79.0, 3.9, ("hi", "bn", "ta")),
+    ("Indonesia", "ID", -2.5, 118.0, 3.8, ("id", "ms")),
+    ("Japan", "JP", 36.2, 138.3, 4.6, ("ja",)),
+    ("Kazakhstan", "KZ", 48.0, 67.0, 3.9, ("ru", "kk")),
+    ("Kyrgyzstan", "KG", 41.2, 74.8, 5.8, ("ru",)),
+    ("Laos", "LA", 18.2, 103.9, 5.6, ("lo",)),
+    ("Macao", "MO", 22.17, 113.55, 11.4, ("zh", "pt")),
+    ("Malaysia", "MY", 4.2, 108.0, 4.8, ("ms", "zh", "ta")),
+    ("Maldives", "MV", 3.2, 73.2, 6.0, ()),
+    ("Mongolia", "MN", 46.9, 103.8, 4.4, ("mn", "ru")),
+    ("Myanmar", "MM", 19.8, 96.1, 4.8, ("my",)),
+    ("Nepal", "NP", 28.4, 84.1, 6.2, ("ne",)),
+    ("North Korea", "KP", 40.3, 127.5, 6.2, ("ko",)),
+    ("Pakistan", "PK", 30.4, 69.3, 4.8, ("ur",)),
+    ("Philippines", "PH", 12.9, 121.8, 5.0, ("tl",)),
+    ("Singapore", "SG", 1.35, 103.82, 10.6, ("ms", "zh", "ta")),
+    ("South Korea", "KR", 36.4, 127.8, 6.4, ("ko",)),
+    ("Sri Lanka", "LK", 7.9, 80.8, 6.8, ("si", "ta")),
+    ("Taiwan", "TW", 23.7, 121.0, 6.8, ("zh",)),
+    ("Tajikistan", "TJ", 38.9, 71.3, 6.0, ("ru",)),
+    ("Thailand", "TH", 13.0, 101.0, 5.0, ("th",)),
+    ("Timor-Leste", "TL", -8.85, 125.7, 7.8, ("pt",)),
+    ("Turkmenistan", "TM", 39.0, 59.6, 5.4, ("ru",)),
+    ("Uzbekistan", "UZ", 41.4, 64.6, 5.2, ("ru", "uz")),
+    ("Vietnam", "VN", 16.0, 106.0, 5.0, ("vi",)),
+)
 
 REGIONS: dict[str, Region] = {
     UK: Region(UK, "United Kingdom", 54.4, -3.2, 4.6),
@@ -329,11 +387,21 @@ REGIONS: dict[str, Region] = {
         code.lower(): Region(code.lower(), name, lat, lon, zoom, AFRICA, langs)
         for name, code, lat, lon, zoom, langs in _AFRICA
     },
+    **{
+        code.lower(): Region(code.lower(), name, lat, lon, zoom, MIDDLE_EAST, langs)
+        for name, code, lat, lon, zoom, langs in _MIDDLE_EAST
+    },
+    **{
+        code.lower(): Region(code.lower(), name, lat, lon, zoom, ASIA, langs)
+        for name, code, lat, lon, zoom, langs in _ASIA
+    },
 }
 POSTAL_CODES = {name: code for name, code, *_ in _STATES}  # 'Ohio' -> 'OH'
 COUNTRY_CODES = {name: code for name, code, *_ in _COUNTRIES}  # 'France' -> 'FR'
 LATIN_AMERICA_CODES = {name: code for name, code, *_ in _LATIN_AMERICA}  # 'Brazil' -> 'BR'
 AFRICA_CODES = {name: code for name, code, *_ in _AFRICA}  # 'Kenya' -> 'KE'
+MIDDLE_EAST_CODES = {name: code for name, code, *_ in _MIDDLE_EAST}  # 'Israel' -> 'IL'
+ASIA_CODES = {name: code for name, code, *_ in _ASIA}  # 'Japan' -> 'JP'
 PROVINCE_CODES = {name: code for name, code, *_ in _PROVINCES}  # 'Ontario' -> 'ON'
 AU_STATE_CODES = {name: code for name, code, *_ in _AU_STATES}  # 'Tasmania' -> 'TAS'
 
@@ -358,6 +426,14 @@ OTHER_NAMES: dict[str, tuple[str, ...]] = {
     "au-act": ("ACT",),
     "au-nsw": ("NSW",),
     "ca-pe": ("PEI",),
+    "mm": ("Burma",),
+    "tl": ("East Timor",),
+    "ae": ("UAE",),
+    "mo": ("Macau",),
+    "vn": ("Viet Nam",),
+    "kr": ("Republic of Korea",),
+    "kp": ("DPRK",),
+    "ps": ("West Bank", "Gaza"),
 }
 # Typing one of these finds no pack: the UK's list is built in, and a note says so
 UK_NAMES = (
