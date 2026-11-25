@@ -4,14 +4,15 @@ America, the Caribbean or Africa (docs/16-regions-plan.md, docs/23-europe-packs-
 docs/24-canada-australia-nz-plan.md, docs/25-latin-america-caribbean-plan.md,
 docs/26-africa-plan.md).
 
-AddPackDialog lists the packs Thicket offers (from the internet, in the background),
+RegionPicker is the search box and the list of regions under their headings, shared
+with the welcome. AddPackDialog lists the packs Thicket offers (from the internet, in the background),
 then downloads, checks and installs the one you choose, with progress. Nothing changes
 if anything goes wrong. Used from Settings › Region and the first-run welcome.
 """
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QDialog,
@@ -68,6 +69,89 @@ def _note(typed: str, found: int, where_uk_is: str) -> str:
     return ""
 
 
+class RegionPicker(QWidget):
+    """A search box over every region offered, under its heading (docs/27). Used by Add a
+    region and the first-run welcome, so they find regions the same way."""
+
+    changed = Signal()  # the region chosen changed (or was hidden by the search)
+    activated = Signal()  # a region was double-clicked
+    noted = Signal(str)  # what to say about the search ('' when there's nothing to say)
+
+    def __init__(self, where_uk_is: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._where_uk_is = where_uk_is  # how the UK note ends: where the UK is chosen
+        v = QVBoxLayout(self)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(10)
+        self.filter = QLineEdit()
+        self.filter.setPlaceholderText("Type to find a country, state or province")
+        self.filter.setAccessibleName("Find a region")
+        self.filter.setClearButtonEnabled(True)
+        self.filter.textChanged.connect(self._filter)
+        v.addWidget(self.filter)
+        self.list = QListWidget()
+        self.list.setAccessibleName("Regions")
+        self.list.itemDoubleClicked.connect(
+            lambda item: item.data(Qt.ItemDataRole.UserRole) and self.activated.emit()
+        )
+        self.list.currentItemChanged.connect(lambda *_: self.changed.emit())
+        v.addWidget(self.list, 1)
+
+    def set_packs(self, packs: list[Pack], installed: dict[str, str] | None = None) -> None:
+        """List the packs under their headings; `installed` (region -> version) marks the
+        ones already added."""
+        installed = installed or {}
+        self.list.clear()
+        by_group: dict[str, list[Pack]] = {}
+        for pack in packs:
+            by_group.setdefault(group_of(pack.region), []).append(pack)
+        order = [g for g in GROUPS if g in by_group] + sorted(set(by_group) - set(GROUPS))
+        for group in order:
+            heading = QListWidgetItem(group)
+            heading.setFlags(Qt.ItemFlag.NoItemFlags)  # a heading, not a choice
+            font = heading.font()
+            font.setBold(True)
+            heading.setFont(font)
+            self.list.addItem(heading)
+            for pack in by_group[group]:
+                text = "    " + describe(pack)
+                if pack.region in installed:
+                    text += "  ·  added" + (
+                        "" if installed[pack.region] == pack.version else ": update available"
+                    )
+                item = QListWidgetItem(text)
+                item.setData(Qt.ItemDataRole.UserRole, pack)
+                self.list.addItem(item)
+        self._filter(self.filter.text())
+
+    def chosen(self) -> Pack | None:
+        """The region chosen, if it's showing."""
+        item = self.list.currentItem()
+        return item.data(Qt.ItemDataRole.UserRole) if item and not item.isHidden() else None
+
+    def _filter(self, text: str) -> None:
+        """Show the regions the text finds, under their headings (docs/27: accents and
+        "St" don't matter, and other names like "Ivory Coast" work too)."""
+        heading, shown, found = None, False, 0
+        for i in range(self.list.count()):
+            item = self.list.item(i)
+            pack = item.data(Qt.ItemDataRole.UserRole)
+            if pack is None:  # a heading
+                if heading is not None:
+                    heading.setHidden(not shown)
+                heading, shown = item, False
+                continue
+            hide = not region_matches(text, pack.region, pack.name)
+            item.setHidden(hide)
+            shown = shown or not hide
+            found += not hide
+        if heading is not None:
+            heading.setHidden(not shown)
+        if self.list.count():  # nothing to say before the list is in
+            self.noted.emit(_note(text, found, self._where_uk_is))
+        self.changed.emit()
+
+
 class AddPackDialog(QDialog):
     """Add a region's species: choose it, then it's downloaded, checked and installed."""
 
@@ -91,16 +175,12 @@ class AddPackDialog(QDialog):
         intro.setWordWrap(True)
         intro.setProperty("role", "muted")
         v.addWidget(intro)
-        self.filter = QLineEdit()
-        self.filter.setPlaceholderText("Type to find a country, state or province")
-        self.filter.setAccessibleName("Find a region")
-        self.filter.textChanged.connect(self._filter)
-        v.addWidget(self.filter)
-        self.list = QListWidget()
-        self.list.setAccessibleName("Regions")
-        self.list.itemDoubleClicked.connect(lambda _item: self._install())
-        self.list.currentItemChanged.connect(lambda *_: self._update_buttons())
-        v.addWidget(self.list, 1)
+        self.picker = RegionPicker("choose it in Settings › Region")
+        self.filter, self.list = self.picker.filter, self.picker.list
+        self.picker.activated.connect(self._install)
+        self.picker.changed.connect(self._update_buttons)
+        self.picker.noted.connect(self._noted)
+        v.addWidget(self.picker, 1)
         self.use_it = QCheckBox("Use it as my region (its names and suggestions)")
         self.use_it.setChecked(True)
         v.addWidget(self.use_it)
@@ -126,62 +206,22 @@ class AddPackDialog(QDialog):
         run_in_background(self.ctx.species_packs.offered, on_done=self._show, on_error=self._failed)
 
     def _show(self, packs: list[Pack]) -> None:
-        installed = {p["region"]: p["version"] for p in self.ctx.catalogue.packs()}
-        by_group: dict[str, list[Pack]] = {}
-        for pack in packs:
-            by_group.setdefault(group_of(pack.region), []).append(pack)
-        order = [g for g in GROUPS if g in by_group] + sorted(set(by_group) - set(GROUPS))
-        for group in order:
-            heading = QListWidgetItem(group)
-            heading.setFlags(Qt.ItemFlag.NoItemFlags)  # a heading, not a choice
-            font = heading.font()
-            font.setBold(True)
-            heading.setFont(font)
-            self.list.addItem(heading)
-            for pack in by_group[group]:
-                text = "    " + describe(pack)
-                if pack.region in installed:
-                    text += "  ·  added" + (
-                        "" if installed[pack.region] == pack.version else ": update available"
-                    )
-                item = QListWidgetItem(text)
-                item.setData(Qt.ItemDataRole.UserRole, pack)
-                self.list.addItem(item)
         self._ready = f"{plural(len(packs), 'region')}. Choose one, then Download and add."
         self.status.setText(self._ready)
-        self._filter(self.filter.text())
+        installed = {p["region"]: p["version"] for p in self.ctx.catalogue.packs()}
+        self.picker.set_packs(packs, installed)
+
+    def _noted(self, note: str) -> None:
+        if not self._busy:  # while installing, the line shows the progress
+            self.status.setText(note or self._ready)
 
     def _failed(self, exc: BaseException) -> None:
         self.status.setText(problem_text(exc))
         self.status.setProperty("role", "error")
         self.status.style().polish(self.status)
 
-    def _filter(self, text: str) -> None:
-        """Show the regions the text finds, under their headings (docs/27: accents and
-        "St" don't matter, and other names like "Ivory Coast" work too)."""
-        heading, shown, found = None, False, 0
-        for i in range(self.list.count()):
-            item = self.list.item(i)
-            pack = item.data(Qt.ItemDataRole.UserRole)
-            if pack is None:  # a heading
-                if heading is not None:
-                    heading.setHidden(not shown)
-                heading, shown = item, False
-                continue
-            hide = not region_matches(text, pack.region, pack.name)
-            item.setHidden(hide)
-            shown = shown or not hide
-            found += not hide
-        if heading is not None:
-            heading.setHidden(not shown)
-        if self._busy or not self._ready:  # installing, or the list isn't in yet
-            return
-        self.status.setText(_note(text, found, "choose it in Settings › Region") or self._ready)
-        self._update_buttons()
-
     def _chosen(self) -> Pack | None:
-        item = self.list.currentItem()
-        return item.data(Qt.ItemDataRole.UserRole) if item and not item.isHidden() else None
+        return self.picker.chosen()
 
     def _update_buttons(self) -> None:
         self.add_btn.setEnabled(self._chosen() is not None and not self._busy)

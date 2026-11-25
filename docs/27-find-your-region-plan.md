@@ -110,3 +110,14 @@ As before, you approve the end of each step.
   - The UK note matches only the start of a UK name. "Wales" gets it, though New South Wales is found too, but "Ireland" doesn't.
 - **Add a region:** searches names only, with the matching above. The line under the list says when nothing is found, or that the UK is built in, and goes back to "N regions. Choose one…" when the search is cleared.
 - **Tests:** 54 in `tests/unit/test_region_search.py`, plus one in the Add a region dialog. 771 pass.
+
+## Step 2 results (25 Nov 2026)
+
+- **`RegionPicker`** (`ui/regions.py`) is the search box and the list under its headings, as one widget. It tells its window three things:
+  - `changed`: the region chosen changed, or the search hid it.
+  - `activated`: a region was double-clicked. A heading does nothing.
+  - `noted`: what to say about the search. The window decides where to show it.
+
+  Each window also says how the UK note should end ("choose it in Settings › Region" here; "it's the first choice above" on the welcome).
+- **Add a region** is now built from a `RegionPicker`. It looks and works as before, and all its old tests pass unchanged. The search box also gets a small ✕ to clear it.
+- **Tests:** one new test of the picker on its own. 772 pass.

@@ -359,3 +359,33 @@ def test_the_search_ignores_accents_knows_other_names_and_says_when_nothing_is_f
     dialog.filter.setText("")
     assert len(shown()) == 3 and dialog.status.text() == ready
     dialog.reject()
+
+
+def test_the_region_picker_on_its_own(qtbot):
+    from wildlife.services.species_packs import Pack
+    from wildlife.ui.regions import RegionPicker
+
+    def made_up(region, name):
+        return Pack(region, name, 120, 2_000_000, "0" * 64, f"https://example.test/{region}", "1")
+
+    picker = RegionPicker("it's the first choice above")
+    qtbot.addWidget(picker)
+    notes, double_clicks = [], []
+    picker.noted.connect(notes.append)
+    picker.activated.connect(lambda: double_clicks.append(picker.chosen()))
+    picker.filter.setText("ken")  # typed before the list is in: nothing said yet
+    assert notes == []
+    picker.set_packs([made_up("ke", "Kenya"), made_up("fr", "France")], {"fr": "1"})
+    texts = [picker.list.item(i).text().strip() for i in range(4)]
+    assert texts[0] == "Europe" and texts[1].endswith("·  added")
+    assert texts[2] == "Africa" and texts[3].startswith("Kenya")
+    assert [picker.list.item(i).isHidden() for i in range(4)] == [True, True, False, False]
+    assert notes == [""]
+    picker.list.setCurrentRow(3)
+    assert picker.chosen().region == "ke"
+    picker.list.itemDoubleClicked.emit(picker.list.item(3))
+    picker.list.itemDoubleClicked.emit(picker.list.item(2))  # a heading: nothing happens
+    assert [p.region for p in double_clicks] == ["ke"]
+    picker.filter.setText("England")
+    assert notes[-1] == "The UK's species list is built in: it's the first choice above."
+    assert picker.chosen() is None  # Kenya is hidden now
