@@ -121,3 +121,4 @@ As before, you approve the end of each step.
   Each window also says how the UK note should end ("choose it in Settings › Region" here; "it's the first choice above" on the welcome).
 - **Add a region** is now built from a `RegionPicker`. It looks and works as before, and all its old tests pass unchanged. The search box also gets a small ✕ to clear it.
 - **Tests:** one new test of the picker on its own. 772 pass.
+- **Found on the way:** a turned-off green ("primary") button looked ready to click, because its rule came after the turned-off rule and outweighed it. This was true across the app since the start. Turned-off primary buttons are now greyed out (`ui/theme/stylesheet.py`), checked in screenshots in both themes.

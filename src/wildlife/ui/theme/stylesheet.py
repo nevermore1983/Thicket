@@ -89,6 +89,8 @@ QPushButton:focus {{ border-color: {t.accent}; }}
 QPushButton:disabled {{ color: {t.text_3}; border-color: {t.border}; }}
 QPushButton[variant="primary"] {{ background: {t.accent}; border-color: {t.accent}; color: {t.accent_fg}; }}
 QPushButton[variant="primary"]:hover {{ background: {t.accent_hover}; border-color: {t.accent_hover}; }}
+/* after the primary rules, which would otherwise make a turned-off button look ready */
+QPushButton[variant="primary"]:disabled {{ background: {t.surface_2}; border-color: {t.border}; color: {t.text_3}; }}
 QPushButton[variant="ghost"] {{ background: transparent; border-color: transparent; color: {t.text_2}; }}
 QPushButton[variant="ghost"]:hover {{ background: {t.surface_2}; color: {t.text}; }}
 QPushButton[variant="link"] {{ background: transparent; border: none; color: {t.accent}; padding: 0 6px; min-height: 26px; }}
