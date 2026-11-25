@@ -49,15 +49,29 @@ def count(conn: sqlite3.Connection) -> int:
 
 
 # --- species picker ----------------------------------------------------------
+# Scripts written without spaces between words: Chinese, Japanese (kana too), Korean,
+# Thai, Lao, Khmer and Burmese. A short search in them matches anywhere in a name, as 3+
+# letters already do through the trigram index: 乌鸦 (crow) finds 大嘴乌鸦 (docs/28 step 3).
+_SPACELESS = re.compile(
+    "[\u0e00-\u0eff\u1000-\u109f\u1100-\u11ff\u1780-\u17ff\u3040-\u30ff"
+    "\u3130-\u318f\u31f0-\u31ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af"
+    "\uf900-\ufaff\uff66-\uff9f]"
+)
+
+
 def search(conn: sqlite3.Connection, text: str, limit: int = 20) -> list[TaxonMatch]:
     """Ranked suggestions: species you've recorded first, then best name match,
     then commonly recorded groups, then shorter names."""
     text = " ".join(text.split())
     if not text:
         return []
+    anywhere = len(text) < 3 and bool(_SPACELESS.search(text))
     if len(text) >= 3:
         source = "taxon_name_fts f JOIN taxon_name n ON n.id = f.rowid"
         where = "taxon_name_fts MATCH :fts"
+    elif anywhere:  # no spaces to find a word's start by: anywhere in the name
+        source = "taxon_name n"
+        where = "instr(n.name, :q) > 0"
     else:  # the trigram index needs 3+ letters; short queries match name/word starts
         source = "taxon_name n"
         where = "(n.name LIKE :q || '%' OR n.name LIKE '% ' || :q || '%' OR n.name LIKE '%-' || :q || '%')"
@@ -71,6 +85,8 @@ def search(conn: sqlite3.Connection, text: str, limit: int = 20) -> list[TaxonMa
                         WHEN (n.name LIKE '% ' || :q || '%' OR n.name LIKE '%-' || :q || '%')
                              AND n.name IN (t.common_name, t.scientific_name) THEN 1
                         WHEN n.name IN (t.common_name, t.scientific_name) THEN 2
+                        -- inside a local name written without spaces: as good as a word
+                        WHEN :anywhere AND n.kind = 'common' THEN 2
                         ELSE 3 END AS match_rank
             FROM {source}
             JOIN taxon t ON t.id = n.taxon_id
@@ -95,7 +111,12 @@ def search(conn: sqlite3.Connection, text: str, limit: int = 20) -> list[TaxonMa
                  (t.common_name IS NULL), length(COALESCE(t.common_name, t.scientific_name))
         LIMIT :limit
     """
-    params = {"q": text, "fts": '"' + text.replace('"', '""') + '"', "limit": limit}
+    params = {
+        "q": text,
+        "fts": '"' + text.replace('"', '""') + '"',
+        "limit": limit,
+        "anywhere": anywhere,
+    }
     return [TaxonMatch(_taxon(r), r["uses"], r["matched"]) for r in conn.execute(sql, params)]
 
 

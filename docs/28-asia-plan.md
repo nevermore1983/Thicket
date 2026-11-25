@@ -197,3 +197,22 @@ As before, you approve the end of each step.
 - **The old name stays searchable:** it's always kept among the three other names, so the name you learned still finds the species. In the sample, none was lost.
 
 **Tests:** new ones for the builder's Asia areas and for the name agreement. 798 pass.
+
+## Step 3 results (25 Nov 2026)
+
+- **`data/repositories/taxa.py`:** a 1–2 character search containing Chinese, Japanese (kana too), Korean, Thai, Lao, Khmer or Burmese letters matches anywhere in a name (`instr`), not only at a word's start.
+  - A match inside a name ranks with "a word starts with it", so a name that *starts* with the search still comes first.
+  - Searches in the Latin alphabet behave as before.
+- **Timed** with China, Japan and India installed (580,000 names in all), median of 5:
+
+  | Search | Time | Found |
+  |---|---|---|
+  | 乌鸦 (crow) | 35 ms | Large-billed Crow, Carrion Crow, Rook, Hooded Crow |
+  | 斑鸠 (dove) | 35 ms | 6 doves |
+  | 鸦 | 35 ms | 20 (parrotbills, crows, choughs…) |
+  | スズ | 34 ms | Tree Sparrow, House Sparrow, Greater Scaup… |
+  | "ro", "cr" (unchanged) | 80–90 ms | |
+  | "crow", 大嘴乌鸦 (3+) | 0–1 ms | |
+
+  All are well inside the search box's pause before it searches.
+- **Tests:** three new ones in `tests/integration/test_catalogue.py`, for Chinese, Japanese, and Latin-alphabet searches staying as they were. 801 pass.

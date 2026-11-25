@@ -77,3 +77,77 @@ def test_full_bundled_catalogue_installs_quickly(db):
     assert not catalogue.needs_install()
     top = [m.taxon.display_name for m in catalogue.search("finch", 4)]
     assert {"Goldfinch", "Chaffinch"} <= set(top)
+
+
+# ---- short searches in scripts without spaces (docs/28-asia-plan.md, step 3) ----------
+_CROW = ["Animalia", "Chordata", "Aves", "Passeriformes", "Corvidae"]
+ASIAN_PACK = [
+    {
+        "k": "gbif:2482492",
+        "r": "species",
+        "s": "Corvus macrorhynchos",
+        "c": "Large-billed Crow",
+        "ln": ["大嘴乌鸦", "ハシブトガラス"],
+        "l": _CROW,
+        "pr": 900,
+    },
+    {
+        "k": "gbif:2482473",
+        "r": "species",
+        "s": "Corvus corone",
+        "c": "Carrion Crow",
+        "ln": ["小嘴乌鸦", "ハシボソガラス"],
+        "l": _CROW,
+        "pr": 800,
+    },
+    {
+        "k": "gbif:9000001",
+        "r": "species",
+        "s": "Corvus inventus",
+        "c": "Made-up Crow",
+        "ln": ["乌鸦"],
+        "l": _CROW,
+        "pr": 10,
+    },
+    {
+        "k": "gbif:2492321",
+        "r": "species",
+        "s": "Passer montanus",
+        "c": "Eurasian Tree Sparrow",
+        "ln": ["麻雀", "スズメ"],
+        "l": [*_CROW[:4], "Passeridae"],
+        "pr": 950,
+    },
+]
+
+
+@pytest.fixture
+def in_china(ctx):
+    with ctx.db.transaction() as conn:
+        taxa_repo.install_pack(conn, ASIAN_PACK, "cn", "China", "gbif", "test")
+    return ctx
+
+
+def test_a_short_chinese_search_finds_names_with_it_anywhere(in_china):
+    found = [m.taxon.display_name for m in in_china.catalogue.search("乌鸦")]
+    assert found[0] == "Made-up Crow"  # the name that starts with it comes first
+    assert set(found) == {"Made-up Crow", "Large-billed Crow", "Carrion Crow"}
+    # one character, inside every crow's name: all three
+    assert {m.taxon.display_name for m in in_china.catalogue.search("鸦")} == set(found)
+    assert [m.taxon.display_name for m in in_china.catalogue.search("麻雀")] == [
+        "Eurasian Tree Sparrow"
+    ]
+
+
+def test_a_short_japanese_search_too(in_china):
+    found = {m.taxon.display_name for m in in_china.catalogue.search("ガラ")}
+    assert found == {"Large-billed Crow", "Carrion Crow"}  # ハシブトガラス, ハシボソガラス
+    assert {m.taxon.display_name for m in in_china.catalogue.search("スズ")} == {
+        "Eurasian Tree Sparrow"
+    }
+
+
+def test_short_searches_in_the_latin_alphabet_still_match_word_starts(in_china):
+    # "cr" starts the word "Crow"; "ri" is only inside "Carrion", so it isn't found
+    assert "Carrion Crow" in [m.taxon.display_name for m in in_china.catalogue.search("cr")]
+    assert "Carrion Crow" not in [m.taxon.display_name for m in in_china.catalogue.search("ri")]
