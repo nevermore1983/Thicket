@@ -2,7 +2,15 @@
 
 import pytest
 
-from wildlife.domain.regions import OTHER_NAMES, REGIONS, fold, means_the_uk, region_matches
+from wildlife.config.windows_region import windows_country
+from wildlife.domain.regions import (
+    OTHER_NAMES,
+    REGIONS,
+    fold,
+    means_the_uk,
+    region_matches,
+    regions_of_country,
+)
 
 
 def finds(typed: str) -> set[str]:
@@ -95,3 +103,21 @@ def test_the_uk(typed):
 @pytest.mark.parametrize("typed", ["", "en", "u", "France", "Ireland", "New South Wales"])
 def test_not_the_uk(typed):
     assert not means_the_uk(typed)
+
+
+def test_the_packs_of_a_country():
+    assert regions_of_country("KE") == ["ke"]
+    assert regions_of_country("ke") == ["ke"]
+    assert regions_of_country("PR") == ["pr"]
+    assert len(regions_of_country("US")) == 51 and "us-dc" in regions_of_country("US")
+    assert len(regions_of_country("CA")) == 13 and "ca-on" in regions_of_country("CA")
+    assert len(regions_of_country("AU")) == 8
+    assert regions_of_country("RU") == ["ru-eu", "ru"]
+    assert regions_of_country("NZ") == ["nz"]
+    for nothing in ("GB", "UK", "IN", "", None):
+        assert regions_of_country(nothing) == []
+
+
+def test_windows_country_is_a_two_letter_code_or_nothing():
+    country = windows_country()  # whatever this computer is set to
+    assert country is None or (len(country) == 2 and country.isupper())

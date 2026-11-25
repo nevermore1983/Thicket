@@ -402,6 +402,25 @@ def means_the_uk(typed: str) -> bool:
     )
 
 
+# Countries split into several packs: their packs' codes start with these
+_SPLIT = {"US": "us-", "CA": "ca-", "AU": "au-"}
+
+
+def regions_of_country(country: str | None) -> list[str]:
+    """The packs for a country, by its two-letter code ('KE' -> ['ke'], 'US' -> every
+    state, 'RU' -> European Russia and all of Russia); [] for the UK (its list is built
+    in), a country without a pack, or None. For the welcome's suggestion (docs/27)."""
+    if not country:
+        return []
+    country = country.upper()
+    if prefix := _SPLIT.get(country):
+        return [code for code in REGIONS if code.startswith(prefix)]
+    if country == "RU":
+        return ["ru-eu", "ru"]
+    code = country.lower()
+    return [code] if code in REGIONS and code != UK else []
+
+
 def region(code: str) -> Region:
     """The region with this code; an unknown one is treated as the UK."""
     return REGIONS.get(code, REGIONS[UK])

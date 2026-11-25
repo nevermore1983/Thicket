@@ -193,10 +193,10 @@ def main() -> int:
             else:
                 from wildlife.ui.dialogs import FirstRunDialog
 
-                dialog = FirstRunDialog(ctx, theme)
+                dialog = FirstRunDialog(ctx, theme, country="KE")  # as if Windows says Kenya
                 dialog.pages.setCurrentIndex(dialog.region_index)
                 dialog._update_step()
-                dialog.choices["Africa"][0].setChecked(True)
+                dialog.elsewhere.setChecked(True)
             dialog.show()
             wait(lambda: False, 1.5)
             return dialog

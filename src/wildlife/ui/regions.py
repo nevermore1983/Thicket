@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QCheckBox,
     QDialog,
     QDialogButtonBox,
@@ -123,6 +124,31 @@ class RegionPicker(QWidget):
                 item.setData(Qt.ItemDataRole.UserRole, pack)
                 self.list.addItem(item)
         self._filter(self.filter.text())
+
+    def suggest(self, regions: list[str]) -> Pack | None:
+        """Bring these regions into view (the welcome's suggestion, docs/27 section 4).
+        Just one is chosen and returned; for several (a country's states) the list opens
+        at their heading, with nothing chosen. None if none of them is offered."""
+        rows = [
+            i
+            for i in range(self.list.count())
+            if (pack := self.list.item(i).data(Qt.ItemDataRole.UserRole)) and pack.region in regions
+        ]
+        if not rows:
+            return None
+        top = QAbstractItemView.ScrollHint.PositionAtTop
+        if len(regions) == 1:  # the country's only pack (not just the only one offered)
+            item = self.list.item(rows[0])
+            self.list.setCurrentItem(item)
+            self.list.scrollToItem(item, top)
+            return item.data(Qt.ItemDataRole.UserRole)
+        heading = next(
+            i
+            for i in range(rows[0], -1, -1)
+            if self.list.item(i).data(Qt.ItemDataRole.UserRole) is None
+        )
+        self.list.scrollToItem(self.list.item(heading), top)
+        return None
 
     def chosen(self) -> Pack | None:
         """The region chosen, if it's showing."""

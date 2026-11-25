@@ -219,7 +219,11 @@ def _after_start(ctx: AppContext, theme, window, restored=None) -> None:
         window.show_restore_outcome(restored)
 
     if ctx.catalogue.needs_install():
-        FirstRunDialog(ctx, theme, updating=ctx.catalogue.installed_version() is not None).exec()
+        from wildlife.config.windows_region import windows_country
+
+        updating = ctx.catalogue.installed_version() is not None
+        country = None if updating else windows_country()  # for the region page only
+        FirstRunDialog(ctx, theme, updating=updating, country=country).exec()
     ctx.catalogue.link_renamed_once()
     removed = ctx.sightings.purge_recycle_bin()
     if removed:

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
-    QComboBox,
     QDialog,
     QFrame,
     QHBoxLayout,
@@ -23,60 +22,37 @@ from PySide6.QtWidgets import (
 from wildlife.context import AppContext
 from wildlife.domain.dates import DateQuery, parse_date_query
 from wildlife.domain.filters import SightingFilter
-from wildlife.domain.regions import (
-    AFRICA,
-    AUSTRALIA,
-    CANADA,
-    EUROPE,
-    LATIN_AMERICA,
-    NEW_ZEALAND,
-    US,
-    group_of,
-)
+from wildlife.domain.regions import regions_of_country
 from wildlife.ui.components.visuals import fmt_date, plural, swatch
-from wildlife.ui.regions import describe, problem_text
+from wildlife.ui.regions import RegionPicker, problem_text
 from wildlife.ui.theme.icons import pixmap
 from wildlife.ui.theme.manager import ThemeManager
 from wildlife.ui.workers import run_in_background
 
-# The welcome's choices outside the UK: group, its words, the list's name, what you choose
-REGION_CHOICES = (
-    (EUROPE, "Elsewhere in Europe: a country's", "European country", "country"),
-    (US, "United States: a state's", "US state", "state"),
-    (
-        CANADA,
-        "Canada: a province's or territory's",
-        "Canadian province or territory",
-        "province or territory",
-    ),
-    (
-        AUSTRALIA,
-        "Australia: a state's or territory's",
-        "Australian state or territory",
-        "state or territory",
-    ),
-    (NEW_ZEALAND, "New Zealand: its", "New Zealand", "region"),
-    (
-        LATIN_AMERICA,
-        "Latin America and the Caribbean: a country's or territory's",
-        "Latin American or Caribbean country or territory",
-        "country or territory",
-    ),
-    (
-        AFRICA,
-        "Africa: a country's or territory's",
-        "African country or territory",
-        "country or territory",
-    ),
-)
+# The welcome's note when Windows' country has several packs (docs/27 section 4)
+SEVERAL_PACKS = {
+    "US": "Windows is set to the United States: choose your state below.",
+    "CA": "Windows is set to Canada: choose your province or territory below.",
+    "AU": "Windows is set to Australia: choose your state or territory below.",
+    "RU": "Windows is set to Russia: choose European Russia, or all of Russia, below.",
+}
 
 
 class FirstRunDialog(QDialog):
     """Welcome → your name → installing the species list → backups → done."""
 
-    def __init__(self, ctx: AppContext, theme: ThemeManager, updating: bool = False) -> None:
+    def __init__(
+        self,
+        ctx: AppContext,
+        theme: ThemeManager,
+        updating: bool = False,
+        country: str | None = None,
+    ) -> None:
+        """`country`: Windows' country setting ('KE'), for the region page's suggestion
+        (the app reads it; tests make one up)."""
         super().__init__()
-        self.ctx, self.theme = ctx, theme
+        self.ctx, self.theme, self.country = ctx, theme, country
+        self._suggestion = ""  # what the region page says about Windows' country
         self.setWindowTitle("Welcome to Thicket" if not updating else "Updating the species list")
         self.setMinimumWidth(520)
         self.setModal(True)
@@ -171,9 +147,15 @@ class FirstRunDialog(QDialog):
             self.ctx.settings.update(recorder_name=self.name.text().strip())
         on_region_page = self.pages.currentIndex() == self.region_index
         if on_region_page and not self.in_uk.isChecked() and self.chosen_pack() is None:
-            what = next(w for g, (choice, _, w) in self.choices.items() if choice.isChecked())
-            self.state_note.setText(f"Choose your {what} first: the list is on its way.")
-            return  # (the list hasn't come yet)
+            self.state_note.setText(
+                "Choose your region first: "
+                + (
+                    "type its name, or pick it from the list."
+                    if self.picker.list.count()
+                    else "the list is on its way."
+                )
+            )
+            return
         if self.pages.currentIndex() == self.pages.count() - 1:
             self.accept()
             return
@@ -220,7 +202,7 @@ class FirstRunDialog(QDialog):
         if self.pages.currentIndex() == self.pages.count() - 1:
             self.next_btn.setText("Finish")
 
-    # ---- where you record (docs/16-regions-plan.md, docs/23-europe-packs-plan.md) ------
+    # ---- where you record (docs/16-regions-plan.md, docs/27-find-your-region-plan.md) ---
     def _region_page(self) -> QWidget:
         page = self._page(
             "Where do you record?",
@@ -232,55 +214,47 @@ class FirstRunDialog(QDialog):
         self.in_uk = QRadioButton("United Kingdom")
         self.in_uk.setChecked(True)
         layout.addWidget(self.in_uk)
-        # group -> (its choice, the list of its packs, what you choose in it)
-        self.choices: dict[str, tuple[QRadioButton, QComboBox, str]] = {}
-        for group, words, box_name, what in REGION_CHOICES:
-            choice = QRadioButton(f"{words} species from GBIF (downloaded once)")
-            box = QComboBox()
-            box.setAccessibleName(box_name)
-            box.setEnabled(False)
-            box.hide()  # shown under its choice once chosen
-            choice.toggled.connect(lambda on, b=box: self._show_list(b, on))
-            # Only asked for if you choose one: choosing the UK never goes online
-            choice.toggled.connect(lambda on: on and self._ask_for_states())
-            self.choices[group] = (choice, box, what)
-            layout.addWidget(choice)
-            layout.addWidget(box)
-        (self.in_europe, self.country, _), (self.in_us, self.state, _) = (
-            self.choices[EUROPE],
-            self.choices[US],
+        self.elsewhere = QRadioButton("Somewhere else: its species from GBIF (downloaded once)")
+        layout.addWidget(self.elsewhere)
+        self.picker = RegionPicker("it's the first choice above")
+        self.picker.list.setMinimumHeight(220)
+        self.picker.hide()  # shown under its choice once chosen
+        # the search's note; else, until you type, what Windows' country suggested
+        self.picker.noted.connect(
+            lambda note: self.state_note.setText(
+                note or ("" if self.picker.filter.text() else self._suggestion)
+            )
         )
+        self.picker.activated.connect(self._next)  # a double-click goes on, as Continue does
+        layout.addWidget(self.picker, 1)
+        self.elsewhere.toggled.connect(self._show_picker)
         self.state_note = QLabel()
         self.state_note.setWordWrap(True)
         self.state_note.setProperty("role", "muted")
         layout.addWidget(self.state_note)
-        layout.addStretch(1)
         return page
 
-    @staticmethod
-    def _show_list(box: QComboBox, chosen: bool) -> None:
-        box.setVisible(chosen)
-        box.setEnabled(chosen and box.count() > 0)
+    def _show_picker(self, chosen: bool) -> None:
+        self.picker.setVisible(chosen)
+        if chosen:
+            self.picker.filter.setFocus()
+            self._ask_for_states()  # only now: choosing the UK never goes online
 
     def _ask_for_states(self) -> None:
-        """Fetch the regions offered, once, when you first choose one outside the UK."""
+        """Fetch the regions offered, once, when you first choose somewhere else."""
         if self._states_asked:
             return
         self._states_asked = True
         self.state_note.setText("Getting the list of regions…")
 
         def show(packs) -> None:
-            for pack in packs:
-                if found := self.choices.get(group_of(pack.region)):
-                    found[1].addItem(describe(pack), pack)
             self.state_note.setText("")
-            for choice, box, _ in self.choices.values():
-                box.setEnabled(choice.isChecked() and box.count() > 0)
+            self.picker.set_packs(packs)
+            self._suggest()
 
         def failed(exc: BaseException) -> None:
             self.in_uk.setChecked(True)  # nothing to choose from: back to the UK list
-            for choice, _, _ in self.choices.values():
-                choice.setEnabled(False)
+            self.elsewhere.setEnabled(False)
             self.state_note.setText(
                 f"{problem_text(exc)} You can carry on with the UK list and add a region "
                 "later in Settings › Region."
@@ -288,13 +262,25 @@ class FirstRunDialog(QDialog):
 
         run_in_background(self.ctx.species_packs.offered, on_done=show, on_error=failed)
 
+    def _suggest(self) -> None:
+        """Bring Windows' country into view in the list (docs/27 section 4)."""
+        regions = regions_of_country(self.country)
+        if not regions or self.picker.filter.text():  # nothing to suggest, or already typing
+            return
+        pack = self.picker.suggest(regions)
+        if pack is not None:
+            self._suggestion = (
+                f"{pack.name} is chosen, as Windows is set to it. Type to find another region."
+            )
+        elif len(regions) > 1 and self.picker.list.count():
+            self._suggestion = SEVERAL_PACKS.get(self.country.upper(), "")
+        self.state_note.setText(self._suggestion)
+
     def chosen_pack(self):
         """The region chosen on the region page, or None (the UK)."""
         if self.region_index < 0 or self.in_uk.isChecked():
             return None
-        return next(
-            box.currentData() for choice, box, _ in self.choices.values() if choice.isChecked()
-        )
+        return self.picker.chosen()
 
     def _install_pack(self, pack, uk_count: int) -> None:
         def progress(step: str, fraction: float) -> None:

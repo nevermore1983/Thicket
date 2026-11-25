@@ -122,3 +122,19 @@ As before, you approve the end of each step.
 - **Add a region** is now built from a `RegionPicker`. It looks and works as before, and all its old tests pass unchanged. The search box also gets a small ✕ to clear it.
 - **Tests:** one new test of the picker on its own. 772 pass.
 - **Found on the way:** a turned-off green ("primary") button looked ready to click, because its rule came after the turned-off rule and outweighed it. This was true across the app since the start. Turned-off primary buttons are now greyed out (`ui/theme/stylesheet.py`), checked in screenshots in both themes.
+
+## Step 3 results (25 Nov 2026)
+
+- **The welcome's "Where do you record?"** has two choices, "United Kingdom" (chosen) and "Somewhere else…".
+  - Choosing "Somewhere else" shows the `RegionPicker` with the search box ready, and only then fetches the list of packs.
+  - **Continue** with nothing chosen says "Choose your region first: type its name, or pick it from the list." Before the list comes, it says "…the list is on its way."
+  - Double-clicking a region goes on, as Continue does.
+  - Without internet, it goes back to the UK and says why, as before.
+- **Windows' country** is read by `config/windows_region.py` (`GetUserDefaultGeoName`), only by `app.py` and only for a first start. Tests and screenshots hand in their own.
+  - `regions_of_country()` (`domain/regions.py`) gives a country's packs: KE → Kenya, US → its 51, CA → 13, AU → 8, RU → both Russias, GB → none.
+  - A country with one pack has it chosen, scrolled into view, with the note "Kenya is chosen, as Windows is set to it. Type to find another region." The note goes once you type.
+  - A country with several opens at its heading, with nothing chosen ("…choose your state below").
+  - A test found that with only one US state on offer, it was chosen for you. The rule now goes by the country's packs, not the ones offered.
+- **Screenshots** (`scripts/screenshot.py --pages welcome-region`, as if Windows said Kenya) are checked in light and dark.
+- **Noticed:** radio buttons aren't styled, so their circles barely show in the dark theme. That's older than this plan, and left for now.
+- **Tests:** the nine old welcome tests (one per group) are replaced by ten for the new page, plus two in `test_region_search.py`. 776 pass.

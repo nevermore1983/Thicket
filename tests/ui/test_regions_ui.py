@@ -2,6 +2,8 @@
 "Add a US state" dialog and the first-run welcome. The internet is pretend
 (helpers.serve_us_pack)."""
 
+import pytest
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QComboBox, QPushButton
 
 from helpers import FRANCE_PACK, MINI_CATALOGUE, US_PACK, serve_packs, serve_us_pack
@@ -62,7 +64,7 @@ def test_no_internet_in_the_dialog_is_explained(window, qtbot):
     dialog.reject()
 
 
-def _welcome(ctx, monkeypatch, qtbot) -> FirstRunDialog:
+def _welcome(ctx, monkeypatch, qtbot, country=None) -> FirstRunDialog:
     def quick_uk_list(report=lambda s, f: None):  # the real one is 106,000 species
         with ctx.db.transaction() as conn:
             return taxa_repo.install_catalogue(conn, MINI_CATALOGUE, version="test")
@@ -70,22 +72,12 @@ def _welcome(ctx, monkeypatch, qtbot) -> FirstRunDialog:
     monkeypatch.setattr(ctx.catalogue, "install", quick_uk_list)
     from wildlife.ui.theme.manager import ThemeManager
 
-    dialog = FirstRunDialog(ctx, ThemeManager(QApplication.instance(), ctx.settings.current.theme))
+    theme = ThemeManager(QApplication.instance(), ctx.settings.current.theme)
+    dialog = FirstRunDialog(ctx, theme, country=country)
     qtbot.addWidget(dialog)
     while dialog.pages.currentIndex() != dialog.region_index:
         dialog._next()
     return dialog
-
-
-def test_the_welcome_can_set_up_a_us_state(ctx, monkeypatch, qtbot):
-    serve_us_pack(ctx)
-    dialog = _welcome(ctx, monkeypatch, qtbot)
-    dialog.in_us.setChecked(True)  # only now is the list of states fetched
-    qtbot.waitUntil(lambda: dialog.state.count() == 1, timeout=10_000)
-    dialog._next()  # to the install page: the UK list, then California
-    qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
-    assert "California" in dialog.progress_text.text()
-    assert ctx.catalogue.region() == "us-ca"
 
 
 def test_choosing_the_uk_never_goes_online(ctx, monkeypatch, qtbot):
@@ -96,29 +88,6 @@ def test_choosing_the_uk_never_goes_online(ctx, monkeypatch, qtbot):
     dialog._next()
     qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
     assert asked == [] and ctx.catalogue.region() == "uk"
-
-
-def test_the_welcome_waits_for_a_state_before_going_on(ctx, monkeypatch, qtbot):
-    """Choosing the US and pressing Continue before the list came used to install only
-    the UK list, without a word."""
-    dialog = _welcome(ctx, monkeypatch, qtbot)
-    monkeypatch.setattr(dialog, "_ask_for_states", lambda: None)  # the list hasn't come yet
-    dialog.in_us.setChecked(True)
-    dialog._next()
-    assert dialog.pages.currentIndex() == dialog.region_index
-    assert "Choose your state first" in dialog.state_note.text()
-
-
-def test_the_welcome_carries_on_with_the_uk_without_internet(ctx, monkeypatch, qtbot):
-    ctx.settings.update(allow_online=False)
-    dialog = _welcome(ctx, monkeypatch, qtbot)
-    dialog.in_us.setChecked(True)
-    qtbot.waitUntil(lambda: not dialog.in_us.isEnabled(), timeout=10_000)
-    assert dialog.in_uk.isChecked()  # back to the UK, with the reason
-    assert "Settings › Region" in dialog.state_note.text()
-    dialog._next()
-    qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
-    assert ctx.catalogue.region() == "uk"
 
 
 # ---- step 4: the rest of Thicket follows the region ----------------------------------
@@ -208,57 +177,7 @@ def test_adding_france_shows_english_names_and_finds_french_ones(window, qtbot):
     assert len({m.taxon.id for m in catalogue.search("Erithacus rubecula")}) == 1
 
 
-def test_the_welcome_can_set_up_a_european_country(ctx, monkeypatch, qtbot):
-    serve_france_and_california(ctx)
-    dialog = _welcome(ctx, monkeypatch, qtbot)
-    dialog.in_europe.setChecked(True)
-    qtbot.waitUntil(lambda: dialog.country.count() == 1, timeout=10_000)
-    assert dialog.state.count() == 1  # California, under the US choice
-    assert dialog.chosen_pack().region == "fr"
-    dialog._next()
-    qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
-    assert "France" in dialog.progress_text.text() and ctx.catalogue.region() == "fr"
-
-
-def test_the_welcome_waits_for_a_country_too(ctx, monkeypatch, qtbot):
-    dialog = _welcome(ctx, monkeypatch, qtbot)
-    monkeypatch.setattr(dialog, "_ask_for_states", lambda: None)  # the list hasn't come yet
-    dialog.in_europe.setChecked(True)
-    dialog._next()
-    assert dialog.pages.currentIndex() == dialog.region_index
-    assert "Choose your country first" in dialog.state_note.text()
-
-
 # ---- Canada, Australia and New Zealand (docs/24-canada-australia-nz-plan.md) ---------
-def test_the_welcome_can_set_up_a_canadian_province(ctx, monkeypatch, qtbot):
-    serve_packs(
-        ctx,
-        [
-            ("ca-on", "Ontario", US_PACK),
-            ("au-tas", "Tasmania", FRANCE_PACK),
-            ("nz", "New Zealand", FRANCE_PACK),
-        ],
-    )
-    dialog = _welcome(ctx, monkeypatch, qtbot)
-    canada, ontario, _ = dialog.choices["Canada"]
-    assert ontario.isHidden()  # each list shows under its choice once chosen
-    canada.setChecked(True)
-    qtbot.waitUntil(lambda: ontario.count() == 1, timeout=10_000)
-    assert not ontario.isHidden()
-    assert dialog.choices["Australia"][1].count() == 1  # Tasmania, under Australia
-    assert dialog.choices["New Zealand"][1].count() == 1
-    assert dialog.chosen_pack().region == "ca-on"
-    dialog._next()
-    qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
-    assert "Ontario" in dialog.progress_text.text() and ctx.catalogue.region() == "ca-on"
-
-
-def test_the_welcome_waits_for_a_province_too(ctx, monkeypatch, qtbot):
-    dialog = _welcome(ctx, monkeypatch, qtbot)
-    monkeypatch.setattr(dialog, "_ask_for_states", lambda: None)  # the list hasn't come yet
-    dialog.choices["Canada"][0].setChecked(True)
-    dialog._next()
-    assert "Choose your province or territory first" in dialog.state_note.text()
 
 
 def test_the_list_has_canada_australia_and_new_zealand_under_headings(window, qtbot):
@@ -279,17 +198,6 @@ def test_the_list_has_canada_australia_and_new_zealand_under_headings(window, qt
 
 
 # ---- Latin America and the Caribbean (docs/25-latin-america-caribbean-plan.md) -------
-def test_the_welcome_can_set_up_a_latin_american_country(ctx, monkeypatch, qtbot):
-    serve_packs(ctx, [("cr", "Costa Rica", FRANCE_PACK), ("fr", "France", FRANCE_PACK)])
-    dialog = _welcome(ctx, monkeypatch, qtbot)
-    choice, countries, _ = dialog.choices["Latin America and the Caribbean"]
-    assert countries.isHidden()
-    choice.setChecked(True)
-    qtbot.waitUntil(lambda: countries.count() == 1, timeout=10_000)  # not France
-    assert dialog.chosen_pack().region == "cr"
-    dialog._next()
-    qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
-    assert "Costa Rica" in dialog.progress_text.text() and ctx.catalogue.region() == "cr"
 
 
 def test_the_list_has_latin_america_last_under_its_heading(window, qtbot):
@@ -307,17 +215,6 @@ def test_the_list_has_latin_america_last_under_its_heading(window, qtbot):
 
 
 # ---- Africa (docs/26-africa-plan.md) ---------------------------------------------------
-def test_the_welcome_can_set_up_an_african_country(ctx, monkeypatch, qtbot):
-    serve_packs(ctx, [("ke", "Kenya", FRANCE_PACK), ("cr", "Costa Rica", FRANCE_PACK)])
-    dialog = _welcome(ctx, monkeypatch, qtbot)
-    choice, countries, _ = dialog.choices["Africa"]
-    assert countries.isHidden()
-    choice.setChecked(True)
-    qtbot.waitUntil(lambda: countries.count() == 1, timeout=10_000)  # not Costa Rica
-    assert dialog.chosen_pack().region == "ke"
-    dialog._next()
-    qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
-    assert "Kenya" in dialog.progress_text.text() and ctx.catalogue.region() == "ke"
 
 
 def test_the_list_has_africa_last_under_its_heading(window, qtbot):
@@ -389,3 +286,145 @@ def test_the_region_picker_on_its_own(qtbot):
     picker.filter.setText("England")
     assert notes[-1] == "The UK's species list is built in: it's the first choice above."
     assert picker.chosen() is None  # Kenya is hidden now
+
+
+# ---- the welcome: the UK, or somewhere else (docs/27-find-your-region-plan.md) --------
+def _somewhere_else(dialog, qtbot, rows: int):
+    """Choose "Somewhere else" and wait for the list (`rows` lines, headings included)."""
+    dialog.elsewhere.setChecked(True)  # only now is the list of regions fetched
+    qtbot.waitUntil(lambda: dialog.picker.list.count() == rows, timeout=10_000)
+    assert dialog.picker.isVisible() or not dialog.isVisible()
+
+
+def _pick(dialog, typed: str):
+    """Type in the search and choose the first region it finds."""
+    dialog.picker.filter.setText(typed)
+    items = [dialog.picker.list.item(i) for i in range(dialog.picker.list.count())]
+    first = next(i for i in items if not i.isHidden() and i.data(Qt.ItemDataRole.UserRole))
+    dialog.picker.list.setCurrentItem(first)
+
+
+def _installs(dialog, qtbot, name: str, region: str):
+    dialog._next()  # to the install page: the UK list, then the region's pack
+    qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
+    assert name in dialog.progress_text.text()
+    assert dialog.ctx.catalogue.region() == region
+
+
+def test_the_welcome_can_set_up_a_us_state(ctx, monkeypatch, qtbot):
+    serve_us_pack(ctx)
+    dialog = _welcome(ctx, monkeypatch, qtbot)
+    assert dialog.in_uk.isChecked() and dialog.picker.isHidden()
+    _somewhere_else(dialog, qtbot, 2)  # United States, California
+    _pick(dialog, "calif")
+    _installs(dialog, qtbot, "California", "us-ca")
+
+
+def test_every_region_is_in_one_list_under_its_heading(ctx, monkeypatch, qtbot):
+    serve_packs(
+        ctx,
+        [
+            ("ke", "Kenya", FRANCE_PACK),
+            ("cr", "Costa Rica", FRANCE_PACK),
+            ("nz", "New Zealand", FRANCE_PACK),
+            ("au-tas", "Tasmania", FRANCE_PACK),
+            ("ca-on", "Ontario", US_PACK),
+            ("fr", "France", FRANCE_PACK),
+        ],
+    )
+    dialog = _welcome(ctx, monkeypatch, qtbot)
+    _somewhere_else(dialog, qtbot, 12)
+    headings = [dialog.picker.list.item(i).text() for i in range(0, 12, 2)]
+    assert headings == [
+        "Europe",
+        "Canada",
+        "Australia",
+        "New Zealand",
+        "Latin America and the Caribbean",
+        "Africa",
+    ]
+    assert dialog.chosen_pack() is None  # no suggestion: nothing is chosen for you
+    dialog._next()
+    assert dialog.pages.currentIndex() == dialog.region_index
+    assert "Choose your region first: type its name" in dialog.state_note.text()
+    _pick(dialog, "costa")
+    _installs(dialog, qtbot, "Costa Rica", "cr")
+
+
+def test_a_double_click_goes_on_as_continue_does(ctx, monkeypatch, qtbot):
+    serve_packs(ctx, [("ca-on", "Ontario", US_PACK), ("fr", "France", FRANCE_PACK)])
+    dialog = _welcome(ctx, monkeypatch, qtbot)
+    _somewhere_else(dialog, qtbot, 4)
+    _pick(dialog, "ontario")
+    dialog.picker.list.itemDoubleClicked.emit(dialog.picker.list.currentItem())
+    qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
+    assert "Ontario" in dialog.progress_text.text() and ctx.catalogue.region() == "ca-on"
+
+
+def test_the_welcome_waits_for_a_region_before_going_on(ctx, monkeypatch, qtbot):
+    """Choosing somewhere else and pressing Continue before the list came used to install
+    only the UK list, without a word."""
+    dialog = _welcome(ctx, monkeypatch, qtbot)
+    monkeypatch.setattr(dialog, "_ask_for_states", lambda: None)  # the list hasn't come yet
+    dialog.elsewhere.setChecked(True)
+    dialog._next()
+    assert dialog.pages.currentIndex() == dialog.region_index
+    assert "Choose your region first: the list is on its way" in dialog.state_note.text()
+
+
+def test_the_welcome_carries_on_with_the_uk_without_internet(ctx, monkeypatch, qtbot):
+    ctx.settings.update(allow_online=False)
+    dialog = _welcome(ctx, monkeypatch, qtbot)
+    dialog.elsewhere.setChecked(True)
+    qtbot.waitUntil(lambda: not dialog.elsewhere.isEnabled(), timeout=10_000)
+    assert dialog.in_uk.isChecked() and dialog.picker.isHidden()  # back, with the reason
+    assert "Settings › Region" in dialog.state_note.text()
+    dialog._next()
+    qtbot.waitUntil(lambda: dialog.next_btn.isEnabled(), timeout=15_000)
+    assert ctx.catalogue.region() == "uk"
+
+
+def test_windows_country_is_suggested_but_the_uk_stays_chosen(ctx, monkeypatch, qtbot):
+    asked = []
+    serve_packs(ctx, [("ke", "Kenya", FRANCE_PACK), ("cr", "Costa Rica", FRANCE_PACK)])
+    offered = ctx.species_packs.offered
+    monkeypatch.setattr(ctx.species_packs, "offered", lambda *a: asked.append(1) or offered(*a))
+    dialog = _welcome(ctx, monkeypatch, qtbot, country="KE")
+    assert dialog.in_uk.isChecked() and asked == []  # nothing fetched for the suggestion
+    _somewhere_else(dialog, qtbot, 4)
+    assert dialog.chosen_pack().region == "ke"
+    assert dialog.state_note.text() == (
+        "Kenya is chosen, as Windows is set to it. Type to find another region."
+    )
+    dialog.picker.filter.setText("cos")  # typing: the suggestion's note goes
+    assert dialog.state_note.text() == "" and dialog.chosen_pack() is None
+    _pick(dialog, "costa")
+    _installs(dialog, qtbot, "Costa Rica", "cr")
+
+
+def test_a_country_with_several_packs_opens_at_its_heading(ctx, monkeypatch, qtbot):
+    serve_packs(ctx, [("us-ca", "California", US_PACK), ("fr", "France", FRANCE_PACK)])
+    dialog = _welcome(ctx, monkeypatch, qtbot, country="US")
+    _somewhere_else(dialog, qtbot, 4)
+    assert dialog.chosen_pack() is None  # you choose your own state
+    assert dialog.state_note.text() == (
+        "Windows is set to the United States: choose your state below."
+    )
+
+
+@pytest.mark.parametrize("country", ["GB", "IN", None])
+def test_no_suggestion_for_the_uk_or_a_country_without_a_pack(ctx, monkeypatch, qtbot, country):
+    serve_packs(ctx, [("ke", "Kenya", FRANCE_PACK)])
+    dialog = _welcome(ctx, monkeypatch, qtbot, country=country)
+    _somewhere_else(dialog, qtbot, 2)
+    assert dialog.chosen_pack() is None and dialog.state_note.text() == ""
+
+
+def test_typing_the_uk_says_where_it_is(ctx, monkeypatch, qtbot):
+    serve_packs(ctx, [("ke", "Kenya", FRANCE_PACK)])
+    dialog = _welcome(ctx, monkeypatch, qtbot)
+    _somewhere_else(dialog, qtbot, 2)
+    dialog.picker.filter.setText("England")
+    assert dialog.state_note.text() == (
+        "The UK's species list is built in: it's the first choice above."
+    )
