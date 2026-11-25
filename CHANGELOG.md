@@ -2,6 +2,23 @@
 
 Each version's notes are used for its download page on GitHub (`scripts/release_notes.py`).
 
+## 1.11.0
+
+**Species packs for the Middle East and Asia.** 48 more regions in **Add a region…** and on the welcome screen, under two new headings:
+
+- **The Middle East:** from Israel and Jordan to Iran and the Gulf, 14 in all.
+- **Asia:** from Afghanistan and Kazakhstan to Japan and Indonesia, with Taiwan, Hong Kong, Macao, Christmas Island and the Cocos Islands: 34 in all.
+
+What you get:
+
+- **Names:** birds have the IOC names, spelt the British way ("Grey-headed Woodpecker"), as in Africa and Latin America; eBird's names still find them.
+- **Search in local languages:** Chinese, Japanese, Hebrew, Arabic, Malay and more, where GBIF has the names. "珠颈斑鸠" finds Spotted Dove in China and "シジュウカラ" finds Japanese Tit in Japan.
+- **Short searches in Chinese, Japanese, Korean, Thai and other scripts written without spaces** match anywhere in a name, so "乌鸦" (crow) finds 大嘴乌鸦, Large-billed Crow.
+- **Sizes:** China's pack has 59,592 species and Japan's 52,197. Each installs in about 12 seconds or less.
+- **Dates:** spreadsheet dates written year first (2026/05/03, 2026.05.03, 2026年5月3日, 2026년 5월 3일) are now read everywhere. In the Philippines, dates like 05/03/2026 are read month first, as in the US.
+
+**Better English names in every pack** downloaded from now on: when a species has several English names, the one most sources agree on comes first. The Giant Panda was "Bamboo Bear"; now it's "Giant Panda". The old name still finds the species. Packs you've already installed keep their old names until you update them: **Settings › Region › Add a region…** marks them "update available".
+
 ## 1.10.0
 
 **Find your region by typing.** The welcome screen asks where you record with just two choices: **United Kingdom**, or **Somewhere else**, which shows one search over every region Thicket has packs for, under its heading.

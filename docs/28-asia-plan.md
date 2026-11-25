@@ -253,3 +253,15 @@ Before publishing:
   - the Philippines: none of 773
 
   Filling these gaps would need another source of names. That's a possible later stage, not part of this plan.
+
+## Step 5 (25 Nov 2026)
+
+Version 1.11.0:
+- **The changelog** covers:
+  - the 48 packs;
+  - local-language search;
+  - short searches in scripts without spaces;
+  - year-first dates, and month-first in the Philippines;
+  - the better English names. Packs already installed keep their old names until updated, and Add a region marks them "update available".
+- **The README and the website's home, features, help and privacy pages** name the Middle East and Asia. Help has a line on what Asia's packs give you.
+- **Tests:** 801 pass.
