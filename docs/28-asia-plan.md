@@ -160,3 +160,40 @@ As before, you approve the end of each step.
 - **Words:** the "No region called…" note, Add a region's introduction and Settings name the Middle East and Asia.
 - **Not yet safe to publish packs:** `check_species_packs.py` expects a pack for every region, so a packs run before step 2 would fail. Nothing is pushed until step 4.
 - **Tests:** 796 pass, including new ones for the 48 places and the year-first dates.
+
+## Step 2 results (25 Nov 2026)
+
+**The builder** (`scripts/build_species_packs.py`):
+- `ASIA_NAMES` is the same name style as Africa's, used for both new headings.
+- `middle_eastern_countries()` and `asian_countries()` provide the areas, and `--regions middle-east,asia` works.
+
+**Trial** (`build/packs-asia2`): all pass the checker.
+
+| Pack | Species | Size | Install |
+|---|---|---|---|
+| China | 59,592 | 3.5 MB | 11.0 s |
+| Japan | 52,198 | 3.2 MB | 10.6 s |
+| India | 38,452 | 2.4 MB | 8.0 s |
+| the Philippines | 27,978 | 1.6 MB | 6.0 s |
+| Israel | 9,733 | 0.7 MB | 3.0 s |
+
+- **Birds are nearly all named:** 1,437 of 1,454 in China and 1,444 of 1,464 in India. The only "Gray" left is "Gray's Grasshopper Warbler", named after a person.
+- **Local names:**
+  - China has 4,000 in simplified and traditional characters, 326 of them only 1–2 characters long (麻雀, 白鹭, 八哥…).
+  - Japan has 5,100 in katakana (スズメ, ハシブトガラス…).
+  - Israel has about 300 each in Hebrew and Arabic.
+  - India and the Philippines have few for birds, because GBIF hasn't got them.
+- **Search** takes under 50 ms everywhere. 大嘴乌鸦 and 珠颈斑鸠 are found, but 乌鸦 and 斑鸠 are not yet (step 3).
+
+**Found and fixed: the Giant Panda was "Bamboo Bear".**
+- **The cause:** for most non-birds the most trusted source is the Catalogue of Life, which gives some species several English names in no particular order. The panda has six, and "Bamboo Bear" came first. The builder took the top source's first name, so it came down to luck.
+- **The fix:** within the same source, the name most sources agree on now comes first.
+  - Giant Panda, Red Panda, Dhole, White Rhinoceros.
+  - Hemp (not "Grass"), Stinging Nettle (not "Big-sting Nettle"), Milkfish (not "Bangos").
+- **What changes:** in a sample, 5–13% of named species, mostly fish and plants: 1,558 in California, 857 in South Africa and 882 in China.
+  - Birds don't change, since their lists give one name each, and Europe's UK names still come first.
+  - A few changes are for the worse, such as California's "Gray Wolf" becoming "Wolf".
+- **Your choice (25 Nov):** use it in every pack, from the next packs run.
+- **The old name stays searchable:** it's always kept among the three other names, so the name you learned still finds the species. In the sample, none was lost.
+
+**Tests:** new ones for the builder's Asia areas and for the name agreement. 798 pass.

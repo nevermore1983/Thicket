@@ -328,6 +328,8 @@ def test_regions_are_chosen_by_code_or_group(monkeypatch):
                 made_up("", "Latin America and the Caribbean", ["br", "cr"]),
             ),
             ("africa", "Africa", made_up("", "Africa", ["za", "ke"])),
+            ("middle-east", "Middle East", made_up("", "Middle East", ["il"])),
+            ("asia", "Asia", made_up("", "Asia", ["jp", "cn"])),
         ),
     )
     regions = lambda asked: [a.region for a in b.chosen_areas(asked)]  # noqa: E731
@@ -338,7 +340,9 @@ def test_regions_are_chosen_by_code_or_group(monkeypatch):
     assert regions("latin-america") == ["br", "cr"]
     assert regions("ke,cr,fr") == ["fr", "cr", "ke"]  # Africa's bare codes too
     assert regions("africa") == ["za", "ke"]
-    assert len(regions(None)) == 12
+    assert regions("asia,il") == ["il", "jp", "cn"]
+    assert regions("middle-east") == ["il"]
+    assert len(regions(None)) == 15
     import pytest
 
     with pytest.raises(SystemExit, match="ca-zz"):
@@ -431,3 +435,55 @@ def test_africa_is_cut_by_country_and_named_the_ioc_way():
         Candidate("Grey Go-away-bird", "IOC World Bird List"),
     ]
     assert choose_names(go_away, True, AFRICA_NAMES)[0] == "Grey Go-away-bird"
+
+
+def test_the_middle_east_and_asia_are_cut_by_country_and_named_the_ioc_way():
+    from build_species_packs import ASIA_NAMES, asian_countries, middle_eastern_countries
+
+    middle_east = {a.region: a for a in middle_eastern_countries()}
+    asia = {a.region: a for a in asian_countries()}
+    assert (len(middle_east), len(asia)) == (14, 34)
+    assert asia["tw"].filters == (("country", "TW"),) and asia["hk"].filters == (("country", "HK"),)
+    assert asia["jp"].languages == ("ja",) and asia["jp"].style is ASIA_NAMES
+    assert middle_east["il"].languages == ("he", "ar") and middle_east["il"].style is ASIA_NAMES
+    woodpecker = [
+        Candidate("Gray-headed Woodpecker", "The Clements Checklist"),
+        Candidate("Grey-headed Woodpecker", "IOC World Bird List"),
+    ]
+    assert choose_names(woodpecker, True, ASIA_NAMES)[0] == "Grey-headed Woodpecker"
+
+
+def test_the_name_most_sources_agree_on_comes_first():
+    """docs/28 step 2: the Catalogue of Life gives the Giant Panda six names, "Bamboo Bear"
+    first; most sources say "Giant Panda". The old first name stays searchable."""
+    from build_species_packs import ASIA_NAMES
+
+    col = "Catalogue of Life Checklist"
+    panda = [
+        Candidate("Bamboo Bear", col),
+        Candidate("Hong-chun-bao", col),
+        Candidate("Great Panda", col),
+        Candidate("Panda Bear", col),
+        Candidate("White Bear", col),
+        Candidate("Giant Panda", col),
+        Candidate("Giant Panda", "Mammal Species of the World"),
+        Candidate("Giant Panda", "The IUCN Red List of Threatened Species"),
+        Candidate("giant panda", "NCBI Taxonomy"),
+        Candidate("Great Panda", "Phthiraptera.myspecies.info"),
+    ]
+    shown, others = choose_names(panda, False, ASIA_NAMES)
+    assert shown == "Giant Panda" and "Bamboo Bear" in others and len(others) == 3
+    # A name that would drop out of the three kept is put back first
+    many = [Candidate("Old Pick", col)] + [
+        Candidate(name, source)
+        for name in ("Aa", "Bb", "Cc", "Dd")
+        for source in (col, "Mammal Species of the World")
+    ]
+    assert choose_names(many, False, ASIA_NAMES) == ("Aa", ["Old Pick", "Bb", "Cc"])
+    # The trusted order still comes first: a lone IOC name beats a popular other one
+    heron = [
+        Candidate("Gray Heron", "The Clements Checklist"),
+        Candidate("Gray Heron", "Catalogue of Life Checklist"),
+        Candidate("Grey Heron", "IOC World Bird List"),
+    ]
+    assert choose_names(heron, True, ASIA_NAMES)[0] == "Grey Heron"

@@ -1,8 +1,8 @@
 """Build species packs from GBIF: one per European country, US state, Canadian province or
 territory, Australian state or territory, and country or territory of Latin America, the
-Caribbean and Africa, and one for New Zealand (docs/16-regions-plan.md,
-docs/23-europe-packs-plan.md, docs/24-canada-australia-nz-plan.md,
-docs/25-latin-america-caribbean-plan.md, docs/26-africa-plan.md).
+Caribbean, Africa, the Middle East and Asia, and one for New Zealand
+(docs/16-regions-plan.md, docs/23-europe-packs-plan.md, docs/24-canada-australia-nz-plan.md,
+docs/25-latin-america-caribbean-plan.md, docs/26-africa-plan.md, docs/28-asia-plan.md).
 
     uv run python scripts/build_species_packs.py --backbone local_data/gbif/backbone.zip
     uv run python scripts/build_species_packs.py --backbone ... --regions fr,es,ie,us-oh
@@ -17,10 +17,12 @@ For each region:
    for the US and Canada as North American birders and naturalists use them; for
    Europe the UK list's name first (Thicket is in British English), then names used in
    Britain or Ireland; for Australia and New Zealand, IOC bird names and their own; for
-   Latin America, the Caribbean and Africa, IOC bird names spelt the British way.
+   Latin America, the Caribbean, Africa, the Middle East and Asia, IOC bird names spelt
+   the British way.
    Packs also carry names in the region's other languages ("ln"), for search: French in
    Europe, Québec and New Brunswick, Māori in New Zealand, Spanish and Portuguese in
-   Latin America, Arabic, Swahili, Afrikaans and more in Africa...
+   Latin America, Arabic, Swahili, Afrikaans and more in Africa, Chinese, Japanese,
+   Hebrew, Malay and more in Asia and the Middle East...
 Output (in --out, default build/packs): fr.jsonl.gz, us-ca.jsonl.gz ... in the same
 record format as the UK list (so Thicket installs them with the same code), and lists
 of them with each pack's species count, size and SHA-256, which Thicket checks before
@@ -55,11 +57,13 @@ sys.path.insert(0, str(ROOT / "src"))
 from wildlife.data.repositories.taxa import binomial_of, same_species_word  # noqa: E402
 from wildlife.domain.regions import (  # noqa: E402  (one list of regions, shared with the app)
     AFRICA,
+    ASIA,
     AU_STATE_CODES,
     AUSTRALIA,
     CANADA,
     EUROPE,
     LATIN_AMERICA,
+    MIDDLE_EAST,
     NEW_ZEALAND,
     NZ,
     POSTAL_CODES,
@@ -173,6 +177,11 @@ LATIN_AMERICA_NAMES = NameStyle(
 AFRICA_NAMES = NameStyle(
     EUROPE_BIRD_SOURCES, ("GB",), home_first=False, uk_names="not birds", british=True
 )
+# The Middle East and Asia: the same again (docs/28). Asia's field guides mostly use the
+# IOC names, and so do Israel's and the Gulf's bird lists in English.
+ASIA_NAMES = NameStyle(
+    EUROPE_BIRD_SOURCES, ("GB",), home_first=False, uk_names="not birds", british=True
+)
 # Where GBIF's Backbone keeps one species that the IOC list (and eBird, iNaturalist and the
 # UK list) splits, the region's birds go under the species they belong to: Australia's
 # Rainbow Lorikeet is Trichoglossus moluccanus, not GBIF's T. haematodus (the Coconut
@@ -231,6 +240,8 @@ STYLES = {
     NEW_ZEALAND: NEW_ZEALAND_NAMES,
     LATIN_AMERICA: LATIN_AMERICA_NAMES,
     AFRICA: AFRICA_NAMES,
+    MIDDLE_EAST: ASIA_NAMES,
+    ASIA: ASIA_NAMES,
 }
 
 
@@ -262,7 +273,18 @@ def choose_names(
 ) -> tuple[str | None, list[str]]:
     """(the common name to show, up to 3 other English names for search). `uk_name`, the
     UK list's name for the species, comes first when given (European packs)."""
-    ranked = sorted(candidates, key=lambda c: _rank(c, is_bird, style))
+    # How many sources give each name. When the most trusted source gives several, in no
+    # particular order (the Catalogue of Life gives the Giant Panda six, "Bamboo Bear"
+    # first), the one most sources agree on comes first (docs/28-asia-plan.md, step 2).
+    agree: dict[str, set[str]] = {}
+    for c in candidates:
+        if name := tidy(c.name):
+            agree.setdefault(name.lower(), set()).add(c.source)
+
+    def votes(c: Candidate) -> int:
+        return len(agree.get((tidy(c.name) or "").lower(), ()))
+
+    ranked = sorted(candidates, key=lambda c: (*_rank(c, is_bird, style), -votes(c)))
     names: list[str] = [uk_name] if uk_name else []
     for c in ranked:
         name = tidy(c.name)
@@ -274,7 +296,22 @@ def choose_names(
         for c in ranked:
             if name := tidy(BRACKETED.sub("", c.name)):
                 return name, []
-    return (names[0] if names else None), names[1:4]
+    others = names[1:4]
+    # The name packs showed before agreement counted (the top source's first) stays
+    # searchable, so the name you learned still finds the species
+    before = next(
+        (
+            n
+            for c in sorted(candidates, key=lambda c: _rank(c, is_bird, style))
+            if (n := tidy(c.name))
+        ),
+        None,
+    )
+    if before and style.british:
+        before = GRAY.sub(lambda m: m[1] + "rey", before)
+    if before and before.lower() not in {n.lower() for n in names[:4]}:
+        others = [before, *names[1:3]]
+    return (names[0] if names else None), others
 
 
 def local_names(
@@ -522,6 +559,14 @@ def african_countries() -> list[Area]:
     return countries(AFRICA)
 
 
+def middle_eastern_countries() -> list[Area]:
+    return countries(MIDDLE_EAST)
+
+
+def asian_countries() -> list[Area]:
+    return countries(ASIA)
+
+
 # Each group's name for --regions, its group in domain/regions.py, and its areas
 SOURCES_OF_AREAS = (
     ("us", US, us_states),
@@ -531,6 +576,8 @@ SOURCES_OF_AREAS = (
     ("europe", EUROPE, european_countries),
     ("latin-america", LATIN_AMERICA, latin_american_countries),
     ("africa", AFRICA, african_countries),
+    ("middle-east", MIDDLE_EAST, middle_eastern_countries),
+    ("asia", ASIA, asian_countries),
 )
 
 
@@ -657,8 +704,8 @@ def write_pack(path: Path, records: list[dict]) -> tuple[int, str]:
 
 def chosen_areas(wanted: str | None) -> list[Area]:
     """Every region, or those asked for: region codes ('fr,ca-on,nz') or whole groups
-    ('europe', 'us', 'canada', 'australia', 'nz', 'latin-america', 'africa'). Only the
-    groups needed are asked GBIF for their areas."""
+    ('europe', 'us', 'canada', 'australia', 'nz', 'latin-america', 'africa',
+    'middle-east', 'asia'). Only the groups needed are asked GBIF for their areas."""
     if not wanted:
         return [a for _, _, areas in SOURCES_OF_AREAS for a in areas()]
     asked = {w.strip().lower() for w in wanted.split(",") if w.strip()}
@@ -689,7 +736,7 @@ def main() -> None:
     parser.add_argument(
         "--regions",
         help="only these: region codes (fr,ca-on,nz) or europe, us, canada, australia, nz, "
-        "latin-america, africa (default: all)",
+        "latin-america, africa, middle-east, asia (default: all)",
     )
     parser.add_argument("--min-records", type=int, default=5)
     parser.add_argument(
